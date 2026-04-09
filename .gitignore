@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual Environment
+venv/
+env/
+.env
+.venv/
+__pycache__/
+*.pyc
+.env
+.venv/
+.runtime/
+__pycache__/
+*.log
+
+# ML Models (large binaries)
+models/*.pkl
+models/*.joblib
+models/*.h5
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+logs/*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+package-lock.json
+
+# Colab
+.ipynb_checkpoints/
+
+# Secrets
+*.pem
+*.key
+credentials.json
+node_modules/
+package.json
+package-lock.json
+docs/generate_report.js
+

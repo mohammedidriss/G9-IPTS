@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPTS - Integrated Payment Transformation System</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%2310b981'/><text x='16' y='22' text-anchor='middle' font-size='14' font-weight='bold' fill='%230a0e17' font-family='monospace'>IP</text></svg>">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        dark: { 900: '#0a0e17', 800: '#111827', 700: '#1a2332', 600: '#1e2d3d', 500: '#2a3f55' },
+        accent: { DEFAULT: '#10b981', dim: '#064e3b' },
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { background: #0a0e17; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #111827; }
+  ::-webkit-scrollbar-thumb { background: #2a3f55; border-radius: 3px; }
+  ::selection { background: rgba(16,185,129,0.3); }
+  .glass { background: rgba(17,24,39,0.8); backdrop-filter: blur(12px); border: 1px solid rgba(42,63,85,0.5); }
+  .glow-green { box-shadow: 0 0 20px rgba(16,185,129,0.15); }
+  .glow-red { box-shadow: 0 0 20px rgba(239,68,68,0.15); }
+  .pulse-dot { animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  .fade-in { animation: fadeIn 0.3s ease-out; }
+  .tab-active { border-bottom: 2px solid #10b981; color: #10b981; }
+  .status-settled { color: #10b981; }
+  .status-flagged { color: #f59e0b; }
+  .status-blocked { color: #ef4444; }
+  .status-pending { color: #8b5cf6; }
+  .status-approved { color: #10b981; }
+  .status-rejected { color: #ef4444; }
+  input, select, textarea { background: #1a2332; border: 1px solid #2a3f55; color: #e2e8f0; }
+  input:focus, select:focus, textarea:focus { border-color: #10b981; outline: none; box-shadow: 0 0 0 2px rgba(16,185,129,0.2); }
+  .severity-critical { color: #ef4444; background: rgba(239,68,68,0.1); }
+  .severity-high { color: #f97316; background: rgba(249,115,22,0.1); }
+  .severity-medium { color: #f59e0b; background: rgba(245,158,11,0.1); }
+  .severity-low { color: #10b981; background: rgba(16,185,129,0.1); }
+  .badge { padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+  .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;display:flex;align-items:center;justify-content:center; }
+  .modal-content { background:#111827;border:1px solid #2a3f55;border-radius:12px;max-width:700px;width:95%;max-height:85vh;overflow-y:auto;padding:24px; }
+</style>
+</head>
+<body class="text-gray-300 min-h-screen">
+
+<!-- Login Screen -->
+<div id="loginScreen" class="min-h-screen flex items-center justify-center">
+  <div class="glass rounded-2xl p-10 w-full max-w-md glow-green fade-in">
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-accent/20 mb-4">
+        <i class="fas fa-shield-halved text-3xl text-accent"></i>
+      </div>
+      <h1 class="text-2xl font-bold text-white">IPTS</h1>
+      <p class="text-gray-500 text-sm mt-1">Integrated Payment Transformation System</p>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1 uppercase tracking-wider">Username</label>
+        <input id="loginUser" type="text" value="mohamad" class="w-full px-4 py-3 rounded-lg text-sm" placeholder="Enter username">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1 uppercase tracking-wider">Password</label>
+        <input id="loginPass" type="password" value="Mohamad@2026!" class="w-full px-4 py-3 rounded-lg text-sm" placeholder="Enter password">
+      </div>
+      <button onclick="doLogin()" class="w-full py-3 rounded-lg bg-accent text-dark-900 font-semibold hover:bg-accent/90 transition">
+        <i class="fas fa-right-to-bracket mr-2"></i>Authenticate
+      </button>
+      <div id="loginError" class="hidden text-red-400 text-sm text-center mt-2"></div>
+    </div>
+    <div class="mt-6 pt-4 border-t border-dark-600">
+      <p class="text-xs text-gray-600 text-center mb-3">Available Test Accounts</p>
+      <table class="w-full text-xs text-gray-500">
+        <tr class="border-b border-dark-700"><td class="py-1 font-mono text-accent">mohamad</td><td>Mohamad@2026!</td><td class="text-right">Admin</td><td class="text-right text-blue-400">$1,000,000</td></tr>
+        <tr class="border-b border-dark-700"><td class="py-1 font-mono text-accent">rohit</td><td>Rohit@2026!</td><td class="text-right">Operator</td><td class="text-right text-blue-400">$750,000</td></tr>
+        <tr class="border-b border-dark-700"><td class="py-1 font-mono text-accent">sriram</td><td>Sriram@2026!</td><td class="text-right">Auditor</td><td class="text-right text-blue-400">$500,000</td></tr>
+        <tr class="border-b border-dark-700"><td class="py-1 font-mono text-accent">walid</td><td>Walid@2026!</td><td class="text-right">Compliance</td><td class="text-right text-blue-400">$350,000</td></tr>
+        <tr><td class="py-1 font-mono text-accent">vibin</td><td>Vibin@2026!</td><td class="text-right">Data Scientist</td><td class="text-right text-blue-400">$150,000</td></tr>
+      </table>
+    </div>
+    <div class="mt-4 text-center text-xs text-gray-600">
+      Zero Trust Architecture &bull; JWT HS256 &bull; AML/KYC Compliant
+    </div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="mainApp" class="hidden">
+  <!-- Header -->
+  <header class="glass sticky top-0 z-50 px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
+        <i class="fas fa-shield-halved text-accent"></i>
+      </div>
+      <span class="font-bold text-white text-lg">IPTS</span>
+      <span class="text-xs text-gray-600 hidden sm:inline">Enterprise Settlement Platform</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <span id="healthDot" class="pulse-dot inline-block w-2 h-2 rounded-full bg-accent" title="System healthy"></span>
+      <span id="healthLabel" class="text-xs text-gray-500">LIVE</span>
+      <div class="hidden sm:flex items-center gap-2">
+        <span id="headerFullName" class="text-sm font-semibold text-white"></span>
+        <span id="headerRoleBadge" class="badge bg-accent/20 text-accent"></span>
+      </div>
+      <div class="hidden sm:block text-right">
+        <span id="headerBalance" class="text-sm font-bold text-blue-400"></span>
+      </div>
+      <button onclick="doLogout()" class="text-xs text-gray-500 hover:text-red-400 transition">
+        <i class="fas fa-right-from-bracket"></i> Logout
+      </button>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <nav class="flex gap-1 px-6 pt-4 border-b border-dark-600 overflow-x-auto">
+    <button onclick="switchTab('dashboard')" data-tab="dashboard" class="tab-btn tab-active px-4 py-2 text-sm font-medium transition whitespace-nowrap">
+      <i class="fas fa-chart-line mr-1"></i>Dashboard
+    </button>
+    <button onclick="switchTab('payments')" data-tab="payments" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+      <i class="fas fa-money-bill-transfer mr-1"></i>Payments
+    </button>
+    <button onclick="switchTab('aiml')" data-tab="aiml" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+      <i class="fas fa-brain mr-1"></i>AI/ML
+    </button>
+    <button onclick="switchTab('graph')" data-tab="graph" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+      <i class="fas fa-diagram-project mr-1"></i>Network Graph
+    </button>
+    <button onclick="switchTab('admin')" data-tab="admin" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+      <i class="fas fa-user-shield mr-1"></i>Admin
+    </button>
+    <button onclick="switchTab('compliance')" data-tab="compliance" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+      <i class="fas fa-scale-balanced mr-1"></i>Compliance
+    </button>
+    <button onclick="switchTab('cases')" data-tab="cases" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+      <i class="fas fa-folder-open mr-1"></i>Case Management
+    </button>
+  </nav>
+
+  <!-- Tab Content -->
+  <main class="p-6 max-w-7xl mx-auto">
+
+    <!-- DASHBOARD TAB -->
+    <div id="tab-dashboard" class="tab-content fade-in">
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="glass rounded-xl p-5 glow-green">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs text-gray-500 uppercase tracking-wider">Total Settlements</p>
+              <p id="kpiTotal" class="text-3xl font-bold text-white mt-1">0</p>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center">
+              <i class="fas fa-receipt text-accent"></i>
+            </div>
+          </div>
+        </div>
+        <div class="glass rounded-xl p-5 glow-red">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs text-gray-500 uppercase tracking-wider">Blocked Transactions</p>
+              <p id="kpiBlocked" class="text-3xl font-bold text-red-400 mt-1">0</p>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+              <i class="fas fa-ban text-red-400"></i>
+            </div>
+          </div>
+        </div>
+        <div class="glass rounded-xl p-5">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs text-gray-500 uppercase tracking-wider">Flagged</p>
+              <p id="kpiFlagged" class="text-3xl font-bold text-yellow-400 mt-1">0</p>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
+              <i class="fas fa-flag text-yellow-400"></i>
+            </div>
+          </div>
+        </div>
+        <div class="glass rounded-xl p-5">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs text-gray-500 uppercase tracking-wider">Nostro Liquidity (USD)</p>
+              <p id="kpiLiquidity" class="text-3xl font-bold text-blue-400 mt-1">$0</p>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+              <i class="fas fa-dollar-sign text-blue-400"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FX Rates Ticker -->
+      <div class="glass rounded-xl p-4 mb-6">
+        <div class="flex items-center gap-2 mb-2">
+          <i class="fas fa-exchange-alt text-accent text-xs"></i>
+          <span class="text-xs font-semibold text-white">Live FX Rates (USD)</span>
+        </div>
+        <div id="fxTicker" class="flex flex-wrap gap-3 text-xs">
+          <span class="text-gray-500">Loading rates...</span>
+        </div>
+      </div>
+
+      <!-- Chart -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-chart-area mr-2 text-accent"></i>Settlement Volume</h3>
+        <canvas id="volumeChart" height="200"></canvas>
+      </div>
+
+      <!-- AML Telemetry Table -->
+      <div class="glass rounded-xl p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-sm font-semibold text-white"><i class="fas fa-satellite-dish mr-2 text-accent"></i>AML Telemetry - Live Ledger</h3>
+          <span class="pulse-dot inline-block w-2 h-2 rounded-full bg-accent"></span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-gray-500 border-b border-dark-600">
+                <th class="text-left py-2 px-2">Timestamp</th>
+                <th class="text-left py-2 px-2">Sender</th>
+                <th class="text-left py-2 px-2">Beneficiary</th>
+                <th class="text-right py-2 px-2">Amount (USD)</th>
+                <th class="text-right py-2 px-2">Risk Score</th>
+                <th class="text-center py-2 px-2">Status</th>
+                <th class="text-left py-2 px-2">Hash</th>
+              </tr>
+            </thead>
+            <tbody id="telemetryBody">
+              <tr><td colspan="7" class="text-center py-8 text-gray-600">No transactions yet. Execute a settlement to begin.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAYMENTS TAB -->
+    <div id="tab-payments" class="tab-content hidden fade-in">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Settlement Form -->
+        <div class="glass rounded-xl p-6">
+          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-paper-plane mr-2 text-accent"></i>Execute Settlement</h3>
+          <div class="space-y-4">
+            <!-- Sender info (read-only) -->
+            <div class="bg-dark-700 rounded-lg p-4 border border-dark-500">
+              <div class="flex justify-between items-center">
+                <div>
+                  <p class="text-xs text-gray-500 uppercase">Sender</p>
+                  <p id="paySenderName" class="text-white font-semibold mt-1">Loading...</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-xs text-gray-500 uppercase">Available Balance</p>
+                  <p id="paySenderBalance" class="text-2xl font-bold text-blue-400 mt-1">$0.00</p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Beneficiary</label>
+              <select id="payBeneficiary" class="w-full px-3 py-2 rounded-lg text-sm">
+                <option value="">Select beneficiary...</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+              <div class="col-span-2">
+                <label class="block text-xs text-gray-500 mb-1">Amount</label>
+                <input id="payAmount" type="number" value="50000" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="Enter amount" oninput="updateFXPreview()">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">Currency</label>
+                <select id="payCurrency" class="w-full px-3 py-2 rounded-lg text-sm" onchange="updateFXPreview()">
+                  <option value="USD">USD</option>
+                </select>
+              </div>
+            </div>
+            <div id="fxPreview" class="hidden text-xs bg-dark-700 rounded-lg p-3 border border-dark-500">
+              <div class="flex justify-between items-center">
+                <span class="text-gray-500"><i class="fas fa-exchange-alt mr-1"></i>FX Conversion</span>
+                <span id="fxPreviewRate" class="text-accent font-mono"></span>
+              </div>
+              <div class="flex justify-between items-center mt-1">
+                <span class="text-gray-500">Settlement Amount (USD)</span>
+                <span id="fxPreviewUSD" class="text-white font-bold"></span>
+              </div>
+            </div>
+            <div id="amlWarning" class="hidden text-xs bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-yellow-400">
+              <i class="fas fa-exclamation-triangle mr-1"></i>
+              <span id="amlWarningText"></span>
+            </div>
+            <div id="payError" class="hidden text-red-400 text-sm bg-red-500/10 rounded-lg p-3"></div>
+            <button onclick="executeSettlement()" id="payBtn" class="w-full py-3 rounded-lg bg-accent text-dark-900 font-semibold hover:bg-accent/90 transition">
+              <i class="fas fa-bolt mr-2"></i>Execute Settlement
+            </button>
+          </div>
+        </div>
+
+        <!-- Result Display -->
+        <div class="glass rounded-xl p-6">
+          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-receipt mr-2 text-accent"></i>Settlement Result</h3>
+          <div id="payResult" class="text-gray-500 text-sm">
+            <p class="text-center py-12">Submit a settlement to see results here.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI/ML TAB -->
+    <div id="tab-aiml" class="tab-content hidden fade-in">
+      <!-- Model Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6" id="modelCards"></div>
+
+      <!-- Feature Importance Chart -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-chart-bar mr-2 text-accent"></i>Feature Importance</h3>
+        <canvas id="featureChart" height="200"></canvas>
+      </div>
+
+      <!-- SHAP Explainability -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-lightbulb mr-2 text-yellow-400"></i>SHAP Explainability (Last Transaction)</h3>
+        <div id="shapContainer" class="text-center text-gray-600 text-xs py-8">
+          Execute a settlement to see SHAP feature contributions.
+        </div>
+        <canvas id="shapChart" class="hidden" height="180"></canvas>
+      </div>
+
+      <!-- Retrain Button -->
+      <div id="retrainSection" class="glass rounded-xl p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-semibold text-white"><i class="fas fa-rotate mr-2 text-accent"></i>Model Retraining</h3>
+            <p class="text-xs text-gray-500 mt-1">Retrain all 5 models with fresh synthetic data</p>
+          </div>
+          <button onclick="retrainModels()" id="retrainBtn" class="px-6 py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-500 transition">
+            <i class="fas fa-gears mr-2"></i>Retrain Models
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- NETWORK GRAPH TAB -->
+    <div id="tab-graph" class="tab-content hidden fade-in">
+      <div class="glass rounded-xl p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-sm font-semibold text-white"><i class="fas fa-diagram-project mr-2 text-accent"></i>Transaction Network Graph</h3>
+          <div class="flex gap-2 text-xs">
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-accent inline-block"></span>Normal</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>Cycle Node</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>High Centrality</span>
+          </div>
+        </div>
+        <div id="graphContainer" style="width:100%;height:500px;background:#0d1117;border-radius:8px;overflow:hidden;"></div>
+      </div>
+    </div>
+
+    <!-- ADMIN TAB -->
+    <div id="tab-admin" class="tab-content hidden fade-in">
+      <!-- HITL Queue -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-sm font-semibold text-white"><i class="fas fa-user-check mr-2 text-yellow-400"></i>Human-in-the-Loop Queue</h3>
+          <button onclick="loadHITL()" class="text-xs text-accent hover:underline"><i class="fas fa-refresh mr-1"></i>Refresh</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-gray-500 border-b border-dark-600">
+                <th class="text-left py-2 px-2">ID</th>
+                <th class="text-left py-2 px-2">Beneficiary</th>
+                <th class="text-right py-2 px-2">Amount</th>
+                <th class="text-right py-2 px-2">Risk Score</th>
+                <th class="text-left py-2 px-2">Reason</th>
+                <th class="text-center py-2 px-2">Four-Eyes</th>
+                <th class="text-center py-2 px-2">Status</th>
+                <th class="text-center py-2 px-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="hitlBody">
+              <tr><td colspan="8" class="text-center py-6 text-gray-600">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Audit Log -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-sm font-semibold text-white"><i class="fas fa-clipboard-list mr-2 text-cyan-400"></i>Audit Log</h3>
+          <button onclick="loadAudit()" class="text-xs text-accent hover:underline"><i class="fas fa-refresh mr-1"></i>Refresh</button>
+        </div>
+        <div class="overflow-x-auto max-h-64 overflow-y-auto">
+          <table class="w-full text-xs">
+            <thead class="sticky top-0 bg-dark-800">
+              <tr class="text-gray-500 border-b border-dark-600">
+                <th class="text-left py-2 px-2">Time</th>
+                <th class="text-left py-2 px-2">Event</th>
+                <th class="text-left py-2 px-2">Actor</th>
+                <th class="text-left py-2 px-2">Details</th>
+              </tr>
+            </thead>
+            <tbody id="auditBody">
+              <tr><td colspan="4" class="text-center py-6 text-gray-600">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- GDPR Erasure -->
+      <div class="glass rounded-xl p-6">
+        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-eraser mr-2 text-red-400"></i>GDPR Right to Erasure</h3>
+        <div class="flex gap-3">
+          <input id="gdprEntityId" type="text" class="flex-1 px-3 py-2 rounded-lg text-sm" placeholder="Entity ID to erase">
+          <button onclick="gdprErase()" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-500 transition">
+            <i class="fas fa-trash mr-1"></i>Erase
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPLIANCE TAB -->
+    <div id="tab-compliance" class="tab-content hidden fade-in">
+      <!-- Sanctions Management -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-gavel mr-2 text-red-400"></i>Sanctions List Management</h3>
+        <div class="flex gap-3 mb-4">
+          <input id="sanctionName" type="text" class="flex-1 px-3 py-2 rounded-lg text-sm" placeholder="Entity name">
+          <select id="sanctionType" class="px-3 py-2 rounded-lg text-sm">
+            <option value="individual">Individual</option>
+            <option value="organization">Organization</option>
+            <option value="vessel">Vessel</option>
+          </select>
+          <button onclick="addSanction()" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-500 transition">
+            <i class="fas fa-plus mr-1"></i>Add
+          </button>
+        </div>
+        <div class="overflow-x-auto max-h-48 overflow-y-auto">
+          <table class="w-full text-xs">
+            <thead class="sticky top-0 bg-dark-800">
+              <tr class="text-gray-500 border-b border-dark-600">
+                <th class="text-left py-2 px-2">Entity Name</th>
+                <th class="text-left py-2 px-2">Type</th>
+                <th class="text-left py-2 px-2">Added By</th>
+                <th class="text-left py-2 px-2">Date</th>
+              </tr>
+            </thead>
+            <tbody id="sanctionsBody">
+              <tr><td colspan="4" class="text-center py-4 text-gray-600">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SWIFT GPI Tracker -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-search mr-2 text-blue-400"></i>SWIFT GPI Tracker</h3>
+        <div class="flex gap-3 mb-4">
+          <input id="gpiUetr" type="text" class="flex-1 px-3 py-2 rounded-lg text-sm" placeholder="Enter UETR (UUID)">
+          <button onclick="trackGPI()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-500 transition">
+            <i class="fas fa-magnifying-glass mr-1"></i>Track
+          </button>
+        </div>
+        <div id="gpiResult" class="text-gray-500 text-sm"></div>
+      </div>
+
+      <!-- FX Converter Tool -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-calculator mr-2 text-accent"></i>FX Converter</h3>
+        <div class="grid grid-cols-5 gap-3 items-end">
+          <div class="col-span-2">
+            <label class="block text-xs text-gray-500 mb-1">Amount</label>
+            <input id="fxConvertAmount" type="number" value="10000" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="Amount">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">From</label>
+            <select id="fxConvertFrom" class="w-full px-3 py-2 rounded-lg text-sm">
+              <option value="USD">USD</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">To</label>
+            <select id="fxConvertTo" class="w-full px-3 py-2 rounded-lg text-sm">
+              <option value="EUR">EUR</option>
+            </select>
+          </div>
+          <button onclick="convertFX()" class="px-4 py-2 rounded-lg bg-accent text-dark-900 text-sm font-medium hover:bg-accent/90 transition">
+            <i class="fas fa-exchange-alt mr-1"></i>Convert
+          </button>
+        </div>
+        <div id="fxConvertResult" class="mt-3 text-sm text-gray-500"></div>
+      </div>
+
+      <!-- Nostro Balances -->
+      <div class="glass rounded-xl p-6">
+        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-dollar-sign mr-2 text-blue-400"></i>Nostro Balances (USD)</h3>
+        <div id="nostroBalances" class="space-y-2">
+          <p class="text-gray-500 text-sm">Loading...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CASE MANAGEMENT TAB -->
+    <div id="tab-cases" class="tab-content hidden fade-in">
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="glass rounded-xl p-5">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs text-gray-500 uppercase tracking-wider">Open Cases</p>
+              <p id="caseOpen" class="text-3xl font-bold text-red-400 mt-1">0</p>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+              <i class="fas fa-folder-open text-red-400"></i>
+            </div>
+          </div>
+        </div>
+        <div class="glass rounded-xl p-5">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs text-gray-500 uppercase tracking-wider">Under Investigation</p>
+              <p id="caseInvestigating" class="text-3xl font-bold text-yellow-400 mt-1">0</p>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
+              <i class="fas fa-magnifying-glass text-yellow-400"></i>
+            </div>
+          </div>
+        </div>
+        <div class="glass rounded-xl p-5">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs text-gray-500 uppercase tracking-wider">Escalated</p>
+              <p id="caseEscalated" class="text-3xl font-bold text-orange-400 mt-1">0</p>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
+              <i class="fas fa-arrow-up text-orange-400"></i>
+            </div>
+          </div>
+        </div>
+        <div class="glass rounded-xl p-5">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs text-gray-500 uppercase tracking-wider">Resolved</p>
+              <p id="caseResolved" class="text-3xl font-bold text-green-400 mt-1">0</p>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+              <i class="fas fa-check-circle text-green-400"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="glass rounded-xl p-4 mb-6">
+        <div class="flex flex-wrap gap-3 items-center">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Status</label>
+            <select id="caseFilterStatus" onchange="loadCases()" class="px-3 py-1.5 rounded-lg text-sm">
+              <option value="">All Statuses</option>
+              <option value="open">Open</option>
+              <option value="investigating">Investigating</option>
+              <option value="escalated">Escalated</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Severity</label>
+            <select id="caseFilterSeverity" onchange="loadCases()" class="px-3 py-1.5 rounded-lg text-sm">
+              <option value="">All Severities</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Type</label>
+            <select id="caseFilterType" onchange="loadCases()" class="px-3 py-1.5 rounded-lg text-sm">
+              <option value="">All Types</option>
+              <option value="aml">AML</option>
+              <option value="sanctions">Sanctions</option>
+              <option value="fraud">Fraud</option>
+              <option value="structuring">Structuring</option>
+            </select>
+          </div>
+          <div class="ml-auto">
+            <label class="block text-xs text-gray-500 mb-1">&nbsp;</label>
+            <button onclick="loadCases()" class="px-4 py-1.5 rounded-lg bg-dark-600 text-gray-300 text-sm hover:bg-dark-500 transition">
+              <i class="fas fa-refresh mr-1"></i>Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cases Table -->
+      <div class="glass rounded-xl p-6">
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-gray-500 border-b border-dark-600">
+                <th class="text-left py-2 px-2">Case #</th>
+                <th class="text-left py-2 px-2">Type</th>
+                <th class="text-center py-2 px-2">Severity</th>
+                <th class="text-center py-2 px-2">Status</th>
+                <th class="text-left py-2 px-2">Beneficiary</th>
+                <th class="text-right py-2 px-2">Amount</th>
+                <th class="text-right py-2 px-2">Risk</th>
+                <th class="text-center py-2 px-2">SLA</th>
+                <th class="text-left py-2 px-2">Assigned</th>
+                <th class="text-left py-2 px-2">Created</th>
+                <th class="text-center py-2 px-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="casesBody">
+              <tr><td colspan="11" class="text-center py-8 text-gray-600">No compliance cases yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Case Detail Modal -->
+<div id="caseModal" class="modal-overlay hidden" onclick="if(event.target===this)closeCaseModal()">
+  <div class="modal-content fade-in">
+    <div class="flex justify-between items-center mb-6">
+      <h2 id="caseModalTitle" class="text-lg font-bold text-white">Case Details</h2>
+      <button onclick="closeCaseModal()" class="text-gray-500 hover:text-white"><i class="fas fa-times text-lg"></i></button>
+    </div>
+    <div id="caseModalBody" class="space-y-4"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Global State
+// ============================================================
+let TOKEN = localStorage.getItem('ipts_token') || '';
+let USER = localStorage.getItem('ipts_user') || '';
+let ROLE = localStorage.getItem('ipts_role') || '';
+let FULL_NAME = localStorage.getItem('ipts_fullname') || '';
+let BALANCE = parseFloat(localStorage.getItem('ipts_balance') || '0');
+let ACCOUNTS = [];
+let BENEFICIARY_LIST = [];
+let volumeChart = null;
+let featureChart = null;
+let shapChart = null;
+let lastShapValues = null;
+let sseSource = null;
+let FX_RATES = {};
+let healthInterval = null;
+
+const API = window.location.origin;
+
+// ============================================================
+// Auth
+// ============================================================
+async function apiFetch(url, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  if (TOKEN) headers['Authorization'] = `Bearer ${TOKEN}`;
+  const resp = await fetch(API + url, { ...options, headers });
+  if (resp.status === 401) { doLogout(); throw new Error('Unauthorized'); }
+  if (!resp.ok) {
+    const errData = await resp.json().catch(() => ({}));
+    const err = new Error(errData.error || `HTTP ${resp.status}`);
+    err.data = errData;
+    throw err;
+  }
+  return resp.json();
+}
+
+async function doLogin() {
+  const username = document.getElementById('loginUser').value;
+  const password = document.getElementById('loginPass').value;
+  try {
+    const data = await apiFetch('/api/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    });
+    if (data.token) {
+      TOKEN = data.token;
+      USER = data.username;
+      ROLE = data.role;
+      FULL_NAME = data.full_name || data.username;
+      localStorage.setItem('ipts_token', TOKEN);
+      localStorage.setItem('ipts_user', USER);
+      localStorage.setItem('ipts_role', ROLE);
+      localStorage.setItem('ipts_fullname', FULL_NAME);
+      await fetchAccountInfo();
+      showApp();
+    } else {
+      document.getElementById('loginError').textContent = data.error || 'Login failed';
+      document.getElementById('loginError').classList.remove('hidden');
+    }
+  } catch (e) {
+    document.getElementById('loginError').textContent = e.message || 'Connection error';
+    document.getElementById('loginError').classList.remove('hidden');
+  }
+}
+
+async function fetchAccountInfo() {
+  try {
+    const acct = await apiFetch('/api/accounts/me');
+    FULL_NAME = acct.full_name || USER;
+    BALANCE = acct.balance || 0;
+    localStorage.setItem('ipts_fullname', FULL_NAME);
+    localStorage.setItem('ipts_balance', BALANCE.toString());
+    updateHeaderInfo();
+  } catch (e) { console.error('Account fetch error:', e); }
+}
+
+function updateHeaderInfo() {
+  document.getElementById('headerFullName').textContent = FULL_NAME;
+  document.getElementById('headerRoleBadge').textContent = ROLE;
+  document.getElementById('headerBalance').textContent = `$${Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+}
+
+function doLogout() {
+  TOKEN = ''; USER = ''; ROLE = ''; FULL_NAME = ''; BALANCE = 0;
+  localStorage.removeItem('ipts_token');
+  localStorage.removeItem('ipts_user');
+  localStorage.removeItem('ipts_role');
+  localStorage.removeItem('ipts_fullname');
+  localStorage.removeItem('ipts_balance');
+  if (sseSource) sseSource.close();
+  if (healthInterval) { clearInterval(healthInterval); healthInterval = null; }
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('mainApp').classList.add('hidden');
+}
+
+function showApp() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  updateHeaderInfo();
+  // Show/hide retrain button based on role
+  const retrainSection = document.getElementById('retrainSection');
+  if (ROLE === 'admin' || ROLE === 'datascientist') {
+    retrainSection.style.display = '';
+  } else {
+    retrainSection.style.display = 'none';
+  }
+  loadDashboard();
+  loadFXRates();
+  pollHealth();
+  if (healthInterval) clearInterval(healthInterval);
+  healthInterval = setInterval(pollHealth, 30000);
+  connectSSE();
+}
+
+// ============================================================
+// Tab Switching
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.tab-btn').forEach(el => {
+    el.classList.remove('tab-active');
+    el.classList.add('text-gray-500');
+  });
+  document.getElementById('tab-' + tab).classList.remove('hidden');
+  const btn = document.querySelector(`[data-tab="${tab}"]`);
+  if (btn) { btn.classList.add('tab-active'); btn.classList.remove('text-gray-500'); }
+
+  if (tab === 'dashboard') loadDashboard();
+  if (tab === 'payments') loadPaymentForm();
+  if (tab === 'aiml') loadModelMetrics();
+  if (tab === 'graph') loadGraph();
+  if (tab === 'admin') { loadHITL(); loadAudit(); }
+  if (tab === 'compliance') { loadSanctions(); loadNostro(); }
+  if (tab === 'cases') loadCases();
+}
+
+// ============================================================
+// Dashboard
+// ============================================================
+async function loadDashboard() {
+  try {
+    const data = await apiFetch('/api/dashboard');
+    document.getElementById('kpiTotal').textContent = data.total_settlements || 0;
+    document.getElementById('kpiBlocked').textContent = data.blocked || 0;
+    document.getElementById('kpiFlagged').textContent = data.flagged || 0;
+    document.getElementById('kpiLiquidity').textContent = '$' + Number(data.nostro_liquidity_usd || 0).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+    ACCOUNTS = data.accounts || [];
+    loadTransactions();
+  } catch (e) { console.error('Dashboard error:', e); }
+}
+
+async function loadTransactions() {
+  try {
+    const data = await apiFetch('/api/transactions?per_page=15');
+    const tbody = document.getElementById('telemetryBody');
+    if (!data.transactions || data.transactions.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-600">No transactions yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.transactions.map(tx => {
+      const statusClass = `status-${tx.status}`;
+      const rowBg = tx.status === 'blocked' ? 'bg-red-500/5' : tx.status === 'flagged' ? 'bg-yellow-500/5' : 'bg-green-500/5';
+      const shortHash = tx.tx_hash ? tx.tx_hash.substring(0, 12) + '...' : 'N/A';
+      const senderDisplay = tx.sender || 'N/A';
+      const benefDisplay = tx.beneficiary_name || 'N/A';
+      return `<tr class="${rowBg} border-b border-dark-600/50 hover:bg-dark-700/50">
+        <td class="py-2 px-2">${tx.created_at || '-'}</td>
+        <td class="py-2 px-2">${senderDisplay.length > 20 ? senderDisplay.substring(0, 18) + '...' : senderDisplay}</td>
+        <td class="py-2 px-2">${benefDisplay.length > 20 ? benefDisplay.substring(0, 18) + '...' : benefDisplay}</td>
+        <td class="py-2 px-2 text-right">$${Number(tx.amount).toLocaleString()}</td>
+        <td class="py-2 px-2 text-right font-mono ${tx.risk_score >= 80 ? 'text-red-400' : tx.risk_score >= 60 ? 'text-yellow-400' : 'text-green-400'}">${(tx.risk_score || 0).toFixed(1)}</td>
+        <td class="py-2 px-2 text-center"><span class="${statusClass} uppercase font-medium">${tx.status}</span></td>
+        <td class="py-2 px-2 font-mono text-gray-500">${shortHash}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) { console.error('Transactions error:', e); }
+}
+
+function initVolumeChart() {
+  const ctx = document.getElementById('volumeChart');
+  if (!ctx) return;
+  if (volumeChart) volumeChart.destroy();
+  volumeChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Settlements',
+        data: [],
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16,185,129,0.1)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 2,
+      }, {
+        label: 'Blocked',
+        data: [],
+        borderColor: '#ef4444',
+        backgroundColor: 'rgba(239,68,68,0.1)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#8899aa', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#556677', font: { size: 10 } }, grid: { color: '#1e2d3d' } },
+        y: { ticks: { color: '#556677', font: { size: 10 } }, grid: { color: '#1e2d3d' } }
+      }
+    }
+  });
+}
+
+function pushChartData(status) {
+  if (!volumeChart) initVolumeChart();
+  const now = new Date().toLocaleTimeString();
+  volumeChart.data.labels.push(now);
+  if (volumeChart.data.labels.length > 20) volumeChart.data.labels.shift();
+
+  const settled = volumeChart.data.datasets[0].data;
+  const blocked = volumeChart.data.datasets[1].data;
+  settled.push((settled.length > 0 ? settled[settled.length - 1] : 0) + (status !== 'blocked' ? 1 : 0));
+  blocked.push((blocked.length > 0 ? blocked[blocked.length - 1] : 0) + (status === 'blocked' ? 1 : 0));
+  if (settled.length > 20) { settled.shift(); blocked.shift(); }
+  volumeChart.update();
+}
+
+// ============================================================
+// SSE
+// ============================================================
+function connectSSE() {
+  if (sseSource) sseSource.close();
+  sseSource = new EventSource(API + '/api/stream');
+  sseSource.onmessage = function(e) {
+    try {
+      const event = JSON.parse(e.data);
+      if (event.type === 'settlement') {
+        loadDashboard();
+        pushChartData(event.data.status);
+      } else if (event.type === 'hitl') {
+        loadHITL();
+      } else if (event.type === 'retrain') {
+        loadModelMetrics();
+      }
+    } catch (err) {}
+  };
+  sseSource.onerror = function() {
+    setTimeout(connectSSE, 5000);
+  };
+}
+
+// ============================================================
+// Payments
+// ============================================================
+async function loadPaymentForm() {
+  // Show sender info
+  document.getElementById('paySenderName').textContent = FULL_NAME;
+  document.getElementById('paySenderBalance').textContent = '$' + Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+  // Load beneficiaries
+  try {
+    const data = await apiFetch('/api/accounts/beneficiaries');
+    BENEFICIARY_LIST = data.beneficiaries || [];
+    const sel = document.getElementById('payBeneficiary');
+    sel.innerHTML = '<option value="">Select beneficiary...</option>' +
+      BENEFICIARY_LIST.map(b => {
+        const riskBadge = b.risk === 'critical' ? ' [CRITICAL RISK]' : b.risk === 'high' ? ' [HIGH RISK]' : '';
+        const riskColor = b.risk === 'critical' ? 'color:#ef4444' : b.risk === 'high' ? 'color:#f97316' : '';
+        return `<option value="${b.name}" data-username="${b.username || ''}" data-risk="${b.risk}" style="${riskColor}">${b.name} (${b.type})${riskBadge}</option>`;
+      }).join('');
+  } catch (e) { console.error('Beneficiary load error:', e); }
+  updateFXPreview();
+}
+
+async function executeSettlement() {
+  const btn = document.getElementById('payBtn');
+  const errDiv = document.getElementById('payError');
+  errDiv.classList.add('hidden');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+
+  const beneficiaryName = document.getElementById('payBeneficiary').value;
+  const amount = parseFloat(document.getElementById('payAmount').value);
+
+  if (!beneficiaryName) {
+    errDiv.textContent = 'Please select a beneficiary.';
+    errDiv.classList.remove('hidden');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-bolt mr-2"></i>Execute Settlement';
+    return;
+  }
+  if (!amount || amount <= 0) {
+    errDiv.textContent = 'Please enter a valid amount.';
+    errDiv.classList.remove('hidden');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-bolt mr-2"></i>Execute Settlement';
+    return;
+  }
+  if (amount > BALANCE) {
+    errDiv.textContent = `Insufficient funds. Your balance is $${Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2})}.`;
+    errDiv.classList.remove('hidden');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-bolt mr-2"></i>Execute Settlement';
+    return;
+  }
+
+  // Find receiver username
+  const selectedOpt = document.getElementById('payBeneficiary').selectedOptions[0];
+  const receiverUsername = selectedOpt ? selectedOpt.dataset.username : '';
+
+  try {
+    const currency = document.getElementById('payCurrency').value || 'USD';
+    const result = await apiFetch('/api/settlement', {
+      method: 'POST',
+      body: JSON.stringify({
+        beneficiary_name: beneficiaryName,
+        amount: amount,
+        currency: currency,
+        receiver_username: receiverUsername,
+      })
+    });
+
+    // Update balance
+    if (result.new_balance !== undefined) {
+      BALANCE = result.new_balance;
+      localStorage.setItem('ipts_balance', BALANCE.toString());
+      updateHeaderInfo();
+      document.getElementById('paySenderBalance').textContent = '$' + Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
+    const statusColor = result.status === 'blocked' ? 'red' : result.status === 'flagged' ? 'yellow' : 'green';
+    const resultDiv = document.getElementById('payResult');
+    resultDiv.innerHTML = `
+      <div class="space-y-3 fade-in">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-3 h-3 rounded-full bg-${statusColor}-500"></span>
+          <span class="text-lg font-bold status-${result.risk_decision || result.status}">${(result.status || '').toUpperCase()}</span>
+          ${result.case_number ? `<span class="text-xs text-red-400 ml-2"><i class="fas fa-folder-open mr-1"></i>${result.case_number}</span>` : ''}
+        </div>
+        <div class="grid grid-cols-2 gap-3 text-xs">
+          <div class="bg-dark-700 rounded-lg p-3">
+            <p class="text-gray-500">Risk Score</p>
+            <p class="text-xl font-bold ${result.risk_score >= 80 ? 'text-red-400' : result.risk_score >= 60 ? 'text-yellow-400' : 'text-green-400'}">${(result.risk_score || 0).toFixed(1)}</p>
+          </div>
+          <div class="bg-dark-700 rounded-lg p-3">
+            <p class="text-gray-500">Settlement Time</p>
+            <p class="text-xl font-bold text-accent">${result.settlement_time_ms || 'N/A'}ms</p>
+          </div>
+        </div>
+        ${result.tx_hash ? `<div class="bg-dark-700 rounded-lg p-3 text-xs"><p class="text-gray-500">Transaction Hash</p><p class="font-mono text-accent break-all">${result.tx_hash}</p></div>` : ''}
+        ${result.uetr ? `<div class="bg-dark-700 rounded-lg p-3 text-xs"><p class="text-gray-500">SWIFT GPI UETR</p><p class="font-mono text-blue-400">${result.uetr}</p></div>` : ''}
+        ${result.risk_reasons && result.risk_reasons.length > 0 ? `
+          <div class="bg-dark-700 rounded-lg p-3 text-xs">
+            <p class="text-gray-500 mb-1">Risk Reasons</p>
+            <ul class="list-disc list-inside text-yellow-400 space-y-1">
+              ${result.risk_reasons.map(r => `<li>${r}</li>`).join('')}
+            </ul>
+          </div>` : ''}
+        ${result.risk_breakdown ? `
+          <div class="bg-dark-700 rounded-lg p-3 text-xs">
+            <p class="text-gray-500 mb-2">Score Breakdown</p>
+            <div class="space-y-1">
+              ${Object.entries(result.risk_breakdown).map(([k, v]) => `
+                <div class="flex justify-between">
+                  <span class="capitalize">${k}</span>
+                  <span class="font-mono">${v.toFixed(1)}</span>
+                </div>
+                <div class="w-full bg-dark-600 rounded-full h-1.5">
+                  <div class="h-1.5 rounded-full ${v > 60 ? 'bg-red-500' : v > 30 ? 'bg-yellow-500' : 'bg-green-500'}" style="width:${Math.min(v, 100)}%"></div>
+                </div>
+              `).join('')}
+            </div>
+          </div>` : ''}
+        ${result.shap_values ? `
+          <div class="bg-dark-700 rounded-lg p-3 text-xs">
+            <p class="text-gray-500 mb-2"><i class="fas fa-lightbulb text-yellow-400 mr-1"></i>SHAP Feature Contributions</p>
+            <div class="space-y-1">
+              ${Object.entries(result.shap_values).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1])).map(([k, v]) => `
+                <div class="flex justify-between">
+                  <span class="capitalize">${k}</span>
+                  <span class="font-mono ${v > 0 ? 'text-red-400' : 'text-green-400'}">${v > 0 ? '+' : ''}${v.toFixed(4)}</span>
+                </div>
+              `).join('')}
+            </div>
+            <p class="text-gray-600 mt-2">View full chart in the AI/ML tab</p>
+          </div>` : ''}
+      </div>`;
+
+    // Store SHAP data for rendering when AI/ML tab is opened
+    if (result.shap_values) {
+      lastShapValues = result.shap_values;
+    }
+
+    pushChartData(result.status);
+    loadDashboard();
+  } catch (e) {
+    if (e.data && e.data.error === 'Insufficient funds') {
+      errDiv.textContent = `Insufficient funds. Your balance is $${Number(e.data.current_balance).toLocaleString('en-US', {minimumFractionDigits: 2})}.`;
+      errDiv.classList.remove('hidden');
+    } else {
+      document.getElementById('payResult').innerHTML = `<p class="text-red-400">Error: ${e.message}</p>`;
+    }
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-bolt mr-2"></i>Execute Settlement';
+  }
+}
+
+// ============================================================
+// AI/ML
+// ============================================================
+async function loadModelMetrics() {
+  try {
+    const data = await apiFetch('/api/models/metrics');
+    const container = document.getElementById('modelCards');
+    const modelNames = { isolation_forest: 'Isolation Forest', random_forest: 'Random Forest', xgboost: 'XGBoost', autoencoder: 'Autoencoder', sequence_detector: 'Sequence Detector' };
+    const modelIcons = { isolation_forest: 'fa-tree', random_forest: 'fa-trees', xgboost: 'fa-rocket', autoencoder: 'fa-network-wired', sequence_detector: 'fa-wave-square' };
+    const modelColors = { isolation_forest: 'accent', random_forest: 'blue-400', xgboost: 'purple-400', autoencoder: 'cyan-400', sequence_detector: 'orange-400' };
+
+    container.innerHTML = Object.entries(data.models).map(([key, m]) => `
+      <div class="glass rounded-xl p-5">
+        <div class="flex items-center gap-2 mb-3">
+          <i class="fas ${modelIcons[key] || 'fa-brain'} text-${modelColors[key] || 'accent'}"></i>
+          <span class="text-sm font-semibold text-white">${modelNames[key] || key}</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div><span class="text-gray-500">Accuracy</span><p class="font-mono text-lg text-white">${(m.accuracy * 100).toFixed(1)}%</p></div>
+          <div><span class="text-gray-500">F1 Score</span><p class="font-mono text-lg text-accent">${(m.f1 * 100).toFixed(1)}%</p></div>
+        </div>
+      </div>
+    `).join('');
+
+    // Feature importance chart
+    if (data.feature_importance) {
+      const ctx = document.getElementById('featureChart');
+      if (featureChart) featureChart.destroy();
+      const sorted = Object.entries(data.feature_importance).sort((a, b) => b[1] - a[1]);
+      featureChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: sorted.map(e => e[0]),
+          datasets: [{
+            label: 'Importance',
+            data: sorted.map(e => (e[1] * 100).toFixed(1)),
+            backgroundColor: sorted.map((_, i) =>
+              `hsl(${160 + i * 25}, 70%, ${50 - i * 3}%)`
+            ),
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#556677' }, grid: { color: '#1e2d3d' } },
+            y: { ticks: { color: '#8899aa', font: { size: 11 } }, grid: { display: false } }
+          }
+        }
+      });
+    }
+    // Render SHAP chart if data available
+    if (lastShapValues) {
+      renderSHAPChart(lastShapValues);
+    }
+  } catch (e) { console.error('Model metrics error:', e); }
+}
+
+async function retrainModels() {
+  const btn = document.getElementById('retrainBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Retraining...';
+  try {
+    await apiFetch('/api/models/retrain', { method: 'POST' });
+    setTimeout(() => {
+      loadModelMetrics();
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-gears mr-2"></i>Retrain Models';
+    }, 10000);
+  } catch (e) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-gears mr-2"></i>Retrain Models';
+    alert('Retrain error: ' + e.message);
+  }
+}
+
+// ============================================================
+// Network Graph (D3.js)
+// ============================================================
+async function loadGraph() {
+  try {
+    const data = await apiFetch('/api/network/graph');
+    const container = document.getElementById('graphContainer');
+    container.innerHTML = '';
+    const width = container.clientWidth;
+    const height = 500;
+
+    const cycleNodes = new Set();
+    (data.cycles || []).forEach(c => c.forEach(n => cycleNodes.add(n)));
+
+    const maxPR = Math.max(...data.nodes.map(n => n.pagerank), 0.001);
+    const communityCount = data.communities || 10;
+    const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
+
+    const svg = d3.select('#graphContainer').append('svg')
+      .attr('width', width).attr('height', height);
+
+    const g = svg.append('g');
+    svg.call(d3.zoom().scaleExtent([0.2, 5]).on('zoom', (e) => g.attr('transform', e.transform)));
+
+    const simulation = d3.forceSimulation(data.nodes)
+      .force('link', d3.forceLink(data.edges).id(d => d.id).distance(40).strength(0.3))
+      .force('charge', d3.forceManyBody().strength(-30))
+      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force('collision', d3.forceCollide().radius(8));
+
+    const link = g.append('g').selectAll('line').data(data.edges).join('line')
+      .attr('stroke', '#2a3f55').attr('stroke-width', d => Math.min(d.weight || 1, 4) * 0.5).attr('stroke-opacity', 0.4);
+
+    const node = g.append('g').selectAll('circle').data(data.nodes).join('circle')
+      .attr('r', d => 3 + (d.pagerank / maxPR) * 12)
+      .attr('fill', d => cycleNodes.has(d.id) ? '#ef4444' : d.pagerank / maxPR > 0.5 ? '#3b82f6' : colorScale(d.community % 10))
+      .attr('stroke', d => cycleNodes.has(d.id) ? '#ff6b6b' : 'none')
+      .attr('stroke-width', 2)
+      .attr('cursor', 'pointer')
+      .call(d3.drag()
+        .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+        .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+        .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+      );
+
+    // Tooltip
+    const tooltip = d3.select('#graphContainer').append('div')
+      .style('position', 'absolute').style('background', '#1a2332').style('border', '1px solid #2a3f55')
+      .style('padding', '8px 12px').style('border-radius', '6px').style('font-size', '11px')
+      .style('color', '#e2e8f0').style('pointer-events', 'none').style('opacity', 0).style('z-index', 100);
+
+    node.on('mouseover', (e, d) => {
+      tooltip.style('opacity', 1).html(
+        `<strong>Node ${d.id}</strong><br>PageRank: ${d.pagerank.toFixed(6)}<br>Community: ${d.community}<br>${cycleNodes.has(d.id) ? '<span style="color:#ef4444">In cycle</span>' : ''}`
+      );
+    }).on('mousemove', (e) => {
+      tooltip.style('left', (e.offsetX + 12) + 'px').style('top', (e.offsetY - 20) + 'px');
+    }).on('mouseout', () => tooltip.style('opacity', 0));
+
+    simulation.on('tick', () => {
+      link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+      node.attr('cx', d => d.x).attr('cy', d => d.y);
+    });
+
+  } catch (e) { console.error('Graph error:', e); document.getElementById('graphContainer').innerHTML = '<p class="text-red-400 p-4">Failed to load graph.</p>'; }
+}
+
+// ============================================================
+// Admin - HITL
+// ============================================================
+async function loadHITL() {
+  try {
+    const data = await apiFetch('/api/hitl/queue');
+    const tbody = document.getElementById('hitlBody');
+    if (!data.queue || data.queue.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-gray-600">No items in queue</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.queue.map(item => {
+      const needsFourEyes = item.amount >= 100000;
+      let fourEyesBadge;
+      if (!needsFourEyes) {
+        fourEyesBadge = `<span class="text-xs text-gray-600">N/A</span>`;
+      } else if (item.four_eyes_status === 'completed') {
+        fourEyesBadge = `<span class="px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-xs"><i class="fas fa-check-double mr-1"></i>2/2</span>`;
+      } else if (item.first_approver) {
+        fourEyesBadge = `<span class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-xs"><i class="fas fa-eye mr-1"></i>1/2 ${item.first_approver}</span>`;
+      } else {
+        fourEyesBadge = `<span class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-xs"><i class="fas fa-eye mr-1"></i>Required</span>`;
+      }
+      return `<tr class="border-b border-dark-600/50 hover:bg-dark-700/50">
+        <td class="py-2 px-2 font-mono">${item.id.substring(0, 8)}...</td>
+        <td class="py-2 px-2">${item.beneficiary_name || 'N/A'}</td>
+        <td class="py-2 px-2 text-right">$${Number(item.amount).toLocaleString()}</td>
+        <td class="py-2 px-2 text-right font-mono text-red-400">${(item.risk_score || 0).toFixed(1)}</td>
+        <td class="py-2 px-2 text-yellow-400">${item.reason || ''}</td>
+        <td class="py-2 px-2 text-center">${fourEyesBadge}</td>
+        <td class="py-2 px-2 text-center"><span class="status-${item.status} uppercase text-xs font-medium">${item.status}</span></td>
+        <td class="py-2 px-2 text-center">
+          ${item.status === 'pending' || item.status === 'awaiting_second_approval' ? `
+            <button onclick="hitlAction('approve', '${item.id}')" class="px-2 py-1 rounded bg-green-600 text-white text-xs mr-1 hover:bg-green-500">${item.status === 'awaiting_second_approval' ? '2nd Approve' : 'Approve'}</button>
+            <button onclick="hitlAction('reject', '${item.id}')" class="px-2 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-500">Reject</button>
+          ` : `<span class="text-xs text-gray-500">${item.reviewed_by || ''}</span>`}
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (e) { console.error('HITL error:', e); }
+}
+
+async function hitlAction(action, id) {
+  try {
+    const result = await apiFetch(`/api/hitl/${action}/${id}`, { method: 'POST' });
+
+    // Handle four-eyes awaiting second approval
+    if (result.status === 'awaiting_second_approval') {
+      alert(result.message || 'Four-eyes: first approval recorded. A different user must provide the second approval.');
+      loadHITL();
+      return;
+    }
+
+    // Refresh balance after approval (sender balance was deducted)
+    if (action === 'approve' && result.sender_new_balance !== undefined) {
+      BALANCE = result.sender_new_balance;
+      localStorage.setItem('ipts_balance', BALANCE.toString());
+      updateHeaderInfo();
+      const balEl = document.getElementById('paySenderBalance');
+      if (balEl) balEl.textContent = '$' + Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+    // Always re-fetch account info to get latest balance (covers all users)
+    await fetchAccountInfo();
+    loadHITL();
+    loadDashboard();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+// ============================================================
+// Admin - Audit
+// ============================================================
+async function loadAudit() {
+  try {
+    const data = await apiFetch('/api/audit/log');
+    const tbody = document.getElementById('auditBody');
+    if (!data.entries || data.entries.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-600">No audit entries</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.entries.map(e => `
+      <tr class="border-b border-dark-600/50">
+        <td class="py-1.5 px-2 text-gray-500">${e.created_at || ''}</td>
+        <td class="py-1.5 px-2"><span class="px-2 py-0.5 rounded text-xs bg-dark-600">${e.event_type}</span></td>
+        <td class="py-1.5 px-2 text-accent">${e.actor}</td>
+        <td class="py-1.5 px-2 text-gray-500 font-mono truncate max-w-xs">${e.details || ''}</td>
+      </tr>
+    `).join('');
+  } catch (e) { console.error('Audit error:', e); }
+}
+
+// ============================================================
+// Admin - GDPR
+// ============================================================
+async function gdprErase() {
+  const entityId = document.getElementById('gdprEntityId').value;
+  if (!entityId) return alert('Enter an entity ID');
+  if (!confirm(`Are you sure you want to erase all data for "${entityId}"? This cannot be undone.`)) return;
+  try {
+    const data = await apiFetch('/api/gdpr/erasure', {
+      method: 'POST',
+      body: JSON.stringify({ entity_id: entityId })
+    });
+    alert(`Erasure complete. ${data.records_affected} records affected.`);
+    document.getElementById('gdprEntityId').value = '';
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+// ============================================================
+// Compliance - Sanctions
+// ============================================================
+async function loadSanctions() {
+  try {
+    const data = await apiFetch('/api/compliance/sanctions');
+    const tbody = document.getElementById('sanctionsBody');
+    if (!data.sanctions || data.sanctions.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-600">No sanctions entries</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.sanctions.map(s => `
+      <tr class="border-b border-dark-600/50">
+        <td class="py-1.5 px-2 text-red-400">${s.entity_name}</td>
+        <td class="py-1.5 px-2">${s.entity_type}</td>
+        <td class="py-1.5 px-2 text-accent">${s.added_by || 'system'}</td>
+        <td class="py-1.5 px-2 text-gray-500">${s.created_at || ''}</td>
+      </tr>
+    `).join('');
+  } catch (e) { console.error('Sanctions error:', e); }
+}
+
+async function addSanction() {
+  const name = document.getElementById('sanctionName').value;
+  const type = document.getElementById('sanctionType').value;
+  if (!name) return alert('Enter entity name');
+  try {
+    await apiFetch('/api/compliance/sanctions', {
+      method: 'POST',
+      body: JSON.stringify({ entity_name: name, entity_type: type })
+    });
+    document.getElementById('sanctionName').value = '';
+    loadSanctions();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+// ============================================================
+// Compliance - SWIFT GPI
+// ============================================================
+async function trackGPI() {
+  const uetr = document.getElementById('gpiUetr').value;
+  if (!uetr) return alert('Enter a UETR');
+  try {
+    const data = await apiFetch(`/api/compliance/swift-gpi/${uetr}`);
+    document.getElementById('gpiResult').innerHTML = `
+      <div class="bg-dark-700 rounded-lg p-4 fade-in space-y-2">
+        <div class="flex justify-between"><span class="text-gray-500">UETR</span><span class="font-mono text-accent">${data.uetr}</span></div>
+        <div class="flex justify-between"><span class="text-gray-500">Status</span><span class="text-green-400 font-bold">${data.status}</span></div>
+        <div class="flex justify-between"><span class="text-gray-500">Amount</span><span>$${Number(data.amount).toLocaleString()} ${data.currency}</span></div>
+        <div class="flex justify-between"><span class="text-gray-500">Beneficiary</span><span>${data.beneficiary}</span></div>
+        <div class="flex justify-between"><span class="text-gray-500">Created</span><span class="text-gray-400">${data.created_at}</span></div>
+      </div>
+    `;
+  } catch (e) {
+    document.getElementById('gpiResult').innerHTML = `<p class="text-red-400">UETR not found</p>`;
+  }
+}
+
+// ============================================================
+// Compliance - Nostro (USD)
+// ============================================================
+async function loadNostro() {
+  try {
+    const data = await apiFetch('/api/dashboard');
+    const container = document.getElementById('nostroBalances');
+    const nostroUsd = data.nostro_liquidity_usd || 0;
+    if (data.accounts && data.accounts.length > 0) {
+      container.innerHTML = `
+        <div class="bg-dark-700 rounded-lg p-3">
+          <div class="flex justify-between items-center">
+            <div>
+              <p class="text-xs text-gray-500">Primary Nostro Account</p>
+              <p class="font-mono text-sm text-accent mt-1">${data.accounts[0]}</p>
+            </div>
+            <p class="text-2xl font-bold text-blue-400">$${Number(nostroUsd).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
+          </div>
+        </div>
+        ${data.accounts.slice(1).map((a, i) => `
+          <div class="bg-dark-700 rounded-lg p-3">
+            <div class="flex justify-between items-center">
+              <p class="font-mono text-xs text-gray-500">${a.substring(0, 22)}...</p>
+              <p class="text-sm text-gray-400">Account ${i + 1}</p>
+            </div>
+          </div>
+        `).join('')}
+      `;
+    } else {
+      container.innerHTML = '<p class="text-gray-600">No accounts available</p>';
+    }
+  } catch (e) { console.error('Nostro error:', e); }
+}
+
+// ============================================================
+// Case Management
+// ============================================================
+async function loadCases() {
+  const statusFilter = document.getElementById('caseFilterStatus')?.value || '';
+  const severityFilter = document.getElementById('caseFilterSeverity')?.value || '';
+  const typeFilter = document.getElementById('caseFilterType')?.value || '';
+
+  let url = '/api/compliance/cases?';
+  if (statusFilter) url += `status=${statusFilter}&`;
+  if (severityFilter) url += `severity=${severityFilter}&`;
+  if (typeFilter) url += `case_type=${typeFilter}&`;
+
+  try {
+    const data = await apiFetch(url);
+
+    // Update summary cards
+    if (data.summary) {
+      document.getElementById('caseOpen').textContent = data.summary.open || 0;
+      document.getElementById('caseInvestigating').textContent = data.summary.investigating || 0;
+      document.getElementById('caseEscalated').textContent = data.summary.escalated || 0;
+      document.getElementById('caseResolved').textContent = data.summary.resolved || 0;
+    }
+
+    const tbody = document.getElementById('casesBody');
+    if (!data.cases || data.cases.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="11" class="text-center py-8 text-gray-600">No compliance cases found.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.cases.map(c => {
+      const sevClass = `severity-${c.severity}`;
+      const statusBg = c.status === 'open' ? 'text-red-400' : c.status === 'investigating' ? 'text-yellow-400' : c.status === 'escalated' ? 'text-orange-400' : c.status === 'resolved' ? 'text-green-400' : 'text-gray-400';
+      const slaHtml = getSLABadge(c);
+      return `<tr class="border-b border-dark-600/50 hover:bg-dark-700/50 cursor-pointer" onclick="openCaseModal('${c.id}')">
+        <td class="py-2 px-2 font-mono text-accent">${c.case_number}</td>
+        <td class="py-2 px-2 uppercase text-xs">${c.case_type}</td>
+        <td class="py-2 px-2 text-center"><span class="badge ${sevClass}">${c.severity}</span></td>
+        <td class="py-2 px-2 text-center"><span class="${statusBg} uppercase text-xs font-medium">${c.status}</span></td>
+        <td class="py-2 px-2">${c.beneficiary_name || 'N/A'}</td>
+        <td class="py-2 px-2 text-right">$${Number(c.amount || 0).toLocaleString()}</td>
+        <td class="py-2 px-2 text-right font-mono ${(c.risk_score||0) >= 80 ? 'text-red-400' : 'text-yellow-400'}">${(c.risk_score || 0).toFixed(1)}</td>
+        <td class="py-2 px-2 text-center">${slaHtml}</td>
+        <td class="py-2 px-2">${c.assigned_to || '<span class="text-gray-600">Unassigned</span>'}</td>
+        <td class="py-2 px-2 text-gray-500">${c.created_at ? c.created_at.substring(0, 16) : ''}</td>
+        <td class="py-2 px-2 text-center">
+          <button onclick="event.stopPropagation();openCaseModal('${c.id}')" class="px-2 py-1 rounded bg-dark-500 text-gray-300 text-xs hover:bg-dark-600">
+            <i class="fas fa-eye mr-1"></i>View
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (e) { console.error('Cases error:', e); }
+}
+
+async function openCaseModal(caseId) {
+  try {
+    const c = await apiFetch(`/api/compliance/cases/${caseId}`);
+    document.getElementById('caseModalTitle').textContent = `Case ${c.case_number}`;
+    const sevClass = `severity-${c.severity}`;
+    const statusBg = c.status === 'open' ? 'text-red-400' : c.status === 'investigating' ? 'text-yellow-400' : c.status === 'escalated' ? 'text-orange-400' : c.status === 'resolved' ? 'text-green-400' : 'text-gray-400';
+
+    document.getElementById('caseModalBody').innerHTML = `
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-dark-700 rounded-lg p-3">
+          <p class="text-xs text-gray-500">Status</p>
+          <p class="${statusBg} font-bold uppercase mt-1">${c.status}</p>
+        </div>
+        <div class="bg-dark-700 rounded-lg p-3">
+          <p class="text-xs text-gray-500">Severity</p>
+          <p class="mt-1"><span class="badge ${sevClass}">${c.severity}</span></p>
+        </div>
+        <div class="bg-dark-700 rounded-lg p-3">
+          <p class="text-xs text-gray-500">Type</p>
+          <p class="text-white mt-1 uppercase">${c.case_type}</p>
+        </div>
+        <div class="bg-dark-700 rounded-lg p-3">
+          <p class="text-xs text-gray-500">Risk Score</p>
+          <p class="text-xl font-bold mt-1 ${(c.risk_score||0) >= 80 ? 'text-red-400' : 'text-yellow-400'}">${(c.risk_score || 0).toFixed(1)}</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-dark-700 rounded-lg p-3">
+          <p class="text-xs text-gray-500">Sender</p>
+          <p class="text-white mt-1">${c.sender_name || 'N/A'}</p>
+        </div>
+        <div class="bg-dark-700 rounded-lg p-3">
+          <p class="text-xs text-gray-500">Beneficiary</p>
+          <p class="text-white mt-1">${c.beneficiary_name || 'N/A'}</p>
+        </div>
+      </div>
+      <div class="bg-dark-700 rounded-lg p-3">
+        <p class="text-xs text-gray-500">Amount</p>
+        <p class="text-2xl font-bold text-white mt-1">$${Number(c.amount || 0).toLocaleString()}</p>
+      </div>
+      <div class="bg-dark-700 rounded-lg p-3">
+        <p class="text-xs text-gray-500">Description</p>
+        <p class="text-sm text-gray-300 mt-1">${c.description || 'No description'}</p>
+      </div>
+      ${c.findings ? `<div class="bg-dark-700 rounded-lg p-3"><p class="text-xs text-gray-500">Findings</p><p class="text-sm text-gray-300 mt-1">${c.findings}</p></div>` : ''}
+      ${c.resolution ? `<div class="bg-dark-700 rounded-lg p-3"><p class="text-xs text-gray-500">Resolution</p><p class="text-sm text-green-400 mt-1">${c.resolution}</p></div>` : ''}
+      ${c.sar_number ? `<div class="bg-dark-700 rounded-lg p-3"><p class="text-xs text-gray-500">SAR Number</p><p class="text-sm text-yellow-400 font-mono mt-1">${c.sar_number}</p></div>` : ''}
+      <div class="bg-dark-700 rounded-lg p-3">
+        <p class="text-xs text-gray-500">Assigned To</p>
+        <p class="text-sm text-gray-300 mt-1">${c.assigned_to || 'Unassigned'}</p>
+      </div>
+      <div class="bg-dark-700 rounded-lg p-3">
+        <p class="text-xs text-gray-500">Settlement ID</p>
+        <p class="text-xs text-gray-400 font-mono mt-1">${c.settlement_id || 'N/A'}</p>
+      </div>
+      <div class="grid grid-cols-2 gap-4 text-xs text-gray-500">
+        <div>Created: ${c.created_at || 'N/A'}</div>
+        <div>Updated: ${c.updated_at || 'N/A'}</div>
+      </div>
+
+      <!-- Actions -->
+      <div class="border-t border-dark-600 pt-4 mt-2">
+        <p class="text-xs text-gray-500 mb-3 uppercase tracking-wider">Actions</p>
+        <div class="flex flex-wrap gap-2">
+          ${c.status !== 'resolved' && c.status !== 'closed' ? `
+            <button onclick="caseAction('${c.id}', 'investigate')" class="px-3 py-1.5 rounded bg-yellow-600/20 text-yellow-400 text-xs hover:bg-yellow-600/40">
+              <i class="fas fa-magnifying-glass mr-1"></i>Investigate
+            </button>
+            <button onclick="caseAction('${c.id}', 'escalate')" class="px-3 py-1.5 rounded bg-orange-600/20 text-orange-400 text-xs hover:bg-orange-600/40">
+              <i class="fas fa-arrow-up mr-1"></i>Escalate
+            </button>
+            <button onclick="caseAction('${c.id}', 'resolve')" class="px-3 py-1.5 rounded bg-green-600/20 text-green-400 text-xs hover:bg-green-600/40">
+              <i class="fas fa-check mr-1"></i>Resolve
+            </button>
+          ` : ''}
+          ${!c.sar_number ? `
+            <button onclick="caseAction('${c.id}', 'file-sar')" class="px-3 py-1.5 rounded bg-red-600/20 text-red-400 text-xs hover:bg-red-600/40">
+              <i class="fas fa-file-alt mr-1"></i>File SAR
+            </button>
+          ` : ''}
+          <button onclick="promptAssign('${c.id}')" class="px-3 py-1.5 rounded bg-blue-600/20 text-blue-400 text-xs hover:bg-blue-600/40">
+            <i class="fas fa-user-plus mr-1"></i>Assign
+          </button>
+          <button onclick="promptFindings('${c.id}')" class="px-3 py-1.5 rounded bg-purple-600/20 text-purple-400 text-xs hover:bg-purple-600/40">
+            <i class="fas fa-pen mr-1"></i>Add Findings
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('caseModal').classList.remove('hidden');
+  } catch (e) { alert('Error loading case: ' + e.message); }
+}
+
+function closeCaseModal() {
+  document.getElementById('caseModal').classList.add('hidden');
+}
+
+async function caseAction(caseId, action) {
+  try {
+    if (action === 'escalate') {
+      await apiFetch(`/api/compliance/cases/${caseId}/escalate`, { method: 'POST' });
+    } else if (action === 'file-sar') {
+      await apiFetch(`/api/compliance/cases/${caseId}/file-sar`, { method: 'POST' });
+    } else if (action === 'investigate') {
+      await apiFetch(`/api/compliance/cases/${caseId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'investigating' })
+      });
+    } else if (action === 'resolve') {
+      const resolution = prompt('Enter resolution notes:');
+      if (!resolution) return;
+      await apiFetch(`/api/compliance/cases/${caseId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'resolved', resolution: resolution })
+      });
+    }
+    closeCaseModal();
+    loadCases();
+  } catch (e) { alert('Action error: ' + e.message); }
+}
+
+function promptAssign(caseId) {
+  const assignee = prompt('Assign to (username):');
+  if (!assignee) return;
+  apiFetch(`/api/compliance/cases/${caseId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ assigned_to: assignee })
+  }).then(() => { closeCaseModal(); loadCases(); }).catch(e => alert('Error: ' + e.message));
+}
+
+function promptFindings(caseId) {
+  const findings = prompt('Enter findings:');
+  if (!findings) return;
+  apiFetch(`/api/compliance/cases/${caseId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ findings: findings })
+  }).then(() => { closeCaseModal(); loadCases(); }).catch(e => alert('Error: ' + e.message));
+}
+
+// ============================================================
+// FX Rates
+// ============================================================
+async function loadFXRates() {
+  try {
+    const data = await apiFetch('/api/fx/rates');
+    FX_RATES = data.rates || {};
+    // Populate ticker
+    const ticker = document.getElementById('fxTicker');
+    if (ticker && Object.keys(FX_RATES).length > 0) {
+      ticker.innerHTML = Object.entries(FX_RATES).map(([ccy, rate]) => {
+        return `<span class="px-2 py-1 rounded bg-dark-700 text-gray-300"><span class="text-accent font-mono">${ccy}</span> ${rate.toFixed(4)}</span>`;
+      }).join('');
+    }
+    // Populate currency dropdowns
+    populateCurrencyDropdowns();
+  } catch (e) { console.error('FX rates error:', e); }
+}
+
+function populateCurrencyDropdowns() {
+  const currencies = ['USD', ...Object.keys(FX_RATES)];
+  const selectors = ['payCurrency', 'fxConvertFrom', 'fxConvertTo'];
+  selectors.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const currentVal = sel.value;
+    sel.innerHTML = currencies.map(c => `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`).join('');
+    if (id === 'fxConvertTo' && !currentVal) sel.value = 'EUR';
+  });
+}
+
+function updateFXPreview() {
+  const currency = document.getElementById('payCurrency').value;
+  const amount = parseFloat(document.getElementById('payAmount').value) || 0;
+  const fxPreview = document.getElementById('fxPreview');
+  const amlWarning = document.getElementById('amlWarning');
+
+  if (currency && currency !== 'USD' && FX_RATES[currency]) {
+    const rate = FX_RATES[currency];
+    const usdAmount = amount / rate;
+    document.getElementById('fxPreviewRate').textContent = `1 USD = ${rate.toFixed(4)} ${currency}`;
+    document.getElementById('fxPreviewUSD').textContent = `$${usdAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    fxPreview.classList.remove('hidden');
+    // Check AML threshold on USD equivalent
+    showAMLWarning(usdAmount);
+  } else {
+    fxPreview.classList.add('hidden');
+    showAMLWarning(amount);
+  }
+}
+
+function showAMLWarning(usdAmount) {
+  const amlWarning = document.getElementById('amlWarning');
+  const amlText = document.getElementById('amlWarningText');
+  if (usdAmount >= 500000) {
+    amlText.textContent = `Amount exceeds $500K — transaction will be AUTO-BLOCKED for enhanced due diligence and compliance review.`;
+    amlWarning.classList.remove('hidden');
+  } else if (usdAmount >= 100000) {
+    amlText.textContent = `Amount exceeds $100K — transaction will be flagged for AML review and routed to Human-in-the-Loop queue.`;
+    amlWarning.classList.remove('hidden');
+  } else {
+    amlWarning.classList.add('hidden');
+  }
+}
+
+async function convertFX() {
+  const amount = parseFloat(document.getElementById('fxConvertAmount').value) || 0;
+  const from = document.getElementById('fxConvertFrom').value;
+  const to = document.getElementById('fxConvertTo').value;
+  const resultDiv = document.getElementById('fxConvertResult');
+  try {
+    const data = await apiFetch(`/api/fx/convert?from=${from}&to=${to}&amount=${amount}`);
+    resultDiv.innerHTML = `
+      <div class="bg-dark-700 rounded-lg p-3 fade-in">
+        <div class="flex justify-between items-center">
+          <span class="text-gray-500">${amount.toLocaleString()} ${from}</span>
+          <i class="fas fa-arrow-right text-accent"></i>
+          <span class="text-white font-bold text-lg">${data.converted_amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ${to}</span>
+        </div>
+        <p class="text-xs text-gray-600 mt-1">Rate: ${data.rate.toFixed(6)} | Spread: ${((data.spread || 0) * 100).toFixed(2)}%</p>
+      </div>`;
+  } catch (e) {
+    resultDiv.innerHTML = `<p class="text-red-400 text-xs">Conversion error: ${e.message}</p>`;
+  }
+}
+
+// ============================================================
+// Health Polling
+// ============================================================
+async function pollHealth() {
+  try {
+    const data = await apiFetch('/api/health');
+    const dot = document.getElementById('healthDot');
+    const label = document.getElementById('healthLabel');
+    if (data.status === 'healthy') {
+      dot.className = 'pulse-dot inline-block w-2 h-2 rounded-full bg-accent';
+      dot.title = 'All systems healthy';
+      label.textContent = 'LIVE';
+      label.className = 'text-xs text-accent';
+    } else if (data.status === 'degraded') {
+      dot.className = 'pulse-dot inline-block w-2 h-2 rounded-full bg-yellow-400';
+      dot.title = 'System degraded';
+      label.textContent = 'DEGRADED';
+      label.className = 'text-xs text-yellow-400';
+    } else {
+      dot.className = 'inline-block w-2 h-2 rounded-full bg-red-500';
+      dot.title = 'System unhealthy';
+      label.textContent = 'DOWN';
+      label.className = 'text-xs text-red-400';
+    }
+  } catch (e) {
+    const dot = document.getElementById('healthDot');
+    const label = document.getElementById('healthLabel');
+    dot.className = 'inline-block w-2 h-2 rounded-full bg-red-500';
+    label.textContent = 'OFFLINE';
+    label.className = 'text-xs text-red-400';
+  }
+}
+
+// ============================================================
+// SHAP Explainability
+// ============================================================
+function renderSHAPChart(shapValues) {
+  const container = document.getElementById('shapContainer');
+  const canvas = document.getElementById('shapChart');
+  if (!shapValues || Object.keys(shapValues).length === 0) return;
+
+  container.classList.add('hidden');
+  canvas.classList.remove('hidden');
+
+  if (shapChart) shapChart.destroy();
+  const sorted = Object.entries(shapValues).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 10);
+
+  shapChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(e => e[0]),
+      datasets: [{
+        label: 'SHAP Contribution',
+        data: sorted.map(e => e[1].toFixed(3)),
+        backgroundColor: sorted.map(e => e[1] > 0 ? 'rgba(239,68,68,0.7)' : 'rgba(16,185,129,0.7)'),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.parsed.x > 0 ? '+' : ''}${ctx.parsed.x} (${ctx.parsed.x > 0 ? 'increases' : 'decreases'} risk)`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#556677' },
+          grid: { color: '#1e2d3d' },
+          title: { display: true, text: 'Impact on Risk Score', color: '#8899aa', font: { size: 10 } }
+        },
+        y: { ticks: { color: '#8899aa', font: { size: 11 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ============================================================
+// SLA Tracking
+// ============================================================
+function getSLABadge(caseItem) {
+  if (caseItem.status === 'resolved' || caseItem.status === 'closed') {
+    return '<span class="text-xs text-green-400"><i class="fas fa-check mr-1"></i>Met</span>';
+  }
+  if (!caseItem.created_at) return '<span class="text-xs text-gray-600">N/A</span>';
+
+  const created = new Date(caseItem.created_at);
+  const now = new Date();
+  const hoursElapsed = (now - created) / (1000 * 60 * 60);
+
+  // SLA thresholds by severity
+  const slaHours = { critical: 4, high: 24, medium: 72, low: 168 };
+  const maxHours = slaHours[caseItem.severity] || 72;
+  const remaining = maxHours - hoursElapsed;
+
+  if (remaining <= 0) {
+    return `<span class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-xs font-mono"><i class="fas fa-clock mr-1"></i>BREACHED</span>`;
+  } else if (remaining <= maxHours * 0.25) {
+    const hrs = Math.floor(remaining);
+    const mins = Math.floor((remaining - hrs) * 60);
+    return `<span class="px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 text-xs font-mono"><i class="fas fa-clock mr-1"></i>${hrs}h ${mins}m</span>`;
+  } else {
+    const hrs = Math.floor(remaining);
+    return `<span class="px-1.5 py-0.5 rounded bg-dark-600 text-gray-400 text-xs font-mono"><i class="fas fa-clock mr-1"></i>${hrs}h</span>`;
+  }
+}
+
+// ============================================================
+// Init
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  initVolumeChart();
+  if (TOKEN) {
+    fetchAccountInfo().then(() => showApp());
+  }
+});
+
+document.getElementById('loginPass').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') doLogin();
+});
+</script>
+
+</body>
+</html>
