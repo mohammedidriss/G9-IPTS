@@ -115,6 +115,22 @@ tailwind.config = {
       <div class="hidden sm:block text-right">
         <span id="headerBalance" class="text-sm font-bold text-blue-400"></span>
       </div>
+      <!-- Notification Bell -->
+      <div class="relative">
+        <button onclick="toggleNotifications()" class="relative text-gray-400 hover:text-white transition p-1">
+          <i class="fas fa-bell text-sm"></i>
+          <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[9px] font-bold flex items-center justify-center">0</span>
+        </button>
+        <div id="notifPanel" class="hidden absolute right-0 top-10 w-80 max-h-96 overflow-y-auto glass rounded-xl border border-dark-600 shadow-xl z-50">
+          <div class="flex justify-between items-center p-3 border-b border-dark-600">
+            <span class="text-xs font-semibold text-white">Notifications</span>
+            <button onclick="markAllRead()" class="text-xs text-accent hover:underline">Mark all read</button>
+          </div>
+          <div id="notifList" class="divide-y divide-dark-700">
+            <p class="text-center text-gray-600 text-xs py-6">No notifications</p>
+          </div>
+        </div>
+      </div>
       <button onclick="doLogout()" class="text-xs text-gray-500 hover:text-red-400 transition">
         <i class="fas fa-right-from-bracket"></i> Logout
       </button>
@@ -143,6 +159,21 @@ tailwind.config = {
     </button>
     <button onclick="switchTab('cases')" data-tab="cases" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
       <i class="fas fa-folder-open mr-1"></i>Case Management
+    </button>
+    <button onclick="switchTab('beneficiaries')" data-tab="beneficiaries" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+      <i class="fas fa-users mr-1"></i>Beneficiaries
+    </button>
+    <button onclick="switchTab('reporting')" data-tab="reporting" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+      <i class="fas fa-chart-pie mr-1"></i>Spending 360
+    </button>
+    <button onclick="switchTab('cards')" data-tab="cards" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+      <i class="fas fa-credit-card mr-1"></i>Cards
+    </button>
+    <button onclick="switchTab('security')" data-tab="security" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+      <i class="fas fa-fingerprint mr-1"></i>Security
+    </button>
+    <button onclick="switchTab('documents')" data-tab="documents" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+      <i class="fas fa-file-invoice mr-1"></i>Documents
     </button>
   </nav>
 
@@ -199,6 +230,20 @@ tailwind.config = {
         </div>
       </div>
 
+      <!-- Sub-Accounts Switcher -->
+      <div class="glass rounded-xl p-4 mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-wallet text-accent text-xs"></i>
+            <span class="text-xs font-semibold text-white">My Accounts</span>
+          </div>
+          <button onclick="loadSubAccounts()" class="text-xs text-accent hover:text-accent/80"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+        </div>
+        <div id="subAccountCards" class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <span class="text-gray-500">Loading accounts...</span>
+        </div>
+      </div>
+
       <!-- FX Rates Ticker -->
       <div class="glass rounded-xl p-4 mb-6">
         <div class="flex items-center gap-2 mb-2">
@@ -207,6 +252,34 @@ tailwind.config = {
         </div>
         <div id="fxTicker" class="flex flex-wrap gap-3 text-xs">
           <span class="text-gray-500">Loading rates...</span>
+        </div>
+      </div>
+
+      <!-- Real-time Ledger -->
+      <div class="glass rounded-xl p-4 mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-list-ul text-cyan-400 text-xs"></i>
+            <span class="text-xs font-semibold text-white">Real-time Ledger</span>
+            <span class="pulse-dot inline-block w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+          </div>
+          <button onclick="loadLedger()" class="text-xs text-cyan-400 hover:text-cyan-300"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-gray-500 border-b border-dark-600">
+                <th class="text-left py-1.5 px-2">Date</th>
+                <th class="text-left py-1.5 px-2">Type</th>
+                <th class="text-left py-1.5 px-2">Description</th>
+                <th class="text-right py-1.5 px-2">Amount</th>
+                <th class="text-right py-1.5 px-2">Balance</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerBody">
+              <tr><td colspan="5" class="text-center py-4 text-gray-600">Loading ledger...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -245,6 +318,17 @@ tailwind.config = {
 
     <!-- PAYMENTS TAB -->
     <div id="tab-payments" class="tab-content hidden fade-in">
+      <!-- Payment Sub-tabs -->
+      <div class="flex gap-2 mb-4 overflow-x-auto">
+        <button onclick="switchPaySub('settlement')" data-paysub="settlement" class="paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-accent text-dark-900 transition">Settlement</button>
+        <button onclick="switchPaySub('p2p')" data-paysub="p2p" class="paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white transition">P2P Transfer</button>
+        <button onclick="switchPaySub('external')" data-paysub="external" class="paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white transition">ACH/Wire/SEPA</button>
+        <button onclick="switchPaySub('scheduled')" data-paysub="scheduled" class="paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white transition">Scheduled</button>
+        <button onclick="switchPaySub('qr')" data-paysub="qr" class="paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white transition">QR Pay</button>
+      </div>
+
+      <!-- Settlement Sub-panel (existing) -->
+      <div id="paysub-settlement" class="paysub-content">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Settlement Form -->
         <div class="glass rounded-xl p-6">
@@ -308,6 +392,130 @@ tailwind.config = {
           <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-receipt mr-2 text-accent"></i>Settlement Result</h3>
           <div id="payResult" class="text-gray-500 text-sm">
             <p class="text-center py-12">Submit a settlement to see results here.</p>
+          </div>
+        </div>
+      </div>
+      </div><!-- end paysub-settlement -->
+
+      <!-- P2P Sub-panel -->
+      <div id="paysub-p2p" class="paysub-content hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="glass rounded-xl p-6">
+            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-paper-plane mr-2 text-accent"></i>Send Money (P2P)</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">Send via</label>
+                <select id="p2pType" class="w-full px-3 py-2 rounded-lg text-sm">
+                  <option value="username">Username</option>
+                  <option value="email">Email</option>
+                  <option value="phone">Phone Number</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">Recipient</label>
+                <input id="p2pRecipient" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g. walid or walid@ipts.com">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">Amount (USD)</label>
+                <input id="p2pAmount" type="number" class="w-full px-3 py-2 rounded-lg text-sm" value="100">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">Note (optional)</label>
+                <input id="p2pNote" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="Lunch money 🍕">
+              </div>
+              <div id="p2pError" class="hidden text-red-400 text-sm bg-red-500/10 rounded-lg p-2"></div>
+              <div id="p2pSuccess" class="hidden text-green-400 text-sm bg-green-500/10 rounded-lg p-2"></div>
+              <button onclick="sendP2P()" id="p2pBtn" class="w-full py-2.5 rounded-lg bg-accent text-dark-900 font-semibold hover:bg-accent/90 transition text-sm">
+                <i class="fas fa-paper-plane mr-2"></i>Send Money
+              </button>
+            </div>
+          </div>
+          <div class="glass rounded-xl p-6">
+            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-history mr-2 text-blue-400"></i>P2P History</h3>
+            <div id="p2pHistory" class="space-y-2 max-h-96 overflow-y-auto"><p class="text-gray-600 text-sm text-center py-8">No P2P transfers yet.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACH/Wire/SEPA Sub-panel -->
+      <div id="paysub-external" class="paysub-content hidden">
+        <div class="glass rounded-xl p-6 max-w-2xl">
+          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-building-columns mr-2 text-blue-400"></i>External Bank Transfer</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Transfer Type</label>
+              <div class="grid grid-cols-3 gap-2">
+                <button onclick="selectExtType('ach')" id="extTypeACH" class="ext-type-btn px-3 py-3 rounded-lg bg-accent/20 text-accent border border-accent text-xs font-semibold text-center">ACH<br><span class="text-[10px] text-gray-500">Free • 1-3 days</span></button>
+                <button onclick="selectExtType('wire')" id="extTypeWire" class="ext-type-btn px-3 py-3 rounded-lg bg-dark-700 text-gray-400 border border-dark-600 text-xs font-semibold text-center">Wire<br><span class="text-[10px] text-gray-500">$25 fee • Same day</span></button>
+                <button onclick="selectExtType('sepa')" id="extTypeSEPA" class="ext-type-btn px-3 py-3 rounded-lg bg-dark-700 text-gray-400 border border-dark-600 text-xs font-semibold text-center">SEPA<br><span class="text-[10px] text-gray-500">€5 fee • 1 day</span></button>
+              </div>
+            </div>
+            <div><label class="block text-xs text-gray-500 mb-1">Recipient Name</label><input id="extName" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="John Smith"></div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="block text-xs text-gray-500 mb-1">Routing / Sort Code</label><input id="extRouting" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="021000021"></div>
+              <div><label class="block text-xs text-gray-500 mb-1">Account Number</label><input id="extAccount" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="123456789"></div>
+            </div>
+            <div><label class="block text-xs text-gray-500 mb-1">Amount</label><input id="extAmount" type="number" class="w-full px-3 py-2 rounded-lg text-sm" value="5000"></div>
+            <div id="extFeePreview" class="text-xs bg-dark-700 rounded-lg p-3 border border-dark-500">
+              <div class="flex justify-between"><span class="text-gray-500">Transfer Fee</span><span id="extFee" class="text-white font-mono">$0.00</span></div>
+              <div class="flex justify-between mt-1"><span class="text-gray-500">Processing</span><span id="extProcessing" class="text-accent">1-3 business days</span></div>
+            </div>
+            <div id="extError" class="hidden text-red-400 text-sm bg-red-500/10 rounded-lg p-2"></div>
+            <div id="extSuccess" class="hidden text-green-400 text-sm bg-green-500/10 rounded-lg p-2"></div>
+            <button onclick="sendExternal()" id="extBtn" class="w-full py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition text-sm">
+              <i class="fas fa-building-columns mr-2"></i>Send Transfer
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scheduled Payments Sub-panel -->
+      <div id="paysub-scheduled" class="paysub-content hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="glass rounded-xl p-6">
+            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-calendar-check mr-2 text-purple-400"></i>Schedule a Payment</h3>
+            <div class="space-y-3">
+              <div><label class="block text-xs text-gray-500 mb-1">Beneficiary</label><input id="schedBen" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="Recipient name"></div>
+              <div><label class="block text-xs text-gray-500 mb-1">Amount (USD)</label><input id="schedAmount" type="number" class="w-full px-3 py-2 rounded-lg text-sm" value="1000"></div>
+              <div class="grid grid-cols-2 gap-3">
+                <div><label class="block text-xs text-gray-500 mb-1">Frequency</label>
+                  <select id="schedFreq" class="w-full px-3 py-2 rounded-lg text-sm">
+                    <option value="once">One-time</option><option value="weekly">Weekly</option><option value="biweekly">Bi-weekly</option><option value="monthly" selected>Monthly</option>
+                  </select>
+                </div>
+                <div><label class="block text-xs text-gray-500 mb-1">Next Date</label><input id="schedDate" type="date" class="w-full px-3 py-2 rounded-lg text-sm"></div>
+              </div>
+              <div><label class="block text-xs text-gray-500 mb-1">Description</label><input id="schedDesc" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g. Monthly rent"></div>
+              <button onclick="createScheduled()" class="w-full py-2.5 rounded-lg bg-purple-600 text-white font-semibold hover:bg-purple-700 transition text-sm"><i class="fas fa-calendar-plus mr-2"></i>Schedule Payment</button>
+            </div>
+          </div>
+          <div class="glass rounded-xl p-6">
+            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-list-check mr-2 text-accent"></i>Scheduled Payments</h3>
+            <div id="scheduledList" class="space-y-2 max-h-96 overflow-y-auto"><p class="text-gray-600 text-sm text-center py-8">No scheduled payments.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- QR Pay Sub-panel -->
+      <div id="paysub-qr" class="paysub-content hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="glass rounded-xl p-6">
+            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-qrcode mr-2 text-accent"></i>Generate QR Code (Receive)</h3>
+            <div class="space-y-3">
+              <div><label class="block text-xs text-gray-500 mb-1">Amount to Request (USD)</label><input id="qrAmount" type="number" class="w-full px-3 py-2 rounded-lg text-sm" value="50"></div>
+              <button onclick="generateQR()" class="w-full py-2.5 rounded-lg bg-accent text-dark-900 font-semibold hover:bg-accent/90 transition text-sm"><i class="fas fa-qrcode mr-2"></i>Generate QR Code</button>
+              <div id="qrResult" class="text-center py-4"></div>
+            </div>
+          </div>
+          <div class="glass rounded-xl p-6">
+            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-camera mr-2 text-blue-400"></i>Scan & Pay</h3>
+            <div class="space-y-3">
+              <div><label class="block text-xs text-gray-500 mb-1">Paste QR Data</label><textarea id="qrScanData" class="w-full px-3 py-2 rounded-lg text-sm" rows="3" placeholder="Paste QR code data here..."></textarea></div>
+              <div><label class="block text-xs text-gray-500 mb-1">Amount (if not in QR)</label><input id="qrPayAmount" type="number" class="w-full px-3 py-2 rounded-lg text-sm" value="0"></div>
+              <div id="qrPayError" class="hidden text-red-400 text-sm bg-red-500/10 rounded-lg p-2"></div>
+              <div id="qrPaySuccess" class="hidden text-green-400 text-sm bg-green-500/10 rounded-lg p-2"></div>
+              <button onclick="payQR()" class="w-full py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition text-sm"><i class="fas fa-bolt mr-2"></i>Pay via QR</button>
+            </div>
           </div>
         </div>
       </div>
@@ -627,7 +835,381 @@ tailwind.config = {
       </div>
     </div>
 
+    <!-- BENEFICIARIES TAB -->
+    <div id="tab-beneficiaries" class="tab-content hidden fade-in">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Add Beneficiary Form -->
+        <div class="glass rounded-xl p-6 lg:col-span-1">
+          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-user-plus mr-2 text-accent"></i>Add Beneficiary</h3>
+          <div class="space-y-3" id="beneficiaryForm">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Full Name *</label>
+              <input id="benName" type="text" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g. John Smith">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Nickname / Alias</label>
+              <input id="benNickname" type="text" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g. JS Consulting">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Type</label>
+              <select id="benType" class="w-full px-3 py-2 rounded-lg text-sm">
+                <option value="individual">Individual</option>
+                <option value="corporate">Corporate</option>
+                <option value="trust">Trust / Foundation</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Account Number / IBAN</label>
+              <input id="benAccount" type="text" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g. GB82WEST12345698765432">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">Bank Name</label>
+                <input id="benBank" type="text" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g. HSBC">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">SWIFT / BIC</label>
+                <input id="benSwift" type="text" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g. HSBCGB2L">
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">Country</label>
+                <select id="benCountry" class="w-full px-3 py-2 rounded-lg text-sm">
+                  <option value="US">United States</option>
+                  <option value="GB">United Kingdom</option>
+                  <option value="DE">Germany</option>
+                  <option value="FR">France</option>
+                  <option value="JP">Japan</option>
+                  <option value="CH">Switzerland</option>
+                  <option value="AU">Australia</option>
+                  <option value="CA">Canada</option>
+                  <option value="SG">Singapore</option>
+                  <option value="AE">UAE</option>
+                  <option value="SA">Saudi Arabia</option>
+                  <option value="IN">India</option>
+                  <option value="CN">China</option>
+                  <option value="BR">Brazil</option>
+                  <option value="HK">Hong Kong</option>
+                  <option value="KR">South Korea</option>
+                  <option value="MX">Mexico</option>
+                  <option value="NG">Nigeria</option>
+                  <option value="ZA">South Africa</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">Currency</label>
+                <select id="benCurrency" class="w-full px-3 py-2 rounded-lg text-sm">
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="GBP">GBP</option>
+                  <option value="JPY">JPY</option>
+                  <option value="CHF">CHF</option>
+                  <option value="AUD">AUD</option>
+                  <option value="CAD">CAD</option>
+                  <option value="CNY">CNY</option>
+                  <option value="INR">INR</option>
+                  <option value="SGD">SGD</option>
+                  <option value="AED">AED</option>
+                  <option value="SAR">SAR</option>
+                  <option value="BRL">BRL</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Notes</label>
+              <textarea id="benNotes" class="w-full px-3 py-2 rounded-lg text-sm" rows="2" placeholder="Optional notes..."></textarea>
+            </div>
+            <div id="benFormError" class="hidden text-red-400 text-sm bg-red-500/10 rounded-lg p-2"></div>
+            <div id="benFormSuccess" class="hidden text-green-400 text-sm bg-green-500/10 rounded-lg p-2"></div>
+            <button onclick="addBeneficiary()" id="benAddBtn" class="w-full py-2.5 rounded-lg bg-accent text-dark-900 font-semibold hover:bg-accent/90 transition text-sm">
+              <i class="fas fa-plus mr-2"></i>Add Beneficiary
+            </button>
+          </div>
+        </div>
+
+        <!-- Beneficiaries List -->
+        <div class="glass rounded-xl p-6 lg:col-span-2">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-sm font-semibold text-white"><i class="fas fa-address-book mr-2 text-blue-400"></i>My Beneficiaries</h3>
+            <div class="flex items-center gap-3">
+              <input id="benSearch" type="text" class="px-3 py-1.5 rounded-lg text-xs w-48" placeholder="Search beneficiaries..." oninput="filterBeneficiaries()">
+              <span id="benCount" class="text-xs text-gray-500">0 beneficiaries</span>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="text-left text-gray-500 uppercase border-b border-dark-600">
+                  <th class="pb-2 pr-3">Name</th>
+                  <th class="pb-2 pr-3">Type</th>
+                  <th class="pb-2 pr-3">Bank</th>
+                  <th class="pb-2 pr-3">Country</th>
+                  <th class="pb-2 pr-3">Currency</th>
+                  <th class="pb-2 pr-3">Added</th>
+                  <th class="pb-2 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="beneficiariesBody">
+                <tr><td colspan="7" class="text-center py-8 text-gray-600">No beneficiaries added yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPENDING 360 REPORTING TAB -->
+    <div id="tab-reporting" class="tab-content hidden fade-in">
+      <!-- Summary KPI Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <div class="glass rounded-xl p-5 glow-green">
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Total Sent</p>
+          <p id="rptTotalSent" class="text-2xl font-bold text-white mt-1">$0</p>
+          <p id="rptTotalSentCount" class="text-xs text-gray-500 mt-1">0 transactions</p>
+        </div>
+        <div class="glass rounded-xl p-5">
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Total Received</p>
+          <p id="rptTotalRecv" class="text-2xl font-bold text-blue-400 mt-1">$0</p>
+          <p id="rptTotalRecvCount" class="text-xs text-gray-500 mt-1">0 transactions</p>
+        </div>
+        <div class="glass rounded-xl p-5">
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Avg Risk Score</p>
+          <p id="rptAvgRisk" class="text-2xl font-bold text-yellow-400 mt-1">0</p>
+          <p class="text-xs text-gray-500 mt-1">across all sent</p>
+        </div>
+        <div class="glass rounded-xl p-5">
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Highest Tx</p>
+          <p id="rptHighestTx" class="text-2xl font-bold text-purple-400 mt-1">$0</p>
+          <p id="rptHighestBen" class="text-xs text-gray-500 mt-1">—</p>
+        </div>
+        <div class="glass rounded-xl p-5">
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Account Balance</p>
+          <p id="rptBalance" class="text-2xl font-bold text-accent mt-1">$0</p>
+          <p class="text-xs text-gray-500 mt-1">current</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Monthly Trend Chart -->
+        <div class="glass rounded-xl p-6">
+          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-chart-area mr-2 text-accent"></i>Monthly Spending Trend</h3>
+          <div style="position:relative;height:250px;"><canvas id="rptMonthlyChart"></canvas></div>
+        </div>
+
+        <!-- Spending by Status (Donut) -->
+        <div class="glass rounded-xl p-6">
+          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-chart-pie mr-2 text-blue-400"></i>Spending by Status</h3>
+          <div style="position:relative;height:250px;"><canvas id="rptStatusChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Risk Distribution -->
+        <div class="glass rounded-xl p-6">
+          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-shield-halved mr-2 text-yellow-400"></i>Risk Distribution</h3>
+          <div style="position:relative;height:250px;"><canvas id="rptRiskChart"></canvas></div>
+        </div>
+
+        <!-- Spending by Currency -->
+        <div class="glass rounded-xl p-6">
+          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-coins mr-2 text-purple-400"></i>Spending by Currency</h3>
+          <div style="position:relative;height:250px;"><canvas id="rptCurrencyChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Activity Heatmap (Hour of Day) -->
+        <div class="glass rounded-xl p-6">
+          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-clock mr-2 text-orange-400"></i>Activity by Hour of Day</h3>
+          <div style="position:relative;height:250px;"><canvas id="rptHourlyChart"></canvas></div>
+        </div>
+
+        <!-- Activity by Day of Week -->
+        <div class="glass rounded-xl p-6">
+          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-calendar-week mr-2 text-cyan-400"></i>Activity by Day of Week</h3>
+          <div style="position:relative;height:250px;"><canvas id="rptDowChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Top Beneficiaries Table -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-ranking-star mr-2 text-yellow-400"></i>Top Beneficiaries by Spend</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-left text-gray-500 uppercase border-b border-dark-600">
+                <th class="pb-2 pr-3">#</th>
+                <th class="pb-2 pr-3">Beneficiary</th>
+                <th class="pb-2 pr-3 text-right">Transactions</th>
+                <th class="pb-2 pr-3 text-right">Total Amount</th>
+                <th class="pb-2 pr-3 text-right">Avg Risk</th>
+                <th class="pb-2">Risk Level</th>
+              </tr>
+            </thead>
+            <tbody id="rptBeneficiaryBody">
+              <tr><td colspan="6" class="text-center py-8 text-gray-600">No transaction data yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Recent Transactions -->
+      <div class="glass rounded-xl p-6">
+        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-receipt mr-2 text-gray-400"></i>Recent Transactions</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-left text-gray-500 uppercase border-b border-dark-600">
+                <th class="pb-2 pr-3">Date</th>
+                <th class="pb-2 pr-3">Beneficiary</th>
+                <th class="pb-2 pr-3 text-right">Amount</th>
+                <th class="pb-2 pr-3">Currency</th>
+                <th class="pb-2 pr-3 text-right">Risk</th>
+                <th class="pb-2">Status</th>
+              </tr>
+            </thead>
+            <tbody id="rptRecentBody">
+              <tr><td colspan="6" class="text-center py-8 text-gray-600">No transactions yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARDS TAB -->
+    <div id="tab-cards" class="tab-content hidden fade-in">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Generate Card -->
+        <div class="glass rounded-xl p-6">
+          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-plus-circle mr-2 text-accent"></i>Generate Virtual Card</h3>
+          <div class="space-y-3">
+            <div><label class="block text-xs text-gray-500 mb-1">Card Label</label><input id="cardLabel" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g. Online Shopping"></div>
+            <div><label class="block text-xs text-gray-500 mb-1">Spending Limit (USD)</label><input id="cardLimit" type="number" class="w-full px-3 py-2 rounded-lg text-sm" value="5000"></div>
+            <div id="cardGenResult" class="hidden bg-dark-700 rounded-lg p-4 border border-accent/30">
+              <p class="text-xs text-gray-500 mb-1">New Card Generated</p>
+              <p id="cardGenNumber" class="text-white font-mono text-lg tracking-widest"></p>
+              <div class="flex justify-between mt-2">
+                <span id="cardGenExpiry" class="text-xs text-gray-400"></span>
+                <span id="cardGenCVV" class="text-xs text-accent font-mono"></span>
+              </div>
+            </div>
+            <button onclick="generateCard()" class="w-full py-2.5 rounded-lg bg-accent text-dark-900 font-semibold hover:bg-accent/90 transition text-sm"><i class="fas fa-credit-card mr-2"></i>Generate Card</button>
+          </div>
+        </div>
+        <!-- My Cards -->
+        <div class="glass rounded-xl p-6 lg:col-span-2">
+          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-wallet mr-2 text-purple-400"></i>My Virtual Cards</h3>
+          <div id="cardsList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <p class="text-gray-600 text-sm text-center py-8 col-span-2">No virtual cards yet. Generate one!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECURITY TAB -->
+    <div id="tab-security" class="tab-content hidden fade-in">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- E-KYC -->
+        <div class="glass rounded-xl p-6">
+          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-id-card mr-2 text-blue-400"></i>E-KYC Verification</h3>
+          <div id="kycStatusPanel">
+            <div id="kycNotStarted" class="text-center py-6">
+              <div class="w-16 h-16 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-id-card text-3xl text-yellow-400"></i>
+              </div>
+              <p class="text-white font-semibold mb-1">Identity Not Verified</p>
+              <p class="text-gray-500 text-xs mb-4">Complete KYC to unlock all features</p>
+              <div class="space-y-3">
+                <div><label class="block text-xs text-gray-500 mb-1">Document Type</label>
+                  <select id="kycDocType" class="w-full px-3 py-2 rounded-lg text-sm">
+                    <option value="passport">Passport</option><option value="drivers_license">Driver's License</option><option value="national_id">National ID</option>
+                  </select>
+                </div>
+                <div class="border-2 border-dashed border-dark-500 rounded-xl p-8 text-center cursor-pointer hover:border-accent/50 transition" onclick="submitKYC()">
+                  <i class="fas fa-cloud-upload-alt text-2xl text-gray-500 mb-2"></i>
+                  <p class="text-gray-400 text-xs">Click to upload document</p>
+                </div>
+                <button onclick="submitKYC()" id="kycBtn" class="w-full py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition text-sm"><i class="fas fa-shield-check mr-2"></i>Verify Identity</button>
+              </div>
+            </div>
+            <div id="kycVerifying" class="hidden text-center py-8">
+              <div class="w-20 h-20 rounded-full border-4 border-accent/30 border-t-accent animate-spin mx-auto mb-4"></div>
+              <p class="text-white font-semibold">Verifying Identity...</p>
+              <p class="text-gray-500 text-xs">Checking document & liveness</p>
+            </div>
+            <div id="kycVerified" class="hidden text-center py-6">
+              <div class="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-check-circle text-3xl text-green-400"></i>
+              </div>
+              <p class="text-white font-semibold mb-1">Identity Verified</p>
+              <p id="kycScore" class="text-accent text-sm mb-2"></p>
+              <p id="kycDocInfo" class="text-gray-500 text-xs"></p>
+            </div>
+          </div>
+        </div>
+        <!-- Biometric & Auth -->
+        <div class="glass rounded-xl p-6">
+          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-fingerprint mr-2 text-purple-400"></i>Biometric Authentication</h3>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between bg-dark-700 rounded-lg p-4">
+              <div class="flex items-center gap-3"><i class="fas fa-fingerprint text-xl text-purple-400"></i><div><p class="text-white text-sm font-medium">Fingerprint</p><p class="text-gray-500 text-xs">Touch ID / Fingerprint sensor</p></div></div>
+              <label class="relative inline-flex cursor-pointer"><input type="checkbox" id="bioFingerprint" class="sr-only peer" checked><div class="w-9 h-5 bg-dark-500 rounded-full peer peer-checked:bg-accent after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div></label>
+            </div>
+            <div class="flex items-center justify-between bg-dark-700 rounded-lg p-4">
+              <div class="flex items-center gap-3"><i class="fas fa-face-smile text-xl text-blue-400"></i><div><p class="text-white text-sm font-medium">Face ID</p><p class="text-gray-500 text-xs">Facial recognition login</p></div></div>
+              <label class="relative inline-flex cursor-pointer"><input type="checkbox" id="bioFaceID" class="sr-only peer"><div class="w-9 h-5 bg-dark-500 rounded-full peer peer-checked:bg-accent after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div></label>
+            </div>
+            <div class="flex items-center justify-between bg-dark-700 rounded-lg p-4">
+              <div class="flex items-center gap-3"><i class="fas fa-key text-xl text-yellow-400"></i><div><p class="text-white text-sm font-medium">PIN Code</p><p class="text-gray-500 text-xs">6-digit secure PIN</p></div></div>
+              <label class="relative inline-flex cursor-pointer"><input type="checkbox" id="bioPIN" class="sr-only peer" checked><div class="w-9 h-5 bg-dark-500 rounded-full peer peer-checked:bg-accent after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div></label>
+            </div>
+          </div>
+          <h3 class="text-sm font-semibold text-white mt-6 mb-4"><i class="fas fa-shield-halved mr-2 text-red-400"></i>Fraud Alerts</h3>
+          <div id="fraudAlertsList" class="space-y-2 max-h-64 overflow-y-auto"><p class="text-gray-600 text-sm text-center py-4">No fraud alerts</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DOCUMENTS TAB -->
+    <div id="tab-documents" class="tab-content hidden fade-in">
+      <div class="glass rounded-xl p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-sm font-semibold text-white"><i class="fas fa-file-invoice mr-2 text-blue-400"></i>Document Center</h3>
+          <div class="flex items-center gap-2">
+            <select id="docFilter" class="px-3 py-1.5 rounded-lg text-xs" onchange="loadDocuments()">
+              <option value="">All Documents</option><option value="statement">Statements</option><option value="tax_1099">Tax Documents</option><option value="receipt">Receipts</option>
+            </select>
+          </div>
+        </div>
+        <div id="documentsList" class="space-y-2">
+          <p class="text-gray-600 text-sm text-center py-8">Loading documents...</p>
+        </div>
+      </div>
+    </div>
+
   </main>
+</div>
+
+<!-- Support Chat Widget -->
+<div id="chatWidget" class="fixed bottom-6 right-6 z-50">
+  <button onclick="toggleChat()" id="chatToggle" class="w-14 h-14 rounded-full bg-accent text-dark-900 shadow-lg hover:bg-accent/90 transition flex items-center justify-center text-xl">
+    <i class="fas fa-headset"></i>
+  </button>
+  <div id="chatPanel" class="hidden absolute bottom-16 right-0 w-80 glass rounded-xl border border-dark-600 shadow-xl overflow-hidden">
+    <div class="bg-accent/20 px-4 py-3 flex justify-between items-center">
+      <span class="text-sm font-semibold text-white"><i class="fas fa-robot mr-2"></i>IPTS Support</span>
+      <button onclick="toggleChat()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="chatMessages" class="h-64 overflow-y-auto p-3 space-y-2">
+      <div class="bg-accent/10 rounded-lg p-2 text-xs text-gray-300 max-w-[85%]"><span class="text-accent font-semibold">Bot:</span> Hi! I'm IPTS Support Bot. How can I help?</div>
+    </div>
+    <div class="p-3 border-t border-dark-600 flex gap-2">
+      <input id="chatInput" class="flex-1 px-3 py-2 rounded-lg text-xs" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendChat()">
+      <button onclick="sendChat()" class="px-3 py-2 rounded-lg bg-accent text-dark-900 text-xs font-semibold"><i class="fas fa-paper-plane"></i></button>
+    </div>
+  </div>
 </div>
 
 <!-- Case Detail Modal -->
@@ -751,6 +1333,7 @@ function showApp() {
   }
   loadDashboard();
   loadFXRates();
+  loadNotifications();
   pollHealth();
   if (healthInterval) clearInterval(healthInterval);
   healthInterval = setInterval(pollHealth, 30000);
@@ -777,6 +1360,11 @@ function switchTab(tab) {
   if (tab === 'admin') { loadHITL(); loadAudit(); }
   if (tab === 'compliance') { loadSanctions(); loadNostro(); }
   if (tab === 'cases') loadCases();
+  if (tab === 'beneficiaries') loadBeneficiaries();
+  if (tab === 'reporting') loadSpending360();
+  if (tab === 'cards') loadCards();
+  if (tab === 'security') { loadKYCStatus(); loadFraudAlerts(); }
+  if (tab === 'documents') loadDocuments();
 }
 
 // ============================================================
@@ -791,7 +1379,60 @@ async function loadDashboard() {
     document.getElementById('kpiLiquidity').textContent = '$' + Number(data.nostro_liquidity_usd || 0).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
     ACCOUNTS = data.accounts || [];
     loadTransactions();
+    loadSubAccounts();
+    loadLedger();
   } catch (e) { console.error('Dashboard error:', e); }
+}
+
+async function loadSubAccounts() {
+  try {
+    const data = await apiFetch('/api/accounts/sub-accounts');
+    const container = document.getElementById('subAccountCards');
+    const accounts = data.accounts || [];
+    if (accounts.length === 0) {
+      container.innerHTML = '<span class="text-gray-500">No sub-accounts found.</span>';
+      return;
+    }
+    const icons = { checking: 'fa-money-check', savings: 'fa-piggy-bank', business: 'fa-briefcase', vault: 'fa-vault' };
+    const colors = { checking: 'text-accent', savings: 'text-blue-400', business: 'text-purple-400', vault: 'text-yellow-400' };
+    container.innerHTML = accounts.map(a => `
+      <div class="bg-dark-700 rounded-lg p-3 border border-dark-500 hover:border-accent/30 transition cursor-pointer">
+        <div class="flex items-center gap-2 mb-2">
+          <i class="fas ${icons[a.account_type] || 'fa-wallet'} ${colors[a.account_type] || 'text-gray-400'}"></i>
+          <span class="font-semibold text-white capitalize">${a.account_type}</span>
+          <span class="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-dark-600 text-gray-400 uppercase">${a.currency}</span>
+        </div>
+        <p class="text-lg font-mono text-white">$${Number(a.balance).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
+        <p class="text-[10px] text-gray-500 mt-1 font-mono">ACC-${a.id}</p>
+      </div>
+    `).join('');
+  } catch (e) { console.error('Sub-accounts error:', e); }
+}
+
+async function loadLedger() {
+  try {
+    const data = await apiFetch('/api/ledger?page=1&per_page=10');
+    const tbody = document.getElementById('ledgerBody');
+    const entries = data.transactions || [];
+    if (entries.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-600">No ledger entries yet. Execute a settlement to begin.</td></tr>';
+      return;
+    }
+    const currentBal = data.balance_current || BALANCE;
+    tbody.innerHTML = entries.map(e => {
+      const isCredit = e.direction === 'credit';
+      const amtColor = isCredit ? 'text-green-400' : 'text-red-400';
+      const amtPrefix = isCredit ? '+' : '-';
+      const statusColor = e.status === 'settled' ? 'text-accent' : e.status === 'blocked' ? 'text-red-400' : 'text-yellow-400';
+      return `<tr class="border-b border-dark-600/30 hover:bg-dark-700/30">
+        <td class="py-1.5 px-2 text-gray-500">${e.created_at || '-'}</td>
+        <td class="py-1.5 px-2"><span class="px-1.5 py-0.5 rounded text-[10px] ${isCredit ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'} uppercase">${e.direction}</span></td>
+        <td class="py-1.5 px-2 text-gray-300">${e.counterparty || '-'} <span class="${statusColor} text-[10px] uppercase">[${e.status}]</span></td>
+        <td class="py-1.5 px-2 text-right font-mono ${amtColor}">${amtPrefix}$${Number(e.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+        <td class="py-1.5 px-2 text-right font-mono text-white">$${Number(currentBal).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) { console.error('Ledger error:', e); }
 }
 
 async function loadTransactions() {
@@ -1791,6 +2432,762 @@ function getSLABadge(caseItem) {
 }
 
 // ============================================================
+// Beneficiary Management
+// ============================================================
+let ALL_BENEFICIARIES = [];
+
+async function loadBeneficiaries() {
+  try {
+    const data = await apiFetch('/api/beneficiaries');
+    ALL_BENEFICIARIES = data.beneficiaries || [];
+    renderBeneficiaries(ALL_BENEFICIARIES);
+  } catch (e) { console.error('Load beneficiaries error:', e); }
+}
+
+function filterBeneficiaries() {
+  const q = (document.getElementById('benSearch').value || '').toLowerCase();
+  const filtered = ALL_BENEFICIARIES.filter(b =>
+    b.name.toLowerCase().includes(q) ||
+    (b.nickname || '').toLowerCase().includes(q) ||
+    (b.bank_name || '').toLowerCase().includes(q) ||
+    (b.country || '').toLowerCase().includes(q)
+  );
+  renderBeneficiaries(filtered);
+}
+
+function renderBeneficiaries(list) {
+  document.getElementById('benCount').textContent = `${list.length} beneficiar${list.length === 1 ? 'y' : 'ies'}`;
+  const tbody = document.getElementById('beneficiariesBody');
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-600">No beneficiaries found.</td></tr>';
+    return;
+  }
+  const countryFlags = {US:'🇺🇸',GB:'🇬🇧',DE:'🇩🇪',FR:'🇫🇷',JP:'🇯🇵',CH:'🇨🇭',AU:'🇦🇺',CA:'🇨🇦',SG:'🇸🇬',AE:'🇦🇪',SA:'🇸🇦',IN:'🇮🇳',CN:'🇨🇳',BR:'🇧🇷',HK:'🇭🇰',KR:'🇰🇷',MX:'🇲🇽',NG:'🇳🇬',ZA:'🇿🇦'};
+  tbody.innerHTML = list.map(b => {
+    const flag = countryFlags[b.country] || '🌍';
+    const typeIcon = b.beneficiary_type === 'corporate' ? 'fa-building' : b.beneficiary_type === 'trust' ? 'fa-landmark' : 'fa-user';
+    const typeBadge = b.beneficiary_type === 'corporate' ? 'bg-blue-500/20 text-blue-400' : b.beneficiary_type === 'trust' ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-500/20 text-gray-400';
+    const dateStr = b.created_at ? new Date(b.created_at).toLocaleDateString() : '—';
+    return `<tr class="border-b border-dark-700 hover:bg-dark-700/50 transition">
+      <td class="py-3 pr-3">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-dark-600 flex items-center justify-center text-accent text-sm font-bold">${b.name.charAt(0).toUpperCase()}</div>
+          <div>
+            <p class="text-white font-medium">${b.name}</p>
+            ${b.nickname ? `<p class="text-gray-500 text-xs">${b.nickname}</p>` : ''}
+            ${b.account_number ? `<p class="text-gray-600 text-xs font-mono">${b.account_number.slice(0,4)}****${b.account_number.slice(-4)}</p>` : ''}
+          </div>
+        </div>
+      </td>
+      <td class="py-3 pr-3"><span class="badge ${typeBadge}"><i class="fas ${typeIcon} mr-1"></i>${b.beneficiary_type}</span></td>
+      <td class="py-3 pr-3 text-gray-400">${b.bank_name || '—'}${b.swift_code ? `<br><span class="font-mono text-gray-600">${b.swift_code}</span>` : ''}</td>
+      <td class="py-3 pr-3">${flag} ${b.country}</td>
+      <td class="py-3 pr-3"><span class="font-mono text-accent">${b.currency}</span></td>
+      <td class="py-3 pr-3 text-gray-500">${dateStr}</td>
+      <td class="py-3 text-right">
+        <button onclick="editBeneficiary('${b.id}')" class="px-2 py-1 rounded text-blue-400 hover:bg-blue-500/10 transition" title="Edit"><i class="fas fa-pen text-xs"></i></button>
+        <button onclick="deleteBeneficiary('${b.id}', '${b.name.replace(/'/g, "\\'")}')" class="px-2 py-1 rounded text-red-400 hover:bg-red-500/10 transition" title="Delete"><i class="fas fa-trash text-xs"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function addBeneficiary() {
+  const errDiv = document.getElementById('benFormError');
+  const sucDiv = document.getElementById('benFormSuccess');
+  errDiv.classList.add('hidden');
+  sucDiv.classList.add('hidden');
+
+  const name = document.getElementById('benName').value.trim();
+  if (!name) {
+    errDiv.textContent = 'Beneficiary name is required.';
+    errDiv.classList.remove('hidden');
+    return;
+  }
+
+  const btn = document.getElementById('benAddBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+
+  try {
+    const result = await apiFetch('/api/beneficiaries', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: name,
+        nickname: document.getElementById('benNickname').value.trim(),
+        account_number: document.getElementById('benAccount').value.trim(),
+        bank_name: document.getElementById('benBank').value.trim(),
+        swift_code: document.getElementById('benSwift').value.trim().toUpperCase(),
+        country: document.getElementById('benCountry').value,
+        currency: document.getElementById('benCurrency').value,
+        beneficiary_type: document.getElementById('benType').value,
+        notes: document.getElementById('benNotes').value.trim(),
+      })
+    });
+    sucDiv.textContent = result.message || 'Beneficiary added successfully!';
+    sucDiv.classList.remove('hidden');
+    // Clear form
+    ['benName','benNickname','benAccount','benBank','benSwift','benNotes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('benType').value = 'individual';
+    document.getElementById('benCountry').value = 'US';
+    document.getElementById('benCurrency').value = 'USD';
+    loadBeneficiaries();
+    setTimeout(() => sucDiv.classList.add('hidden'), 4000);
+  } catch (e) {
+    errDiv.textContent = e.message || 'Failed to add beneficiary.';
+    errDiv.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-plus mr-2"></i>Add Beneficiary';
+  }
+}
+
+function editBeneficiary(id) {
+  const b = ALL_BENEFICIARIES.find(x => x.id === id);
+  if (!b) return;
+  // Populate form with existing data
+  document.getElementById('benName').value = b.name || '';
+  document.getElementById('benNickname').value = b.nickname || '';
+  document.getElementById('benAccount').value = b.account_number || '';
+  document.getElementById('benBank').value = b.bank_name || '';
+  document.getElementById('benSwift').value = b.swift_code || '';
+  document.getElementById('benCountry').value = b.country || 'US';
+  document.getElementById('benCurrency').value = b.currency || 'USD';
+  document.getElementById('benType').value = b.beneficiary_type || 'individual';
+  document.getElementById('benNotes').value = b.notes || '';
+  // Change button to Update mode
+  const btn = document.getElementById('benAddBtn');
+  btn.innerHTML = '<i class="fas fa-save mr-2"></i>Update Beneficiary';
+  btn.onclick = async function() {
+    const errDiv = document.getElementById('benFormError');
+    const sucDiv = document.getElementById('benFormSuccess');
+    errDiv.classList.add('hidden');
+    sucDiv.classList.add('hidden');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Updating...';
+    try {
+      const result = await apiFetch('/api/beneficiaries/' + id, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: document.getElementById('benName').value.trim(),
+          nickname: document.getElementById('benNickname').value.trim(),
+          account_number: document.getElementById('benAccount').value.trim(),
+          bank_name: document.getElementById('benBank').value.trim(),
+          swift_code: document.getElementById('benSwift').value.trim().toUpperCase(),
+          country: document.getElementById('benCountry').value,
+          currency: document.getElementById('benCurrency').value,
+          beneficiary_type: document.getElementById('benType').value,
+          notes: document.getElementById('benNotes').value.trim(),
+        })
+      });
+      sucDiv.textContent = 'Beneficiary updated!';
+      sucDiv.classList.remove('hidden');
+      ['benName','benNickname','benAccount','benBank','benSwift','benNotes'].forEach(fid => document.getElementById(fid).value = '');
+      btn.innerHTML = '<i class="fas fa-plus mr-2"></i>Add Beneficiary';
+      btn.onclick = addBeneficiary;
+      loadBeneficiaries();
+      setTimeout(() => sucDiv.classList.add('hidden'), 4000);
+    } catch (e) {
+      errDiv.textContent = e.message || 'Update failed.';
+      errDiv.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+    }
+  };
+  // Scroll to form
+  document.getElementById('beneficiaryForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function deleteBeneficiary(id, name) {
+  if (!confirm(`Delete beneficiary "${name}"? This cannot be undone.`)) return;
+  try {
+    await apiFetch('/api/beneficiaries/' + id, { method: 'DELETE' });
+    loadBeneficiaries();
+  } catch (e) {
+    alert('Delete failed: ' + (e.message || 'Unknown error'));
+  }
+}
+
+// ============================================================
+// Spending 360 Reporting
+// ============================================================
+let rptMonthlyChart = null;
+let rptStatusChart = null;
+let rptRiskChart = null;
+let rptCurrencyChart = null;
+let rptHourlyChart = null;
+let rptDowChart = null;
+
+async function loadSpending360() {
+  try {
+    const data = await apiFetch('/api/reporting/spending-360');
+    renderSpendingKPIs(data);
+    renderMonthlyTrend(data.monthly_trend || []);
+    renderStatusChart(data.by_status || []);
+    renderRiskChart(data.risk_distribution || {});
+    renderCurrencyChart(data.by_currency || []);
+    renderHourlyChart(data.hourly_pattern || []);
+    renderDowChart(data.dow_pattern || []);
+    renderTopBeneficiaries(data.by_beneficiary || []);
+    renderRecentTransactions(data.recent_transactions || []);
+  } catch (e) { console.error('Spending 360 error:', e); }
+}
+
+function renderSpendingKPIs(data) {
+  const s = data.summary || {};
+  document.getElementById('rptTotalSent').textContent = '$' + Number(s.total_sent_amount || 0).toLocaleString('en-US', {maximumFractionDigits: 0});
+  document.getElementById('rptTotalSentCount').textContent = `${s.total_sent_count || 0} transactions`;
+  document.getElementById('rptTotalRecv').textContent = '$' + Number(s.total_received_amount || 0).toLocaleString('en-US', {maximumFractionDigits: 0});
+  document.getElementById('rptTotalRecvCount').textContent = `${s.total_received_count || 0} transactions`;
+  document.getElementById('rptAvgRisk').textContent = (s.avg_risk_score || 0).toFixed(1);
+  document.getElementById('rptBalance').textContent = '$' + Number(data.balance || 0).toLocaleString('en-US', {maximumFractionDigits: 0});
+  if (data.highest_transaction) {
+    document.getElementById('rptHighestTx').textContent = '$' + Number(data.highest_transaction.amount || 0).toLocaleString('en-US', {maximumFractionDigits: 0});
+    document.getElementById('rptHighestBen').textContent = data.highest_transaction.beneficiary || '—';
+  }
+}
+
+function makeChart(canvasId, config) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  return new Chart(ctx, config);
+}
+
+function renderMonthlyTrend(data) {
+  if (rptMonthlyChart) rptMonthlyChart.destroy();
+  rptMonthlyChart = makeChart('rptMonthlyChart', {
+    type: 'line',
+    data: {
+      labels: data.map(d => d.month),
+      datasets: [{
+        label: 'Spending ($)',
+        data: data.map(d => d.amount),
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16,185,129,0.1)',
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#10b981',
+        pointRadius: 4,
+      }, {
+        label: 'Tx Count',
+        data: data.map(d => d.count),
+        borderColor: '#3b82f6',
+        backgroundColor: 'transparent',
+        borderDash: [5, 5],
+        yAxisID: 'y1',
+        tension: 0.4,
+        pointRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#9ca3af', font: { size: 10 } } } },
+      scales: {
+        x: { ticks: { color: '#6b7280', font: { size: 10 } }, grid: { color: 'rgba(42,63,85,0.3)' } },
+        y: { ticks: { color: '#6b7280', callback: v => '$' + (v/1000).toFixed(0) + 'k' }, grid: { color: 'rgba(42,63,85,0.3)' } },
+        y1: { position: 'right', ticks: { color: '#6b7280' }, grid: { display: false } },
+      }
+    }
+  });
+}
+
+function renderStatusChart(data) {
+  if (rptStatusChart) rptStatusChart.destroy();
+  const colors = { settled: '#10b981', blocked: '#ef4444', flagged: '#f59e0b', pending: '#8b5cf6' };
+  rptStatusChart = makeChart('rptStatusChart', {
+    type: 'doughnut',
+    data: {
+      labels: data.map(d => (d.status || 'unknown').toUpperCase()),
+      datasets: [{
+        data: data.map(d => d.amount),
+        backgroundColor: data.map(d => colors[d.status] || '#6b7280'),
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '60%',
+      plugins: {
+        legend: { position: 'right', labels: { color: '#9ca3af', padding: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => `${ctx.label}: $${Number(ctx.raw).toLocaleString()}` } }
+      }
+    }
+  });
+}
+
+function renderRiskChart(data) {
+  if (rptRiskChart) rptRiskChart.destroy();
+  rptRiskChart = makeChart('rptRiskChart', {
+    type: 'bar',
+    data: {
+      labels: ['Low (<30)', 'Medium (30-60)', 'High (60-80)', 'Critical (80+)'],
+      datasets: [{
+        data: [data.low || 0, data.medium || 0, data.high || 0, data.critical || 0],
+        backgroundColor: ['#10b981', '#f59e0b', '#f97316', '#ef4444'],
+        borderRadius: 6,
+        barThickness: 40,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#6b7280', font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: '#6b7280', stepSize: 1 }, grid: { color: 'rgba(42,63,85,0.3)' } },
+      }
+    }
+  });
+}
+
+function renderCurrencyChart(data) {
+  if (rptCurrencyChart) rptCurrencyChart.destroy();
+  const currColors = ['#10b981','#3b82f6','#8b5cf6','#f59e0b','#ef4444','#ec4899','#06b6d4','#f97316','#84cc16','#6366f1','#14b8a6','#e11d48','#a855f7'];
+  rptCurrencyChart = makeChart('rptCurrencyChart', {
+    type: 'doughnut',
+    data: {
+      labels: data.map(d => d.currency),
+      datasets: [{
+        data: data.map(d => d.amount),
+        backgroundColor: data.map((_, i) => currColors[i % currColors.length]),
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '55%',
+      plugins: {
+        legend: { position: 'right', labels: { color: '#9ca3af', padding: 10, font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => `${ctx.label}: $${Number(ctx.raw).toLocaleString()}` } }
+      }
+    }
+  });
+}
+
+function renderHourlyChart(data) {
+  if (rptHourlyChart) rptHourlyChart.destroy();
+  // Fill all 24 hours
+  const hours = Array.from({length: 24}, (_, i) => i);
+  const hourMap = {};
+  data.forEach(d => { hourMap[d.hour] = d; });
+  rptHourlyChart = makeChart('rptHourlyChart', {
+    type: 'bar',
+    data: {
+      labels: hours.map(h => `${h}:00`),
+      datasets: [{
+        label: 'Transactions',
+        data: hours.map(h => (hourMap[h] || {}).count || 0),
+        backgroundColor: hours.map(h => (hourMap[h] || {}).count ? 'rgba(16,185,129,0.6)' : 'rgba(42,63,85,0.3)'),
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#6b7280', font: { size: 8 }, maxRotation: 0 }, grid: { display: false } },
+        y: { ticks: { color: '#6b7280', stepSize: 1 }, grid: { color: 'rgba(42,63,85,0.3)' } },
+      }
+    }
+  });
+}
+
+function renderDowChart(data) {
+  if (rptDowChart) rptDowChart.destroy();
+  const allDays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dayMap = {};
+  data.forEach(d => { dayMap[d.day] = d; });
+  rptDowChart = makeChart('rptDowChart', {
+    type: 'bar',
+    data: {
+      labels: allDays,
+      datasets: [{
+        label: 'Amount ($)',
+        data: allDays.map(d => (dayMap[d] || {}).amount || 0),
+        backgroundColor: 'rgba(59,130,246,0.6)',
+        borderRadius: 6,
+        barThickness: 30,
+      }, {
+        label: 'Count',
+        data: allDays.map(d => (dayMap[d] || {}).count || 0),
+        backgroundColor: 'rgba(16,185,129,0.6)',
+        borderRadius: 6,
+        barThickness: 30,
+        yAxisID: 'y1',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#9ca3af', font: { size: 10 } } } },
+      scales: {
+        x: { ticks: { color: '#6b7280' }, grid: { display: false } },
+        y: { ticks: { color: '#6b7280', callback: v => '$' + (v/1000).toFixed(0) + 'k' }, grid: { color: 'rgba(42,63,85,0.3)' } },
+        y1: { position: 'right', ticks: { color: '#6b7280' }, grid: { display: false } },
+      }
+    }
+  });
+}
+
+function renderTopBeneficiaries(data) {
+  const tbody = document.getElementById('rptBeneficiaryBody');
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-600">No transaction data yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map((b, i) => {
+    const riskColor = b.avg_risk >= 80 ? 'text-red-400' : b.avg_risk >= 60 ? 'text-orange-400' : b.avg_risk >= 30 ? 'text-yellow-400' : 'text-green-400';
+    const riskLabel = b.avg_risk >= 80 ? 'CRITICAL' : b.avg_risk >= 60 ? 'HIGH' : b.avg_risk >= 30 ? 'MEDIUM' : 'LOW';
+    const riskBg = b.avg_risk >= 80 ? 'severity-critical' : b.avg_risk >= 60 ? 'severity-high' : b.avg_risk >= 30 ? 'severity-medium' : 'severity-low';
+    return `<tr class="border-b border-dark-700 hover:bg-dark-700/50">
+      <td class="py-2.5 pr-3 text-gray-500">${i + 1}</td>
+      <td class="py-2.5 pr-3 text-white font-medium">${b.name || 'Unknown'}</td>
+      <td class="py-2.5 pr-3 text-right text-gray-400">${b.count}</td>
+      <td class="py-2.5 pr-3 text-right text-white font-mono">$${Number(b.amount).toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
+      <td class="py-2.5 pr-3 text-right ${riskColor} font-mono">${b.avg_risk}</td>
+      <td class="py-2.5"><span class="badge ${riskBg}">${riskLabel}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderRecentTransactions(data) {
+  const tbody = document.getElementById('rptRecentBody');
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-600">No transactions yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(tx => {
+    const dateStr = tx.created_at ? new Date(tx.created_at).toLocaleString() : '—';
+    const statusCls = 'status-' + (tx.status || 'pending');
+    return `<tr class="border-b border-dark-700 hover:bg-dark-700/50">
+      <td class="py-2.5 pr-3 text-gray-500">${dateStr}</td>
+      <td class="py-2.5 pr-3 text-white">${tx.beneficiary || '—'}</td>
+      <td class="py-2.5 pr-3 text-right text-white font-mono">$${Number(tx.amount || 0).toLocaleString()}</td>
+      <td class="py-2.5 pr-3 font-mono text-accent">${tx.currency || 'USD'}</td>
+      <td class="py-2.5 pr-3 text-right font-mono ${(tx.risk_score||0) >= 60 ? 'text-red-400' : (tx.risk_score||0) >= 30 ? 'text-yellow-400' : 'text-green-400'}">${(tx.risk_score || 0).toFixed(1)}</td>
+      <td class="py-2.5"><span class="badge ${statusCls}">${(tx.status || 'pending').toUpperCase()}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ============================================================
+// Payment Sub-tabs
+// ============================================================
+let currentExtType = 'ach';
+
+function switchPaySub(sub) {
+  document.querySelectorAll('.paysub-content').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.paysub-btn').forEach(el => { el.className = 'paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white transition'; });
+  document.getElementById('paysub-' + sub).classList.remove('hidden');
+  const btn = document.querySelector(`[data-paysub="${sub}"]`);
+  if (btn) btn.className = 'paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-accent text-dark-900 transition';
+  if (sub === 'p2p') loadP2PHistory();
+  if (sub === 'scheduled') loadScheduled();
+}
+
+// P2P Transfers
+async function sendP2P() {
+  const errDiv = document.getElementById('p2pError'), sucDiv = document.getElementById('p2pSuccess');
+  errDiv.classList.add('hidden'); sucDiv.classList.add('hidden');
+  try {
+    const result = await apiFetch('/api/p2p/send', { method: 'POST', body: JSON.stringify({
+      recipient_type: document.getElementById('p2pType').value,
+      recipient_value: document.getElementById('p2pRecipient').value,
+      amount: parseFloat(document.getElementById('p2pAmount').value),
+      note: document.getElementById('p2pNote').value,
+    })});
+    sucDiv.textContent = `$${result.new_balance !== undefined ? 'Sent! ' : ''}${result.recipient ? 'To ' + result.recipient : ''}`;
+    sucDiv.classList.remove('hidden');
+    BALANCE = result.new_balance || BALANCE; updateHeaderInfo();
+    loadP2PHistory();
+  } catch (e) { errDiv.textContent = e.message; errDiv.classList.remove('hidden'); }
+}
+
+async function loadP2PHistory() {
+  try {
+    const data = await apiFetch('/api/p2p/history');
+    const div = document.getElementById('p2pHistory');
+    if (!data.transfers.length) { div.innerHTML = '<p class="text-gray-600 text-sm text-center py-8">No P2P transfers yet.</p>'; return; }
+    div.innerHTML = data.transfers.map(t => `<div class="bg-dark-700 rounded-lg p-3 flex justify-between items-center">
+      <div><p class="text-white text-sm">${t.recipient_username || t.recipient_value}</p><p class="text-gray-500 text-xs">${t.note || t.recipient_type} • ${new Date(t.created_at).toLocaleDateString()}</p></div>
+      <span class="text-red-400 font-mono text-sm">-$${Number(t.amount).toLocaleString()}</span>
+    </div>`).join('');
+  } catch (e) { console.error(e); }
+}
+
+// ACH/Wire/SEPA
+function selectExtType(type) {
+  currentExtType = type;
+  document.querySelectorAll('.ext-type-btn').forEach(el => { el.className = 'ext-type-btn px-3 py-3 rounded-lg bg-dark-700 text-gray-400 border border-dark-600 text-xs font-semibold text-center'; });
+  const btn = document.getElementById('extType' + type.toUpperCase());
+  if (btn) btn.className = 'ext-type-btn px-3 py-3 rounded-lg bg-accent/20 text-accent border border-accent text-xs font-semibold text-center';
+  const fees = {ach: '$0.00', wire: '$25.00', sepa: '€5.00'};
+  const times = {ach: '1-3 business days', wire: 'Same day', sepa: '1 business day'};
+  document.getElementById('extFee').textContent = fees[type];
+  document.getElementById('extProcessing').textContent = times[type];
+}
+
+async function sendExternal() {
+  const errDiv = document.getElementById('extError'), sucDiv = document.getElementById('extSuccess');
+  errDiv.classList.add('hidden'); sucDiv.classList.add('hidden');
+  try {
+    const result = await apiFetch('/api/transfers/external', { method: 'POST', body: JSON.stringify({
+      transfer_type: currentExtType,
+      recipient_name: document.getElementById('extName').value,
+      routing_number: document.getElementById('extRouting').value,
+      account_number: document.getElementById('extAccount').value,
+      amount: parseFloat(document.getElementById('extAmount').value),
+    })});
+    sucDiv.innerHTML = `<i class="fas fa-check mr-1"></i>${currentExtType.toUpperCase()} transfer sent! Fee: $${result.fee}. Processing: ${result.processing_time}`;
+    sucDiv.classList.remove('hidden');
+    BALANCE = result.new_balance || BALANCE; updateHeaderInfo();
+  } catch (e) { errDiv.textContent = e.message; errDiv.classList.remove('hidden'); }
+}
+
+// Scheduled Payments
+async function createScheduled() {
+  try {
+    await apiFetch('/api/payments/scheduled', { method: 'POST', body: JSON.stringify({
+      beneficiary_name: document.getElementById('schedBen').value,
+      amount: parseFloat(document.getElementById('schedAmount').value),
+      frequency: document.getElementById('schedFreq').value,
+      next_run_date: document.getElementById('schedDate').value,
+      description: document.getElementById('schedDesc').value,
+    })});
+    loadScheduled();
+  } catch (e) { alert(e.message); }
+}
+
+async function loadScheduled() {
+  try {
+    const data = await apiFetch('/api/payments/scheduled');
+    const div = document.getElementById('scheduledList');
+    if (!data.scheduled.length) { div.innerHTML = '<p class="text-gray-600 text-sm text-center py-8">No scheduled payments.</p>'; return; }
+    div.innerHTML = data.scheduled.map(s => `<div class="bg-dark-700 rounded-lg p-3 flex justify-between items-center">
+      <div><p class="text-white text-sm">${s.beneficiary_name}</p>
+        <p class="text-gray-500 text-xs">${s.frequency} • Next: ${s.next_run_date || 'TBD'} ${s.description ? '• ' + s.description : ''}</p></div>
+      <div class="flex items-center gap-2">
+        <span class="text-accent font-mono text-sm">$${Number(s.amount).toLocaleString()}</span>
+        <button onclick="deleteScheduled('${s.id}')" class="text-red-400 hover:text-red-300 text-xs"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>`).join('');
+  } catch (e) { console.error(e); }
+}
+
+async function deleteScheduled(id) {
+  if (!confirm('Cancel this scheduled payment?')) return;
+  await apiFetch('/api/payments/scheduled/' + id, { method: 'DELETE' });
+  loadScheduled();
+}
+
+// QR Code
+async function generateQR() {
+  try {
+    const amount = parseFloat(document.getElementById('qrAmount').value) || 0;
+    const result = await apiFetch('/api/qr/generate', { method: 'POST', body: JSON.stringify({ amount }) });
+    document.getElementById('qrResult').innerHTML = `
+      <div class="bg-white rounded-xl p-6 inline-block mb-3">
+        <div style="width:150px;height:150px;background:#000;display:grid;grid-template-columns:repeat(10,1fr);gap:1px;padding:8px;" class="mx-auto rounded">
+          ${Array.from({length:100}, () => `<div style="background:${Math.random()>0.5?'#000':'#fff'}"></div>`).join('')}
+        </div>
+      </div>
+      <p class="text-white text-sm font-semibold">${FULL_NAME}</p>
+      <p class="text-accent text-lg font-bold">${amount > 0 ? '$' + amount.toLocaleString() : 'Any amount'}</p>
+      <p class="text-gray-500 text-xs mt-2 break-all font-mono">${result.qr_data.substring(0, 40)}...</p>
+      <button onclick="navigator.clipboard.writeText('${result.qr_data}')" class="mt-2 text-xs text-accent hover:underline"><i class="fas fa-copy mr-1"></i>Copy QR Data</button>`;
+  } catch (e) { console.error(e); }
+}
+
+async function payQR() {
+  const errDiv = document.getElementById('qrPayError'), sucDiv = document.getElementById('qrPaySuccess');
+  errDiv.classList.add('hidden'); sucDiv.classList.add('hidden');
+  try {
+    const result = await apiFetch('/api/qr/pay', { method: 'POST', body: JSON.stringify({
+      qr_data: document.getElementById('qrScanData').value,
+      amount: parseFloat(document.getElementById('qrPayAmount').value) || 0,
+    })});
+    sucDiv.textContent = `Paid $${result.new_balance ? '' : ''}to ${result.recipient}!`;
+    sucDiv.classList.remove('hidden');
+    BALANCE = result.new_balance || BALANCE; updateHeaderInfo();
+  } catch (e) { errDiv.textContent = e.message; errDiv.classList.remove('hidden'); }
+}
+
+// ============================================================
+// Virtual Cards
+// ============================================================
+async function loadCards() {
+  try {
+    const data = await apiFetch('/api/cards');
+    const div = document.getElementById('cardsList');
+    if (!data.cards.length) { div.innerHTML = '<p class="text-gray-600 text-sm text-center py-8 col-span-2">No virtual cards yet. Generate one!</p>'; return; }
+    div.innerHTML = data.cards.map(c => {
+      const frozen = c.status === 'frozen';
+      const cancelled = c.status === 'cancelled';
+      const borderColor = cancelled ? 'border-red-500/30' : frozen ? 'border-yellow-500/30' : 'border-accent/30';
+      const networkIcon = c.card_network === 'Visa' ? 'fab fa-cc-visa' : 'fab fa-cc-mastercard';
+      return `<div class="bg-gradient-to-br ${cancelled ? 'from-dark-700 to-dark-800' : frozen ? 'from-yellow-900/20 to-dark-800' : 'from-dark-600 to-dark-800'} rounded-xl p-5 border ${borderColor} relative">
+        ${frozen ? '<div class="absolute top-2 right-2 badge bg-yellow-500/20 text-yellow-400">FROZEN</div>' : ''}
+        ${cancelled ? '<div class="absolute top-2 right-2 badge bg-red-500/20 text-red-400">CANCELLED</div>' : ''}
+        <div class="flex justify-between items-start mb-6">
+          <span class="text-xs text-gray-500">${c.label || 'Virtual Card'}</span>
+          <i class="${networkIcon} text-2xl text-gray-400"></i>
+        </div>
+        <p class="text-white font-mono text-lg tracking-[0.2em] mb-4">${c.card_number}</p>
+        <div class="flex justify-between items-end">
+          <div><p class="text-[10px] text-gray-500 uppercase">Expires</p><p class="text-white text-sm font-mono">${String(c.expiry_month).padStart(2,'0')}/${c.expiry_year}</p></div>
+          <div><p class="text-[10px] text-gray-500 uppercase">Limit</p><p class="text-white text-sm font-mono">$${Number(c.spending_limit).toLocaleString()}</p></div>
+        </div>
+        ${!cancelled ? `<div class="flex gap-2 mt-4 pt-3 border-t border-dark-500">
+          <button onclick="freezeCard('${c.id}')" class="flex-1 py-1.5 rounded text-xs ${frozen ? 'bg-accent/20 text-accent' : 'bg-yellow-500/20 text-yellow-400'} hover:opacity-80"><i class="fas fa-${frozen ? 'play' : 'pause'} mr-1"></i>${frozen ? 'Unfreeze' : 'Freeze'}</button>
+          <button onclick="provisionCard('${c.id}')" class="flex-1 py-1.5 rounded text-xs bg-blue-500/20 text-blue-400 hover:opacity-80"><i class="fab fa-apple mr-1"></i>Wallet</button>
+          <button onclick="cancelCard('${c.id}')" class="py-1.5 px-2 rounded text-xs bg-red-500/10 text-red-400 hover:opacity-80"><i class="fas fa-times"></i></button>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+  } catch (e) { console.error(e); }
+}
+
+async function generateCard() {
+  try {
+    const result = await apiFetch('/api/cards/generate', { method: 'POST', body: JSON.stringify({
+      label: document.getElementById('cardLabel').value || 'Virtual Card',
+      spending_limit: parseFloat(document.getElementById('cardLimit').value) || 5000,
+    })});
+    const genDiv = document.getElementById('cardGenResult');
+    genDiv.classList.remove('hidden');
+    document.getElementById('cardGenNumber').textContent = '•••• •••• •••• ' + result.last_four;
+    document.getElementById('cardGenExpiry').textContent = 'Exp: ' + result.expiry;
+    document.getElementById('cardGenCVV').textContent = 'CVV: ' + result.cvv;
+    loadCards();
+  } catch (e) { alert(e.message); }
+}
+
+async function freezeCard(id) { await apiFetch('/api/cards/' + id + '/freeze', { method: 'POST' }); loadCards(); }
+async function cancelCard(id) { if (confirm('Cancel this card permanently?')) { await apiFetch('/api/cards/' + id, { method: 'DELETE' }); loadCards(); } }
+async function provisionCard(id) {
+  const result = await apiFetch('/api/cards/' + id + '/provision', { method: 'POST', body: JSON.stringify({ wallet: 'apple' }) });
+  alert(result.message);
+}
+
+// ============================================================
+// Security / E-KYC
+// ============================================================
+async function loadKYCStatus() {
+  try {
+    const data = await apiFetch('/api/kyc/status');
+    if (data.doc_status === 'verified') {
+      document.getElementById('kycNotStarted').classList.add('hidden');
+      document.getElementById('kycVerified').classList.remove('hidden');
+      document.getElementById('kycScore').textContent = `Verification Score: ${data.verification_score}%`;
+      document.getElementById('kycDocInfo').textContent = `Document: ${(data.doc_type||'').replace('_',' ')} • Verified: ${data.verified_at ? new Date(data.verified_at).toLocaleDateString() : 'N/A'}`;
+    }
+  } catch (e) { console.error(e); }
+}
+
+async function submitKYC() {
+  document.getElementById('kycNotStarted').classList.add('hidden');
+  document.getElementById('kycVerifying').classList.remove('hidden');
+  try {
+    const result = await apiFetch('/api/kyc/submit', { method: 'POST', body: JSON.stringify({ doc_type: document.getElementById('kycDocType').value }) });
+    setTimeout(() => {
+      document.getElementById('kycVerifying').classList.add('hidden');
+      document.getElementById('kycVerified').classList.remove('hidden');
+      document.getElementById('kycScore').textContent = `Verification Score: ${result.score}%`;
+      document.getElementById('kycDocInfo').textContent = `Document verified successfully`;
+    }, 2500);
+  } catch (e) {
+    document.getElementById('kycVerifying').classList.add('hidden');
+    document.getElementById('kycNotStarted').classList.remove('hidden');
+    alert(e.message);
+  }
+}
+
+async function loadFraudAlerts() {
+  try {
+    const data = await apiFetch('/api/fraud/alerts');
+    const div = document.getElementById('fraudAlertsList');
+    if (!data.alerts.length) { div.innerHTML = '<p class="text-gray-600 text-sm text-center py-4">No fraud alerts</p>'; return; }
+    div.innerHTML = data.alerts.slice(0, 8).map(a => `<div class="bg-dark-700 rounded-lg p-3 border-l-2 ${a.severity === 'critical' ? 'border-red-500' : 'border-orange-500'}">
+      <div class="flex justify-between"><span class="text-white text-xs font-medium">${a.beneficiary}</span><span class="badge ${a.severity === 'critical' ? 'severity-critical' : 'severity-high'}">${a.severity}</span></div>
+      <p class="text-gray-500 text-xs mt-1">$${Number(a.amount).toLocaleString()} • Risk: ${a.risk_score} • ${a.reason}</p>
+    </div>`).join('');
+  } catch (e) { console.error(e); }
+}
+
+// ============================================================
+// Documents
+// ============================================================
+async function loadDocuments() {
+  try {
+    const data = await apiFetch('/api/documents');
+    const div = document.getElementById('documentsList');
+    const docs = data.documents || [];
+    if (!docs.length) { div.innerHTML = '<p class="text-gray-600 text-sm text-center py-8">No documents available.</p>'; return; }
+    const icons = { statement: 'fa-file-lines text-blue-400', tax_1099: 'fa-file-invoice-dollar text-green-400', receipt: 'fa-receipt text-purple-400' };
+    div.innerHTML = docs.map(d => `<div class="bg-dark-700 rounded-lg p-4 flex items-center justify-between hover:bg-dark-600 transition">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-dark-600 flex items-center justify-center"><i class="fas ${icons[d.doc_type] || 'fa-file text-gray-400'}"></i></div>
+        <div><p class="text-white text-sm font-medium">${d.title}</p><p class="text-gray-500 text-xs">Period: ${d.period} • ${(d.file_size / 1024).toFixed(0)} KB</p></div>
+      </div>
+      <button onclick="downloadDoc('${d.id}')" class="px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-xs font-semibold hover:bg-accent/20 transition"><i class="fas fa-download mr-1"></i>Download</button>
+    </div>`).join('');
+  } catch (e) { console.error(e); }
+}
+
+function downloadDoc(id) { window.open(API + '/api/documents/' + id + '/download?token=' + TOKEN, '_blank'); }
+
+// ============================================================
+// Notifications
+// ============================================================
+function toggleNotifications() {
+  const panel = document.getElementById('notifPanel');
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) loadNotifications();
+}
+
+async function loadNotifications() {
+  try {
+    const data = await apiFetch('/api/notifications');
+    const badge = document.getElementById('notifBadge');
+    if (data.unread_count > 0) { badge.textContent = data.unread_count > 9 ? '9+' : data.unread_count; badge.classList.remove('hidden'); }
+    else { badge.classList.add('hidden'); }
+    const div = document.getElementById('notifList');
+    if (!data.notifications.length) { div.innerHTML = '<p class="text-center text-gray-600 text-xs py-6">No notifications</p>'; return; }
+    div.innerHTML = data.notifications.slice(0, 15).map(n => {
+      const colors = { green: 'text-green-400', red: 'text-red-400', blue: 'text-blue-400', orange: 'text-orange-400', purple: 'text-purple-400', yellow: 'text-yellow-400' };
+      return `<div class="px-3 py-2.5 hover:bg-dark-700 transition cursor-pointer ${n.is_read ? 'opacity-60' : ''}" onclick="markRead('${n.id}')">
+        <div class="flex items-start gap-2">
+          <i class="fas ${n.icon || 'fa-bell'} ${colors[n.color] || 'text-gray-400'} mt-0.5 text-xs"></i>
+          <div><p class="text-white text-xs font-medium">${n.title}</p><p class="text-gray-500 text-[10px]">${n.message}</p>
+            <p class="text-gray-600 text-[10px] mt-0.5">${n.created_at ? new Date(n.created_at).toLocaleString() : ''}</p></div>
+        </div></div>`;
+    }).join('');
+  } catch (e) { console.error(e); }
+}
+
+async function markRead(id) { await apiFetch('/api/notifications/read', { method: 'POST', body: JSON.stringify({ id }) }); loadNotifications(); }
+async function markAllRead() { await apiFetch('/api/notifications/read', { method: 'POST', body: JSON.stringify({ all: true }) }); loadNotifications(); }
+
+// ============================================================
+// Support Chat
+// ============================================================
+let chatSessionId = Math.random().toString(36).substring(2, 10);
+
+function toggleChat() { document.getElementById('chatPanel').classList.toggle('hidden'); }
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  const div = document.getElementById('chatMessages');
+  div.innerHTML += `<div class="bg-dark-600 rounded-lg p-2 text-xs text-white max-w-[85%] ml-auto">${msg}</div>`;
+  div.scrollTop = div.scrollHeight;
+  try {
+    const result = await apiFetch('/api/support/message', { method: 'POST', body: JSON.stringify({ message: msg, session_id: chatSessionId }) });
+    div.innerHTML += `<div class="bg-accent/10 rounded-lg p-2 text-xs text-gray-300 max-w-[85%]"><span class="text-accent font-semibold">Bot:</span> ${result.response}</div>`;
+    div.scrollTop = div.scrollHeight;
+  } catch (e) { console.error(e); }
+}
+
+// ============================================================
 // Init
 // ============================================================
 window.addEventListener('DOMContentLoaded', () => {
@@ -1798,6 +3195,8 @@ window.addEventListener('DOMContentLoaded', () => {
   if (TOKEN) {
     fetchAccountInfo().then(() => showApp());
   }
+  // Poll notifications every 30s
+  setInterval(() => { if (TOKEN) loadNotifications(); }, 30000);
 });
 
 document.getElementById('loginPass').addEventListener('keydown', (e) => {

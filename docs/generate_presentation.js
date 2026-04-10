@@ -216,7 +216,7 @@ slide.addText("Dashboard & Real-Time Monitoring", { x: 0.5, y: 3.5, w: 12, h: 0.
 
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("Dashboard — KPIs & Health Monitoring", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.01.04 AM.png"), { x: 0.3, y: 0.8, w: 8.5, h: 5.3 });
+addImageSafe(slide, ss("Dashboard.png"), { x: 0.3, y: 0.8, w: 8.5, h: 5.3 });
 slide.addShape(pptx.ShapeType.rect, { x: 9.1, y: 0.8, w: 4, h: 5.3, fill: { color: "1E293B" }, rectRadius: 0.1 });
 const dashPoints = [
   "Real-time KPI cards",
@@ -233,7 +233,7 @@ dashPoints.forEach((p, idx) => {
 // Dashboard telemetry
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("Dashboard — Settlement Volume & AML Telemetry", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.05.17 AM.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
+addImageSafe(slide, ss("Dashboard + AMLl.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -245,7 +245,7 @@ slide.addText("Multi-Currency Settlement with AI Risk Scoring", { x: 0.5, y: 3.5
 
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("Settlement Result — Risk Assessment & SHAP", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.01.33 AM.png"), { x: 0.3, y: 0.8, w: 8, h: 5.0 });
+addImageSafe(slide, ss("Payment.png"), { x: 0.3, y: 0.8, w: 8, h: 5.0 });
 slide.addShape(pptx.ShapeType.rect, { x: 8.6, y: 0.8, w: 4.5, h: 5.0, fill: { color: "1E293B" }, rectRadius: 0.1 });
 const payPoints = [
   "13-currency selector",
@@ -263,7 +263,7 @@ payPoints.forEach((p, idx) => {
 // Settlement with different amount
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("Settlement — $700K High-Value Transaction", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.02.13 AM.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
+addImageSafe(slide, ss("Settlement_result-blocked.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -275,7 +275,7 @@ slide.addText("Every AI Decision is Fully Transparent", { x: 0.5, y: 3.5, w: 12,
 
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("SHAP — Per-Transaction Feature Contributions", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.01.42 AM.png"), { x: 0.3, y: 0.8, w: 7.5, h: 5.5 });
+addImageSafe(slide, ss("SHAP_Explainability.png"), { x: 0.3, y: 0.8, w: 7.5, h: 5.5 });
 slide.addShape(pptx.ShapeType.rect, { x: 8.1, y: 0.8, w: 5, h: 5.5, fill: { color: "1E293B" }, rectRadius: 0.1 });
 slide.addText("How SHAP Works", { x: 8.3, y: 1.0, w: 4.5, h: 0.5, fontSize: 16, bold: true, color: GREEN });
 const shapPoints = [
@@ -294,8 +294,8 @@ shapPoints.forEach((p, idx) => {
 // Score breakdown
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("Risk Score Breakdown — 4-Component Composite Scoring", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.01.48 AM.png"), { x: 1, y: 1.2, w: 5, h: 2.5 });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.01.56 AM.png"), { x: 7, y: 1.2, w: 5, h: 2.5 });
+addImageSafe(slide, ss("Risk_Score.png"), { x: 1, y: 1.2, w: 5, h: 2.5 });
+addImageSafe(slide, ss("Risk_score2.png"), { x: 7, y: 1.2, w: 5, h: 2.5 });
 // Component labels
 const components = [
   { name: "Rules (30%)", desc: "Deterministic threshold checks", color: GREEN },
@@ -321,12 +321,12 @@ slide.addText("5-Model Ensemble with 16-Feature Vector", { x: 0.5, y: 3.5, w: 12
 
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("AI/ML — 5 Model Performance Cards", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.02.24 AM.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
+addImageSafe(slide, ss("AML_tab.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
 
 // SHAP chart slide
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("SHAP Explainability Chart — Feature Impact on Risk", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.02.28 AM.png"), { x: 1.5, y: 0.9, w: 10, h: 5.5 });
+addImageSafe(slide, ss("SHAP_Feature_Contribution.png"), { x: 1.5, y: 0.9, w: 10, h: 5.5 });
 
 // 16-feature vector slide
 slide = pptx.addSlide({ masterName: "CONTENT" });
@@ -367,7 +367,7 @@ slide.addText("Dual-Approval for High-Value Transactions ($100K+)", { x: 0.5, y:
 
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("HITL Queue — Four-Eyes Approval Badges", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.02.44 AM.png"), { x: 0.3, y: 0.8, w: 8.5, h: 5.3 });
+addImageSafe(slide, ss("HITL-Approval-1st.png"), { x: 0.3, y: 0.8, w: 8.5, h: 5.3 });
 slide.addShape(pptx.ShapeType.rect, { x: 9.1, y: 0.8, w: 4, h: 5.3, fill: { color: "1E293B" }, rectRadius: 0.1 });
 slide.addText("Four-Eyes Workflow", { x: 9.3, y: 1.0, w: 3.5, h: 0.5, fontSize: 16, bold: true, color: GREEN });
 const feSteps = [
@@ -387,13 +387,13 @@ feSteps.forEach((s, idx) => {
 // Four-eyes dialog
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("Four-Eyes Enforcement — Second Approver Required", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 12.55.04 AM.png"), { x: 2, y: 1.5, w: 9, h: 4.0 });
+addImageSafe(slide, ss("four_eyes-message.png"), { x: 2, y: 1.5, w: 9, h: 4.0 });
 slide.addText("The system enforces that the second approval must come from a different compliance officer.\nNo single individual can unilaterally approve high-value transactions.", { x: 1, y: 5.8, w: 11, h: 1.0, fontSize: 14, color: GRAY, align: "center", italic: true });
 
 // HITL detail view
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("HITL Queue — Detailed Case View", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.02.46 AM.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
+addImageSafe(slide, ss("HITL_Approval_2nd.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -405,7 +405,7 @@ slide.addText("SLA Tracking & Compliance Workflows", { x: 0.5, y: 3.5, w: 12, h:
 
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("Case Management — SLA Countdown Tracking", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.03.33 AM.png"), { x: 0.3, y: 0.8, w: 8.5, h: 5.3 });
+addImageSafe(slide, ss("Case_details.png"), { x: 0.3, y: 0.8, w: 8.5, h: 5.3 });
 slide.addShape(pptx.ShapeType.rect, { x: 9.1, y: 0.8, w: 4, h: 5.3, fill: { color: "1E293B" }, rectRadius: 0.1 });
 slide.addText("SLA Thresholds", { x: 9.3, y: 1.0, w: 3.5, h: 0.5, fontSize: 16, bold: true, color: GREEN });
 const slaItems = [
@@ -425,8 +425,8 @@ slide.addText("Cases approaching SLA breach\nare highlighted in red", { x: 9.3, 
 // Case detail
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("Case Detail — SANCTIONS Case (CRITICAL)", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.03.58 AM.png"), { x: 0.5, y: 0.8, w: 6.5, h: 5.5 });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.04.30 AM.png"), { x: 7.2, y: 0.8, w: 5.8, h: 5.5 });
+addImageSafe(slide, ss("Case_details_View1.png"), { x: 0.5, y: 0.8, w: 6.5, h: 5.5 });
+addImageSafe(slide, ss("Audit_log.png"), { x: 7.2, y: 0.8, w: 5.8, h: 5.5 });
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -438,9 +438,9 @@ slide.addText("Sanctions, SWIFT GPI, FX Converter, Nostro", { x: 0.5, y: 3.5, w:
 
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("Compliance — Sanctions, GDPR, SWIFT GPI", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.03.04 AM.png"), { x: 0.3, y: 0.8, w: 4, h: 2.8 });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.03.01 AM.png"), { x: 4.6, y: 0.8, w: 4, h: 2.8 });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.03.08 AM.png"), { x: 8.9, y: 0.8, w: 4, h: 2.8 });
+addImageSafe(slide, ss("Sanction_list_Add.png"), { x: 0.3, y: 0.8, w: 4, h: 2.8 });
+addImageSafe(slide, ss("GDPR_Right_to_erase.png"), { x: 4.6, y: 0.8, w: 4, h: 2.8 });
+addImageSafe(slide, ss("Swift_GPI_tracker.png"), { x: 8.9, y: 0.8, w: 4, h: 2.8 });
 slide.addText("Sanctions Management", { x: 0.3, y: 3.7, w: 4, h: 0.4, fontSize: 12, bold: true, color: GREEN, align: "center" });
 slide.addText("GDPR Right to Erasure", { x: 4.6, y: 3.7, w: 4, h: 0.4, fontSize: 12, bold: true, color: GREEN, align: "center" });
 slide.addText("SWIFT GPI Tracker", { x: 8.9, y: 3.7, w: 4, h: 0.4, fontSize: 12, bold: true, color: GREEN, align: "center" });
@@ -448,8 +448,8 @@ slide.addText("SWIFT GPI Tracker", { x: 8.9, y: 3.7, w: 4, h: 0.4, fontSize: 12,
 // FX + Nostro
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("FX Converter & Nostro Balances", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.03.15 AM.png"), { x: 0.5, y: 0.9, w: 5.5, h: 3.5 });
-addImageSafe(slide, ss("Screenshot 2026-04-09 at 11.03.19 AM.png"), { x: 6.5, y: 0.9, w: 6.3, h: 3.5 });
+addImageSafe(slide, ss("Currency_converter.png"), { x: 0.5, y: 0.9, w: 5.5, h: 3.5 });
+addImageSafe(slide, ss("Nostro_balance.png"), { x: 6.5, y: 0.9, w: 6.3, h: 3.5 });
 slide.addText("13 Supported Currencies", { x: 0.5, y: 4.6, w: 5.5, h: 0.4, fontSize: 13, bold: true, color: GREEN, align: "center" });
 slide.addText("USD  EUR  GBP  JPY  CHF  AUD  CAD\nCNY  INR  SGD  AED  SAR  BRL", { x: 0.5, y: 5.1, w: 5.5, h: 0.9, fontSize: 14, color: WHITE, align: "center", lineSpacingMultiple: 1.5 });
 slide.addText("Nostro Account Positions", { x: 6.5, y: 4.6, w: 6.3, h: 0.4, fontSize: 13, bold: true, color: GREEN, align: "center" });
