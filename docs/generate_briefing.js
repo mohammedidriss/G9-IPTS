@@ -230,7 +230,7 @@ const coverPage = [
   new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { after: 80 },
-    children: [new TextRun({ text: "Version 5.0  |  April 2026", font: FONT, size: 24, color: "666666" })]
+    children: [new TextRun({ text: "Version 6.0  |  April 2026", font: FONT, size: 24, color: "666666" })]
   }),
   new Paragraph({ spacing: { before: 600 }, children: [] }),
   new Paragraph({
@@ -287,7 +287,7 @@ const section1 = [
   heading1("1. Executive Summary"),
   para("The Integrated Payment Transformation System (IPTS) is an enterprise-grade financial settlement platform that collapses cross-border payment cycles from the traditional T+2 to T+5 window to near-real-time settlement in under 10 seconds. Built on a 7-layer convergent architecture, IPTS integrates blockchain-based atomic settlement, a 5-model AI/ML fraud detection ensemble with SHAP explainability, four-eyes dual approval for high-value transactions, multi-currency FX conversion, Zero Trust security, and GDPR-compliant data sovereignty into a unified platform."),
   emptyLine(),
-  para("This briefing provides senior leadership with a comprehensive overview of IPTS capabilities, including the significant enhancements delivered in Version 5.0: 17 new features spanning P2P transfers, ACH/Wire/SEPA payments, scheduled and QR code payments, multi-account management, beneficiary management, real-time ledger, virtual card generation, card controls, digital wallet provisioning, Spending 360 analytics, e-KYC verification, biometric controls, fraud alert monitoring, notification center, AI-powered support chat, and a fully redesigned 12-tab dashboard."),
+  para("This briefing provides senior leadership with a comprehensive overview of IPTS capabilities, including the significant enhancements delivered in Version 6.0: 17 new features spanning P2P transfers, ACH/Wire/SEPA payments, scheduled and QR code payments, multi-account management, beneficiary management, real-time ledger, virtual card generation, card controls, digital wallet provisioning, Spending 360 analytics, e-KYC verification, biometric controls, fraud alert monitoring, notification center, AI-powered support chat, and a fully redesigned 12-tab dashboard."),
   emptyLine(),
 
   heading2("1.1 Key Performance Indicators"),
@@ -457,7 +457,7 @@ const section3 = [
 // ═══════════════════════════════════════════════════════════════
 const section4 = [
   heading1("4. System Walkthrough"),
-  para("The following screenshots demonstrate the fully operational IPTS platform v5.0, captured from the live system running locally on macOS. The platform now features 12 functional tabs, 5 payment channels, virtual card services, spending analytics, E-KYC verification, and real-time notifications."),
+  para("The following screenshots demonstrate the fully operational IPTS platform v6.0, captured from the live system running locally on macOS. The platform now features 17 functional tabs, 7 payment channels, virtual card services, spending analytics, E-KYC verification, DeFi hub, proof of reserve, network graph analysis, LLM-powered support, and real-time notifications."),
   emptyLine(),
 
   heading2("4.1 Dashboard \u2014 Multi-Account, KPIs & Notifications"),
@@ -550,6 +550,58 @@ const section4 = [
   ),
   imageCaption("Figure 17: Documents Center (left) and AI Support Chat (right)"),
   pageBreak(),
+
+  heading2("4.9 DeFi Hub — AMM Swap, Staking & HTLC Escrow"),
+  para("The DeFi Hub introduces decentralized finance capabilities directly into the IPTS platform. Users can perform automated market maker (AMM) token swaps, stake assets for yield with configurable lock periods, and create Hash Time-Locked Contract (HTLC) escrow agreements for trustless cross-party settlements."),
+  tryImageParagraph(ss("DeFi_Swap.png"), 280, 180,
+    "DeFi Swap", "AMM swap interface"
+  ),
+  imageCaption("Figure 18: DeFi Hub — AMM Swap Interface"),
+  tryImageParagraph(ss("DeFi_Staking.png"), 280, 180,
+    "DeFi Staking", "Staking dashboard"
+  ),
+  imageCaption("Figure 19: DeFi Hub — Staking Dashboard"),
+  tryImageParagraph(ss("DeFi_Escrow.png"), 280, 180,
+    "DeFi Escrow", "HTLC escrow interface"
+  ),
+  imageCaption("Figure 20: DeFi Hub — HTLC Escrow"),
+  emptyLine(),
+
+  heading2("4.10 Global Fraud Heatmap"),
+  para("The Global Fraud Heatmap provides a geographic visualization of fraud activity across all monitored jurisdictions. Risk hotspots are color-coded by severity, enabling compliance teams to identify emerging threat corridors and adjust AML policies in real time."),
+  tryImageParagraph(ss("Fraud_Heatmap.png"), 280, 180,
+    "Fraud Heatmap", "Global fraud heatmap visualization"
+  ),
+  imageCaption("Figure 21: Global Fraud Heatmap"),
+  emptyLine(),
+
+  heading2("4.11 Proof of Reserve"),
+  para("The Proof of Reserve dashboard provides cryptographic verification of on-chain reserves against issued liabilities, ensuring full transparency and solvency attestation for all digital asset holdings on the platform."),
+  tryImageParagraph(ss("Dashboard_ProofOfReserve.png"), 280, 180,
+    "Proof of Reserve", "Proof of reserve dashboard"
+  ),
+  imageCaption("Figure 22: Proof of Reserve Dashboard"),
+  emptyLine(),
+
+  heading2("4.12 AI Support Chat with LLM"),
+  para("The AI Support Chat has been upgraded with a large language model (LLM) backend, enabling natural language understanding for complex account, payment, compliance, and DeFi queries. The LLM provides context-aware responses with citation of relevant platform documentation and regulatory guidance."),
+  tryImageParagraph(ss("Support_Chat.png"), 280, 180,
+    "AI Support Chat LLM", "LLM-powered support chat"
+  ),
+  imageCaption("Figure 23: AI Support Chat with LLM Integration"),
+  emptyLine(),
+
+  heading2("4.13 Network Graph Analysis"),
+  para("The Network Graph Analysis view provides dual-mode visualization of transaction relationships. The full graph displays all entities and edges, while the connected-component view isolates clusters for targeted fraud investigation and AML pattern detection."),
+  tryImageParagraph(ss("Network_Graph_Full.png"), 280, 180,
+    "Network Graph Full", "Full network graph view"
+  ),
+  imageCaption("Figure 24: Network Graph — Full View"),
+  tryImageParagraph(ss("Network_Graph_Connected.png"), 280, 180,
+    "Network Graph Connected", "Connected component view"
+  ),
+  imageCaption("Figure 25: Network Graph — Connected Components"),
+  pageBreak(),
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -557,7 +609,7 @@ const section4 = [
 // ═══════════════════════════════════════════════════════════════
 const section5 = [
   heading1("5. AI/ML Capabilities & Explainability"),
-  para("IPTS v5.0 deploys a 5-model machine learning ensemble trained on 15,000 synthetic transactions using a 16-dimensional feature vector that includes 8 real-time velocity features computed by the VelocityTracker. This represents a significant upgrade from the previous 4-model, 8-feature architecture."),
+  para("IPTS v6.0 deploys a 5-model machine learning ensemble trained on 15,000 synthetic transactions using a 16-dimensional feature vector that includes 8 real-time velocity features computed by the VelocityTracker. This represents a significant upgrade from the previous 4-model, 8-feature architecture."),
   emptyLine(),
 
   heading2("5.1 Five-Model Ensemble"),
@@ -597,7 +649,7 @@ const section5 = [
   emptyLine(),
 
   heading2("5.3 SHAP Explainability"),
-  para("Every risk decision in IPTS v5.0 is fully explainable. The system uses SHAP (SHapley Additive exPlanations) to decompose each risk score into per-feature contributions:"),
+  para("Every risk decision in IPTS v6.0 is fully explainable. The system uses SHAP (SHapley Additive exPlanations) to decompose each risk score into per-feature contributions:"),
   emptyLine(),
   bulletBold("TreeExplainer: ", "Uses XGBoost's tree structure to compute exact Shapley values in polynomial time. Each feature receives a signed contribution score indicating its positive (risk-increasing) or negative (risk-decreasing) impact."),
   bulletBold("RF Fallback: ", "If TreeExplainer fails, Random Forest feature_importances_ are multiplied by per-feature deviations from population means to produce approximate contribution scores."),
@@ -611,7 +663,15 @@ const section5 = [
   para("NetworkX-based graph analysis provides PageRank centrality computation, label propagation community detection, and targeted cycle detection on the fraud subgraph to identify potential laundering rings. These graph-derived signals contribute 15% of the composite risk score."),
   emptyLine(),
 
-  heading2("5.5 Continuous Learning"),
+  heading2("5.5 Global Fraud Heatmap"),
+  para("A geographic fraud heatmap aggregates risk scores by jurisdiction and renders real-time hotspot visualization. The heatmap feeds from the ensemble model outputs and graph analytics to surface emerging threat corridors, enabling proactive AML policy adjustments."),
+  emptyLine(),
+
+  heading2("5.6 Model Caching"),
+  para("Trained model artifacts are cached using joblib serialization with SHA-256 integrity verification. On startup, IPTS loads cached models in under 2 seconds, eliminating cold-start latency. Cache invalidation triggers automatically when retraining completes or when feature vector schema changes are detected."),
+  emptyLine(),
+
+  heading2("5.7 Continuous Learning"),
   para("Authorized users (Admin and Data Scientist roles) can trigger on-demand model retraining, which regenerates synthetic data, retrains all five models on the 16-feature vector, recomputes graph analytics, and updates feature importance rankings without platform downtime."),
   pageBreak(),
 ];
@@ -621,7 +681,7 @@ const section5 = [
 // ═══════════════════════════════════════════════════════════════
 const section6 = [
   heading1("6. Four-Eyes Approval & Operational Controls"),
-  para("IPTS v5.0 introduces a four-eyes dual approval mechanism that enforces segregation of duties for high-value transaction approvals, addressing a critical regulatory requirement for financial institutions."),
+  para("IPTS v6.0 introduces a four-eyes dual approval mechanism that enforces segregation of duties for high-value transaction approvals, addressing a critical regulatory requirement for financial institutions."),
   emptyLine(),
 
   heading2("6.1 Four-Eyes Mechanism"),
@@ -896,11 +956,15 @@ const section11 = [
         ["Compliance Cost", "$10.2M/yr", "$2.55M/yr", "-75%"],
         ["Currency Support", "1 (USD)", "13 currencies", "+1200%"],
         ["Approval Controls", "Single", "Four-eyes", "Dual"],
-        ["Payment Channels", "1 (Settlement)", "5 channels", "+400%"],
+        ["Payment Channels", "1 (Settlement)", "7 channels", "+600%"],
         ["Card Services", "None", "Virtual cards", "New"],
         ["Identity (KYC)", "Manual", "E-KYC automated", "New"],
         ["UI Tabs/Features", "7 tabs", "12 tabs", "+71%"],
         ["Audit Trail", "Partial", "100% automated", "100%"],
+        ["Liquidity Pools", "None", "AMM DeFi pools", "New"],
+        ["Staking APY", "None", "Configurable yield", "New"],
+        ["Escrow (HTLC)", "None", "Trustless escrow", "New"],
+        ["LLM Chat", "None", "AI support (LLM)", "New"],
       ].map((row, idx) => {
         const shading = idx % 2 === 0 ? COLOR_TABLE_ALT : undefined;
         return new TableRow({ children: [
@@ -1012,7 +1076,7 @@ const section13 = [
 // ═══════════════════════════════════════════════════════════════
 const section14 = [
   heading1("14. Conclusion & Recommendations"),
-  para("IPTS v5.0 represents a transformational platform that addresses the fundamental challenges of cross-border settlement through blockchain, explainable AI, enterprise-grade operational controls, and a comprehensive digital banking experience including multi-channel payments, virtual card services, spending analytics, and E-KYC verification."),
+  para("IPTS v6.0 represents a transformational platform that addresses the fundamental challenges of cross-border settlement through blockchain, explainable AI, enterprise-grade operational controls, and a comprehensive digital banking experience including multi-channel payments, virtual card services, spending analytics, E-KYC verification, DeFi capabilities (AMM swap, staking, HTLC escrow), LLM-powered support, and advanced network graph analytics."),
   emptyLine(),
 
   heading2("14.1 Key Takeaways"),
@@ -1024,12 +1088,17 @@ const section14 = [
   checkPara("Multi-currency FX engine supporting 13 currencies with AML jurisdiction warnings enables true international settlement."),
   checkPara("SLA tracking with severity-based countdown (4h to 7d) ensures timely compliance case resolution."),
   checkPara("Health monitoring with 30-second polling provides continuous operational awareness."),
-  checkPara("5 payment channels (Settlement, P2P, ACH/Wire/SEPA, Scheduled, QR Pay) cover all enterprise payment needs."),
+  checkPara("7 payment channels (Settlement, P2P, ACH/Wire/SEPA, Scheduled, QR Pay, DeFi Swap, HTLC Escrow) cover all enterprise payment needs."),
   checkPara("Virtual card services with instant issuance, freeze/unfreeze, and spending limits enhance corporate card management."),
   checkPara("Spending 360 analytics with category breakdowns, trend charts, and exportable reports drive financial insights."),
   checkPara("E-KYC identity verification with biometric controls and fraud alert monitoring strengthen compliance posture."),
   checkPara("Beneficiary management with SWIFT/IBAN validation and favorite marking streamlines recurring payments."),
   checkPara("Real-time notification center with SSE-powered alerts and AI support chat improve user experience."),
+  checkPara("DeFi Hub with AMM swap, staking yield, and HTLC escrow extends the platform into decentralized finance."),
+  checkPara("Global fraud heatmap provides geographic risk visualization for proactive AML policy management."),
+  checkPara("Proof of Reserve dashboard delivers cryptographic solvency attestation for digital asset holdings."),
+  checkPara("LLM-powered AI Support Chat enables natural language queries across account, payment, and compliance domains."),
+  checkPara("Network Graph Analysis with dual-view visualization strengthens fraud investigation and pattern detection."),
   checkPara("3-year ROI of 287% with 5-month payback period, delivering $18.15M cumulative net benefit."),
   emptyLine(),
 
@@ -1108,7 +1177,7 @@ const doc = new Document({
           alignment: AlignmentType.RIGHT,
           border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC", space: 4 } },
           children: [
-            new TextRun({ text: "G9-IPTS Executive Briefing v5.0", font: FONT, size: 16, color: "999999", italics: true }),
+            new TextRun({ text: "G9-IPTS Executive Briefing v6.0", font: FONT, size: 16, color: "999999", italics: true }),
             new TextRun({ text: "  |  ", font: FONT, size: 16, color: "CCCCCC" }),
             new TextRun({ text: "Confidential", font: FONT, size: 16, color: "CC0000", bold: true }),
           ]
@@ -1123,7 +1192,7 @@ const doc = new Document({
           children: [
             new TextRun({ text: "Page ", font: FONT, size: 16, color: "999999" }),
             new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: "999999" }),
-            new TextRun({ text: "  |  G9-IPTS  |  April 2026  |  Version 5.0", font: FONT, size: 16, color: "999999" }),
+            new TextRun({ text: "  |  G9-IPTS  |  April 2026  |  Version 6.0", font: FONT, size: 16, color: "999999" }),
           ]
         })]
       })

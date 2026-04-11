@@ -46,12 +46,17 @@ The system integrates:
 - **GDPR-Compliant Data Sovereignty** — Off-chain PII vaulting with on-chain hash anchoring
 - **SLA Tracking** — Severity-based countdown timers (Critical 4h, High 24h, Medium 72h, Low 7d)
 - **Health Monitoring** — 30-second polling of all system components with visual status indicator
-- **Real-Time Dashboard** — SSE-powered live telemetry with 12 functional tabs
+- **Real-Time Dashboard** — SSE-powered live telemetry with 13 functional tabs and Proof of Reserve indicator
 - **Notification Center** — Real-time push notifications via SSE with bell badge and dropdown panel
-- **Support Chat Bot** — AI-powered floating chat widget for instant help
+- **Support Chat Bot (LLM)** — AI-powered chat using local Ollama/Llama 3.2 with user context injection
 - **Virtual Card Services** — Generate, freeze, cancel, and provision Visa/MC cards to digital wallets
 - **Spending 360 Analytics** — Comprehensive spending reports with charts, trends, and beneficiary rankings
 - **E-KYC Verification** — Animated 3-phase identity verification with confidence scoring
+- **DeFi Hub** — DEX/AMM with constant-product pricing across 6 liquidity pools, 3-tier yield staking (3.5-8.1% APY), and HTLC programmable escrow
+- **7 Payment Channels** — Settlement, P2P, ACH/Wire/SEPA, Scheduled, QR Pay, AMM Swap, HTLC Escrow
+- **Fraud Heatmap** — Global risk hotspot visualization with country-level analytics
+- **SAR Auto-Generation** — Automated FinCEN-format Suspicious Activity Reports from compliance cases
+- **ML Model Caching** — Models persist to disk; skip training on subsequent startups
 
 ---
 
@@ -174,12 +179,20 @@ Architecture SVG diagrams are available in [`docs/architecture/`](docs/architect
 - **Activity Heatmap** — Bar chart showing transaction activity by hour of day
 - **Top Beneficiaries** — Ranked table of most-transacted beneficiaries with counts, amounts, and risk scores
 
+### DeFi Hub
+- **DEX/AMM (Automated Market Maker)** — Constant-product (x·y=k) pricing across 6 liquidity pools (USD/EUR, GBP, JPY, CHF, AED, ETH) with 0.3% swap fee and price impact visualization
+- **Yield Farming / Staking** — 3-tier system: Flexible (3.5% APY, no lock), 30-Day Lock (5.2% APY), 90-Day Lock (8.1% APY) with real-time yield accrual
+- **HTLC Escrow** — Hash Time-Locked Contracts with SHA-256 hashlock, configurable timelock, and create/claim/refund lifecycle
+- **Proof of Reserve** — Dashboard card showing off-chain vs on-chain reserve totals with 1:1 backing indicator
+- **Fraud Heatmap** — Global risk hotspot visualization with country-level alert counts, average risk scores, and transaction volumes
+
 ### Compliance & Regulation
 - **Four-Eyes Dual Approval** — Transactions >= $100K require two independent compliance officer approvals
 - **Human-in-the-Loop (HITL)** — Blocked transactions routed to compliance officers with four-eyes badges
 - **SLA Tracking** — Severity-based countdown timers (Critical 4h, High 24h, Medium 72h, Low 7d)
 - **Case Management** — Full lifecycle case tracking (open -> investigating -> escalated -> resolved)
 - **SAR Filing** — Suspicious Activity Report generation with case linkage
+- **SAR Auto-Generation** — Automated FinCEN-format SAR report download (JSON) from compliance cases
 - **Sanctions Database** — Maintainable sanctions list with entity screening
 - **Audit Trail** — Immutable audit log of all system actions
 
@@ -637,11 +650,13 @@ Seven Solidity contracts are compiled and deployed to the local Ganache blockcha
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | HTML5, Tailwind CSS, Chart.js, D3.js, Font Awesome |
-| API | Python Flask, JWT, SSE |
-| Blockchain | Solidity ^0.8.0, Web3.py, Ganache, py-solc-x |
-| AI/ML | scikit-learn, XGBoost, SHAP, imbalanced-learn, NetworkX |
-| Database | SQLite (off-chain vault, 17 tables) |
+| Frontend | HTML5, Tailwind CSS, Chart.js, D3.js, Font Awesome (13 tabs) |
+| API | Python Flask 3.0, JWT, SSE, 75+ REST endpoints |
+| Blockchain | Solidity ^0.8.0, Web3.py 6.15, Ganache, py-solc-x |
+| AI/ML | scikit-learn, XGBoost, SHAP, NetworkX, Model Caching |
+| LLM | Ollama + Llama 3.2 (3B) for support chat |
+| DeFi | Constant-Product AMM, HTLC Escrow, Yield Staking |
+| Database | SQLite (off-chain vault, 22 tables) |
 | Security | JWT HS256, RBAC, Four-Eyes, HSTS, Rate Limiting |
 | Infrastructure | Local macOS (run_local.sh) or Google Colab |
 
@@ -670,7 +685,7 @@ IPTS/
 │                                       #   Phase 8: Status reporting
 │
 ├── templates/
-│   └── ipts_frontend.html              # Single-page frontend (2,800+ lines, 12 tabs)
+│   └── ipts_frontend.html              # Single-page frontend (3,500+ lines, 13 tabs)
 │
 ├── docs/
 │   ├── generate_report.js              # Technical report DOCX generator

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IPTS - Integrated Payment Transformation System</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%2310b981'/><text x='16' y='22' text-anchor='middle' font-size='14' font-weight='bold' fill='%230a0e17' font-family='monospace'>IP</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23003366'/><text x='16' y='22' text-anchor='middle' font-size='14' font-weight='bold' fill='%23FFFFFF' font-family='monospace'>IP</text></svg>">
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -14,54 +14,55 @@ tailwind.config = {
   theme: {
     extend: {
       colors: {
-        dark: { 900: '#0a0e17', 800: '#111827', 700: '#1a2332', 600: '#1e2d3d', 500: '#2a3f55' },
-        accent: { DEFAULT: '#10b981', dim: '#064e3b' },
+        dark: { 900: '#F4F4F4', 800: '#FFFFFF', 700: '#E8EDF2', 600: '#D1D9E0', 500: '#B0BEC5' },
+        accent: { DEFAULT: '#0D47A1', dim: '#003366' },
+        navy: '#003366',
       }
     }
   }
 }
 </script>
 <style>
-  body { background: #0a0e17; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+  body { background: #F4F4F4; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
   ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: #111827; }
-  ::-webkit-scrollbar-thumb { background: #2a3f55; border-radius: 3px; }
-  ::selection { background: rgba(16,185,129,0.3); }
-  .glass { background: rgba(17,24,39,0.8); backdrop-filter: blur(12px); border: 1px solid rgba(42,63,85,0.5); }
-  .glow-green { box-shadow: 0 0 20px rgba(16,185,129,0.15); }
-  .glow-red { box-shadow: 0 0 20px rgba(239,68,68,0.15); }
+  ::-webkit-scrollbar-track { background: #E8EDF2; }
+  ::-webkit-scrollbar-thumb { background: #B0BEC5; border-radius: 3px; }
+  ::selection { background: rgba(13,71,161,0.2); }
+  .glass { background: #FFFFFF; border: 1px solid #D1D9E0; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .glow-green { box-shadow: 0 2px 12px rgba(13,71,161,0.1); }
+  .glow-red { box-shadow: 0 2px 12px rgba(239,68,68,0.1); }
   .pulse-dot { animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
   @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
   .fade-in { animation: fadeIn 0.3s ease-out; }
-  .tab-active { border-bottom: 2px solid #10b981; color: #10b981; }
-  .status-settled { color: #10b981; }
-  .status-flagged { color: #f59e0b; }
-  .status-blocked { color: #ef4444; }
-  .status-pending { color: #8b5cf6; }
-  .status-approved { color: #10b981; }
-  .status-rejected { color: #ef4444; }
-  input, select, textarea { background: #1a2332; border: 1px solid #2a3f55; color: #e2e8f0; }
-  input:focus, select:focus, textarea:focus { border-color: #10b981; outline: none; box-shadow: 0 0 0 2px rgba(16,185,129,0.2); }
-  .severity-critical { color: #ef4444; background: rgba(239,68,68,0.1); }
-  .severity-high { color: #f97316; background: rgba(249,115,22,0.1); }
-  .severity-medium { color: #f59e0b; background: rgba(245,158,11,0.1); }
-  .severity-low { color: #10b981; background: rgba(16,185,129,0.1); }
+  .tab-active { border-bottom: 2px solid #0D47A1; color: #0D47A1; }
+  .status-settled { color: #0E8C5F; }
+  .status-flagged { color: #E67E00; }
+  .status-blocked { color: #D32F2F; }
+  .status-pending { color: #7B1FA2; }
+  .status-approved { color: #0E8C5F; }
+  .status-rejected { color: #D32F2F; }
+  input, select, textarea { background: #FFFFFF; border: 1px solid #B0BEC5; color: #1a1a2e; }
+  input:focus, select:focus, textarea:focus { border-color: #0D47A1; outline: none; box-shadow: 0 0 0 2px rgba(13,71,161,0.15); }
+  .severity-critical { color: #D32F2F; background: rgba(211,47,47,0.08); }
+  .severity-high { color: #E65100; background: rgba(230,81,0,0.08); }
+  .severity-medium { color: #E67E00; background: rgba(230,126,0,0.08); }
+  .severity-low { color: #0E8C5F; background: rgba(14,140,95,0.08); }
   .badge { padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
-  .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;display:flex;align-items:center;justify-content:center; }
-  .modal-content { background:#111827;border:1px solid #2a3f55;border-radius:12px;max-width:700px;width:95%;max-height:85vh;overflow-y:auto;padding:24px; }
+  .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;display:flex;align-items:center;justify-content:center; }
+  .modal-content { background:#FFFFFF;border:1px solid #D1D9E0;border-radius:12px;max-width:700px;width:95%;max-height:85vh;overflow-y:auto;padding:24px; }
 </style>
 </head>
-<body class="text-gray-300 min-h-screen">
+<body class="text-gray-700 min-h-screen">
 
 <!-- Login Screen -->
-<div id="loginScreen" class="min-h-screen flex items-center justify-center">
-  <div class="glass rounded-2xl p-10 w-full max-w-md glow-green fade-in">
+<div id="loginScreen" class="min-h-screen flex items-center justify-center" style="background:linear-gradient(135deg, #003366 0%, #0D47A1 50%, #1565C0 100%);">
+  <div class="bg-white rounded-2xl p-10 w-full max-w-md shadow-2xl fade-in">
     <div class="text-center mb-8">
-      <div class="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-accent/20 mb-4">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-accent/10 mb-4">
         <i class="fas fa-shield-halved text-3xl text-accent"></i>
       </div>
-      <h1 class="text-2xl font-bold text-white">IPTS</h1>
+      <h1 class="text-2xl font-bold text-gray-800">IPTS</h1>
       <p class="text-gray-500 text-sm mt-1">Integrated Payment Transformation System</p>
     </div>
     <div class="space-y-4">
@@ -73,22 +74,22 @@ tailwind.config = {
         <label class="block text-xs text-gray-500 mb-1 uppercase tracking-wider">Password</label>
         <input id="loginPass" type="password" value="Mohamad@2026!" class="w-full px-4 py-3 rounded-lg text-sm" placeholder="Enter password">
       </div>
-      <button onclick="doLogin()" class="w-full py-3 rounded-lg bg-accent text-dark-900 font-semibold hover:bg-accent/90 transition">
+      <button onclick="doLogin()" class="w-full py-3 rounded-lg bg-accent text-white font-semibold hover:bg-accent/90 transition">
         <i class="fas fa-right-to-bracket mr-2"></i>Authenticate
       </button>
-      <div id="loginError" class="hidden text-red-400 text-sm text-center mt-2"></div>
+      <div id="loginError" class="hidden text-red-500 text-sm text-center mt-2"></div>
     </div>
-    <div class="mt-6 pt-4 border-t border-dark-600">
-      <p class="text-xs text-gray-600 text-center mb-3">Available Test Accounts</p>
+    <div class="mt-6 pt-4 border-t border-gray-200">
+      <p class="text-xs text-gray-400 text-center mb-3">Available Test Accounts</p>
       <table class="w-full text-xs text-gray-500">
-        <tr class="border-b border-dark-700"><td class="py-1 font-mono text-accent">mohamad</td><td>Mohamad@2026!</td><td class="text-right">Admin</td><td class="text-right text-blue-400">$1,000,000</td></tr>
-        <tr class="border-b border-dark-700"><td class="py-1 font-mono text-accent">rohit</td><td>Rohit@2026!</td><td class="text-right">Operator</td><td class="text-right text-blue-400">$750,000</td></tr>
-        <tr class="border-b border-dark-700"><td class="py-1 font-mono text-accent">sriram</td><td>Sriram@2026!</td><td class="text-right">Auditor</td><td class="text-right text-blue-400">$500,000</td></tr>
-        <tr class="border-b border-dark-700"><td class="py-1 font-mono text-accent">walid</td><td>Walid@2026!</td><td class="text-right">Compliance</td><td class="text-right text-blue-400">$350,000</td></tr>
-        <tr><td class="py-1 font-mono text-accent">vibin</td><td>Vibin@2026!</td><td class="text-right">Data Scientist</td><td class="text-right text-blue-400">$150,000</td></tr>
+        <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">mohamad</td><td>Mohamad@2026!</td><td class="text-right">Admin</td><td class="text-right text-accent font-semibold">$1,000,000</td></tr>
+        <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">rohit</td><td>Rohit@2026!</td><td class="text-right">Operator</td><td class="text-right text-accent font-semibold">$750,000</td></tr>
+        <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">sriram</td><td>Sriram@2026!</td><td class="text-right">Auditor</td><td class="text-right text-accent font-semibold">$500,000</td></tr>
+        <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">walid</td><td>Walid@2026!</td><td class="text-right">Compliance</td><td class="text-right text-accent font-semibold">$350,000</td></tr>
+        <tr><td class="py-1 font-mono text-accent">vibin</td><td>Vibin@2026!</td><td class="text-right">Data Scientist</td><td class="text-right text-accent font-semibold">$150,000</td></tr>
       </table>
     </div>
-    <div class="mt-4 text-center text-xs text-gray-600">
+    <div class="mt-4 text-center text-xs text-gray-400">
       Zero Trust Architecture &bull; JWT HS256 &bull; AML/KYC Compliant
     </div>
   </div>
@@ -97,85 +98,85 @@ tailwind.config = {
 <!-- Main App -->
 <div id="mainApp" class="hidden">
   <!-- Header -->
-  <header class="glass sticky top-0 z-50 px-6 py-3 flex items-center justify-between">
+  <header class="sticky top-0 z-50 px-6 py-3 flex items-center justify-between" style="background:#003366;">
     <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-        <i class="fas fa-shield-halved text-accent"></i>
+      <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center">
+        <i class="fas fa-shield-halved text-white"></i>
       </div>
       <span class="font-bold text-white text-lg">IPTS</span>
-      <span class="text-xs text-gray-600 hidden sm:inline">Enterprise Settlement Platform</span>
+      <span class="text-xs text-blue-200 hidden sm:inline">Enterprise Settlement Platform</span>
     </div>
     <div class="flex items-center gap-4">
-      <span id="healthDot" class="pulse-dot inline-block w-2 h-2 rounded-full bg-accent" title="System healthy"></span>
-      <span id="healthLabel" class="text-xs text-gray-500">LIVE</span>
+      <span id="healthDot" class="pulse-dot inline-block w-2 h-2 rounded-full bg-green-400" title="System healthy"></span>
+      <span id="healthLabel" class="text-xs text-blue-200">LIVE</span>
       <div class="hidden sm:flex items-center gap-2">
         <span id="headerFullName" class="text-sm font-semibold text-white"></span>
-        <span id="headerRoleBadge" class="badge bg-accent/20 text-accent"></span>
+        <span id="headerRoleBadge" class="badge bg-white/15 text-blue-200"></span>
       </div>
       <div class="hidden sm:block text-right">
-        <span id="headerBalance" class="text-sm font-bold text-blue-400"></span>
+        <span id="headerBalance" class="text-sm font-bold text-green-300"></span>
       </div>
       <!-- Notification Bell -->
       <div class="relative">
-        <button onclick="toggleNotifications()" class="relative text-gray-400 hover:text-white transition p-1">
+        <button onclick="toggleNotifications()" class="relative text-blue-200 hover:text-gray-800 transition p-1">
           <i class="fas fa-bell text-sm"></i>
           <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[9px] font-bold flex items-center justify-center">0</span>
         </button>
-        <div id="notifPanel" class="hidden absolute right-0 top-10 w-80 max-h-96 overflow-y-auto glass rounded-xl border border-dark-600 shadow-xl z-50">
-          <div class="flex justify-between items-center p-3 border-b border-dark-600">
-            <span class="text-xs font-semibold text-white">Notifications</span>
+        <div id="notifPanel" class="hidden absolute right-0 top-10 w-80 max-h-96 overflow-y-auto bg-white rounded-xl border border-gray-200 shadow-xl z-50">
+          <div class="flex justify-between items-center p-3 border-b border-gray-200">
+            <span class="text-xs font-semibold text-gray-800">Notifications</span>
             <button onclick="markAllRead()" class="text-xs text-accent hover:underline">Mark all read</button>
           </div>
-          <div id="notifList" class="divide-y divide-dark-700">
-            <p class="text-center text-gray-600 text-xs py-6">No notifications</p>
+          <div id="notifList" class="divide-y divide-gray-100">
+            <p class="text-center text-gray-400 text-xs py-6">No notifications</p>
           </div>
         </div>
       </div>
-      <button onclick="doLogout()" class="text-xs text-gray-500 hover:text-red-400 transition">
+      <button onclick="doLogout()" class="text-xs text-blue-200 hover:text-red-300 transition">
         <i class="fas fa-right-from-bracket"></i> Logout
       </button>
     </div>
   </header>
 
   <!-- Tabs -->
-  <nav class="flex gap-1 px-6 pt-4 border-b border-dark-600 overflow-x-auto">
+  <nav class="flex gap-1 px-6 pt-4 border-b border-gray-200 overflow-x-auto bg-white">
     <button onclick="switchTab('dashboard')" data-tab="dashboard" class="tab-btn tab-active px-4 py-2 text-sm font-medium transition whitespace-nowrap">
       <i class="fas fa-chart-line mr-1"></i>Dashboard
     </button>
-    <button onclick="switchTab('payments')" data-tab="payments" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+    <button onclick="switchTab('payments')" data-tab="payments" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-money-bill-transfer mr-1"></i>Payments
     </button>
-    <button onclick="switchTab('aiml')" data-tab="aiml" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+    <button onclick="switchTab('aiml')" data-tab="aiml" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-brain mr-1"></i>AI/ML
     </button>
-    <button onclick="switchTab('graph')" data-tab="graph" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+    <button onclick="switchTab('graph')" data-tab="graph" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-diagram-project mr-1"></i>Network Graph
     </button>
-    <button onclick="switchTab('admin')" data-tab="admin" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+    <button onclick="switchTab('admin')" data-tab="admin" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-user-shield mr-1"></i>Admin
     </button>
-    <button onclick="switchTab('compliance')" data-tab="compliance" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+    <button onclick="switchTab('compliance')" data-tab="compliance" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-scale-balanced mr-1"></i>Compliance
     </button>
-    <button onclick="switchTab('cases')" data-tab="cases" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+    <button onclick="switchTab('cases')" data-tab="cases" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-folder-open mr-1"></i>Case Management
     </button>
-    <button onclick="switchTab('beneficiaries')" data-tab="beneficiaries" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+    <button onclick="switchTab('beneficiaries')" data-tab="beneficiaries" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-users mr-1"></i>Beneficiaries
     </button>
-    <button onclick="switchTab('reporting')" data-tab="reporting" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+    <button onclick="switchTab('reporting')" data-tab="reporting" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-chart-pie mr-1"></i>Spending 360
     </button>
-    <button onclick="switchTab('cards')" data-tab="cards" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+    <button onclick="switchTab('cards')" data-tab="cards" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-credit-card mr-1"></i>Cards
     </button>
-    <button onclick="switchTab('security')" data-tab="security" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+    <button onclick="switchTab('security')" data-tab="security" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-fingerprint mr-1"></i>Security
     </button>
-    <button onclick="switchTab('documents')" data-tab="documents" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+    <button onclick="switchTab('documents')" data-tab="documents" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-file-invoice mr-1"></i>Documents
     </button>
-    <button onclick="switchTab('defi')" data-tab="defi" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+    <button onclick="switchTab('defi')" data-tab="defi" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-cubes mr-1"></i>DeFi
     </button>
   </nav>
@@ -191,7 +192,7 @@ tailwind.config = {
           <div class="flex justify-between items-start">
             <div>
               <p class="text-xs text-gray-500 uppercase tracking-wider">Total Settlements</p>
-              <p id="kpiTotal" class="text-3xl font-bold text-white mt-1">0</p>
+              <p id="kpiTotal" class="text-3xl font-bold text-gray-800 mt-1">0</p>
             </div>
             <div class="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center">
               <i class="fas fa-receipt text-accent"></i>
@@ -243,11 +244,11 @@ tailwind.config = {
             <div>
               <p class="text-xs text-gray-500 uppercase tracking-wider">Proof of Reserve</p>
               <div class="flex items-center gap-3 mt-1">
-                <span class="text-sm text-gray-300">Off-Chain: <span id="porOffchain" class="text-white font-semibold">$0</span></span>
+                <span class="text-sm text-gray-600">Off-Chain: <span id="porOffchain" class="text-gray-800 font-semibold">$0</span></span>
                 <span class="text-gray-600">|</span>
-                <span class="text-sm text-gray-300">On-Chain: <span id="porOnchain" class="text-white font-semibold">$0</span></span>
+                <span class="text-sm text-gray-600">On-Chain: <span id="porOnchain" class="text-gray-800 font-semibold">$0</span></span>
                 <span class="text-gray-600">|</span>
-                <span class="text-sm text-gray-300">Ratio: <span id="porRatio" class="font-semibold">-</span></span>
+                <span class="text-sm text-gray-600">Ratio: <span id="porRatio" class="font-semibold">-</span></span>
               </div>
             </div>
           </div>
@@ -262,7 +263,7 @@ tailwind.config = {
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2">
             <i class="fas fa-wallet text-accent text-xs"></i>
-            <span class="text-xs font-semibold text-white">My Accounts</span>
+            <span class="text-xs font-semibold text-gray-800">My Accounts</span>
           </div>
           <button onclick="loadSubAccounts()" class="text-xs text-accent hover:text-accent/80"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
         </div>
@@ -275,7 +276,7 @@ tailwind.config = {
       <div class="glass rounded-xl p-4 mb-6">
         <div class="flex items-center gap-2 mb-2">
           <i class="fas fa-exchange-alt text-accent text-xs"></i>
-          <span class="text-xs font-semibold text-white">Live FX Rates (USD)</span>
+          <span class="text-xs font-semibold text-gray-800">Live FX Rates (USD)</span>
         </div>
         <div id="fxTicker" class="flex flex-wrap gap-3 text-xs">
           <span class="text-gray-500">Loading rates...</span>
@@ -287,7 +288,7 @@ tailwind.config = {
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2">
             <i class="fas fa-list-ul text-cyan-400 text-xs"></i>
-            <span class="text-xs font-semibold text-white">Real-time Ledger</span>
+            <span class="text-xs font-semibold text-gray-800">Real-time Ledger</span>
             <span class="pulse-dot inline-block w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
           </div>
           <button onclick="loadLedger()" class="text-xs text-cyan-400 hover:text-cyan-300"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
@@ -295,7 +296,7 @@ tailwind.config = {
         <div class="overflow-x-auto">
           <table class="w-full text-xs">
             <thead>
-              <tr class="text-gray-500 border-b border-dark-600">
+              <tr class="text-gray-500 border-b border-gray-200">
                 <th class="text-left py-1.5 px-2">Date</th>
                 <th class="text-left py-1.5 px-2">Type</th>
                 <th class="text-left py-1.5 px-2">Description</th>
@@ -312,20 +313,20 @@ tailwind.config = {
 
       <!-- Chart -->
       <div class="glass rounded-xl p-6 mb-6">
-        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-chart-area mr-2 text-accent"></i>Settlement Volume</h3>
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-chart-area mr-2 text-accent"></i>Settlement Volume</h3>
         <canvas id="volumeChart" height="200"></canvas>
       </div>
 
       <!-- AML Telemetry Table -->
       <div class="glass rounded-xl p-6">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-sm font-semibold text-white"><i class="fas fa-satellite-dish mr-2 text-accent"></i>AML Telemetry - Live Ledger</h3>
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-satellite-dish mr-2 text-accent"></i>AML Telemetry - Live Ledger</h3>
           <span class="pulse-dot inline-block w-2 h-2 rounded-full bg-accent"></span>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-xs">
             <thead>
-              <tr class="text-gray-500 border-b border-dark-600">
+              <tr class="text-gray-500 border-b border-gray-200">
                 <th class="text-left py-2 px-2">Timestamp</th>
                 <th class="text-left py-2 px-2">Sender</th>
                 <th class="text-left py-2 px-2">Beneficiary</th>
@@ -347,11 +348,11 @@ tailwind.config = {
     <div id="tab-payments" class="tab-content hidden fade-in">
       <!-- Payment Sub-tabs -->
       <div class="flex gap-2 mb-4 overflow-x-auto">
-        <button onclick="switchPaySub('settlement')" data-paysub="settlement" class="paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-accent text-dark-900 transition">Settlement</button>
-        <button onclick="switchPaySub('p2p')" data-paysub="p2p" class="paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white transition">P2P Transfer</button>
-        <button onclick="switchPaySub('external')" data-paysub="external" class="paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white transition">ACH/Wire/SEPA</button>
-        <button onclick="switchPaySub('scheduled')" data-paysub="scheduled" class="paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white transition">Scheduled</button>
-        <button onclick="switchPaySub('qr')" data-paysub="qr" class="paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white transition">QR Pay</button>
+        <button onclick="switchPaySub('settlement')" data-paysub="settlement" class="paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white transition">Settlement</button>
+        <button onclick="switchPaySub('p2p')" data-paysub="p2p" class="paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 hover:text-gray-800 transition">P2P Transfer</button>
+        <button onclick="switchPaySub('external')" data-paysub="external" class="paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 hover:text-gray-800 transition">ACH/Wire/SEPA</button>
+        <button onclick="switchPaySub('scheduled')" data-paysub="scheduled" class="paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 hover:text-gray-800 transition">Scheduled</button>
+        <button onclick="switchPaySub('qr')" data-paysub="qr" class="paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 hover:text-gray-800 transition">QR Pay</button>
       </div>
 
       <!-- Settlement Sub-panel (existing) -->
@@ -359,14 +360,14 @@ tailwind.config = {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Settlement Form -->
         <div class="glass rounded-xl p-6">
-          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-paper-plane mr-2 text-accent"></i>Execute Settlement</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-paper-plane mr-2 text-accent"></i>Execute Settlement</h3>
           <div class="space-y-4">
             <!-- Sender info (read-only) -->
-            <div class="bg-dark-700 rounded-lg p-4 border border-dark-500">
+            <div class="bg-gray-100 rounded-lg p-4 border border-gray-200">
               <div class="flex justify-between items-center">
                 <div>
                   <p class="text-xs text-gray-500 uppercase">Sender</p>
-                  <p id="paySenderName" class="text-white font-semibold mt-1">Loading...</p>
+                  <p id="paySenderName" class="text-gray-800 font-semibold mt-1">Loading...</p>
                 </div>
                 <div class="text-right">
                   <p class="text-xs text-gray-500 uppercase">Available Balance</p>
@@ -393,14 +394,14 @@ tailwind.config = {
                 </select>
               </div>
             </div>
-            <div id="fxPreview" class="hidden text-xs bg-dark-700 rounded-lg p-3 border border-dark-500">
+            <div id="fxPreview" class="hidden text-xs bg-gray-100 rounded-lg p-3 border border-gray-200">
               <div class="flex justify-between items-center">
                 <span class="text-gray-500"><i class="fas fa-exchange-alt mr-1"></i>FX Conversion</span>
                 <span id="fxPreviewRate" class="text-accent font-mono"></span>
               </div>
               <div class="flex justify-between items-center mt-1">
                 <span class="text-gray-500">Settlement Amount (USD)</span>
-                <span id="fxPreviewUSD" class="text-white font-bold"></span>
+                <span id="fxPreviewUSD" class="text-gray-800 font-bold"></span>
               </div>
             </div>
             <div id="amlWarning" class="hidden text-xs bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-yellow-400">
@@ -408,7 +409,7 @@ tailwind.config = {
               <span id="amlWarningText"></span>
             </div>
             <div id="payError" class="hidden text-red-400 text-sm bg-red-500/10 rounded-lg p-3"></div>
-            <button onclick="executeSettlement()" id="payBtn" class="w-full py-3 rounded-lg bg-accent text-dark-900 font-semibold hover:bg-accent/90 transition">
+            <button onclick="executeSettlement()" id="payBtn" class="w-full py-3 rounded-lg bg-accent text-white font-semibold hover:bg-accent/90 transition">
               <i class="fas fa-bolt mr-2"></i>Execute Settlement
             </button>
           </div>
@@ -416,7 +417,7 @@ tailwind.config = {
 
         <!-- Result Display -->
         <div class="glass rounded-xl p-6">
-          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-receipt mr-2 text-accent"></i>Settlement Result</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-receipt mr-2 text-accent"></i>Settlement Result</h3>
           <div id="payResult" class="text-gray-500 text-sm">
             <p class="text-center py-12">Submit a settlement to see results here.</p>
           </div>
@@ -428,7 +429,7 @@ tailwind.config = {
       <div id="paysub-p2p" class="paysub-content hidden">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div class="glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-paper-plane mr-2 text-accent"></i>Send Money (P2P)</h3>
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-paper-plane mr-2 text-accent"></i>Send Money (P2P)</h3>
             <div class="space-y-3">
               <div>
                 <label class="block text-xs text-gray-500 mb-1">Send via</label>
@@ -452,13 +453,13 @@ tailwind.config = {
               </div>
               <div id="p2pError" class="hidden text-red-400 text-sm bg-red-500/10 rounded-lg p-2"></div>
               <div id="p2pSuccess" class="hidden text-green-400 text-sm bg-green-500/10 rounded-lg p-2"></div>
-              <button onclick="sendP2P()" id="p2pBtn" class="w-full py-2.5 rounded-lg bg-accent text-dark-900 font-semibold hover:bg-accent/90 transition text-sm">
+              <button onclick="sendP2P()" id="p2pBtn" class="w-full py-2.5 rounded-lg bg-accent text-white font-semibold hover:bg-accent/90 transition text-sm">
                 <i class="fas fa-paper-plane mr-2"></i>Send Money
               </button>
             </div>
           </div>
           <div class="glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-history mr-2 text-blue-400"></i>P2P History</h3>
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-history mr-2 text-blue-400"></i>P2P History</h3>
             <div id="p2pHistory" class="space-y-2 max-h-96 overflow-y-auto"><p class="text-gray-600 text-sm text-center py-8">No P2P transfers yet.</p></div>
           </div>
         </div>
@@ -467,14 +468,14 @@ tailwind.config = {
       <!-- ACH/Wire/SEPA Sub-panel -->
       <div id="paysub-external" class="paysub-content hidden">
         <div class="glass rounded-xl p-6 max-w-2xl">
-          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-building-columns mr-2 text-blue-400"></i>External Bank Transfer</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-building-columns mr-2 text-blue-400"></i>External Bank Transfer</h3>
           <div class="space-y-3">
             <div>
               <label class="block text-xs text-gray-500 mb-1">Transfer Type</label>
               <div class="grid grid-cols-3 gap-2">
                 <button onclick="selectExtType('ach')" id="extTypeACH" class="ext-type-btn px-3 py-3 rounded-lg bg-accent/20 text-accent border border-accent text-xs font-semibold text-center">ACH<br><span class="text-[10px] text-gray-500">Free • 1-3 days</span></button>
-                <button onclick="selectExtType('wire')" id="extTypeWire" class="ext-type-btn px-3 py-3 rounded-lg bg-dark-700 text-gray-400 border border-dark-600 text-xs font-semibold text-center">Wire<br><span class="text-[10px] text-gray-500">$25 fee • Same day</span></button>
-                <button onclick="selectExtType('sepa')" id="extTypeSEPA" class="ext-type-btn px-3 py-3 rounded-lg bg-dark-700 text-gray-400 border border-dark-600 text-xs font-semibold text-center">SEPA<br><span class="text-[10px] text-gray-500">€5 fee • 1 day</span></button>
+                <button onclick="selectExtType('wire')" id="extTypeWire" class="ext-type-btn px-3 py-3 rounded-lg bg-gray-100 text-gray-400 border border-gray-200 text-xs font-semibold text-center">Wire<br><span class="text-[10px] text-gray-500">$25 fee • Same day</span></button>
+                <button onclick="selectExtType('sepa')" id="extTypeSEPA" class="ext-type-btn px-3 py-3 rounded-lg bg-gray-100 text-gray-400 border border-gray-200 text-xs font-semibold text-center">SEPA<br><span class="text-[10px] text-gray-500">€5 fee • 1 day</span></button>
               </div>
             </div>
             <div><label class="block text-xs text-gray-500 mb-1">Recipient Name</label><input id="extName" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="John Smith"></div>
@@ -483,8 +484,8 @@ tailwind.config = {
               <div><label class="block text-xs text-gray-500 mb-1">Account Number</label><input id="extAccount" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="123456789"></div>
             </div>
             <div><label class="block text-xs text-gray-500 mb-1">Amount</label><input id="extAmount" type="number" class="w-full px-3 py-2 rounded-lg text-sm" value="5000"></div>
-            <div id="extFeePreview" class="text-xs bg-dark-700 rounded-lg p-3 border border-dark-500">
-              <div class="flex justify-between"><span class="text-gray-500">Transfer Fee</span><span id="extFee" class="text-white font-mono">$0.00</span></div>
+            <div id="extFeePreview" class="text-xs bg-gray-100 rounded-lg p-3 border border-gray-200">
+              <div class="flex justify-between"><span class="text-gray-500">Transfer Fee</span><span id="extFee" class="text-gray-800 font-mono">$0.00</span></div>
               <div class="flex justify-between mt-1"><span class="text-gray-500">Processing</span><span id="extProcessing" class="text-accent">1-3 business days</span></div>
             </div>
             <div id="extError" class="hidden text-red-400 text-sm bg-red-500/10 rounded-lg p-2"></div>
@@ -500,7 +501,7 @@ tailwind.config = {
       <div id="paysub-scheduled" class="paysub-content hidden">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div class="glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-calendar-check mr-2 text-purple-400"></i>Schedule a Payment</h3>
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-calendar-check mr-2 text-purple-400"></i>Schedule a Payment</h3>
             <div class="space-y-3">
               <div><label class="block text-xs text-gray-500 mb-1">Beneficiary</label><input id="schedBen" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="Recipient name"></div>
               <div><label class="block text-xs text-gray-500 mb-1">Amount (USD)</label><input id="schedAmount" type="number" class="w-full px-3 py-2 rounded-lg text-sm" value="1000"></div>
@@ -517,7 +518,7 @@ tailwind.config = {
             </div>
           </div>
           <div class="glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-list-check mr-2 text-accent"></i>Scheduled Payments</h3>
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-list-check mr-2 text-accent"></i>Scheduled Payments</h3>
             <div id="scheduledList" class="space-y-2 max-h-96 overflow-y-auto"><p class="text-gray-600 text-sm text-center py-8">No scheduled payments.</p></div>
           </div>
         </div>
@@ -527,15 +528,15 @@ tailwind.config = {
       <div id="paysub-qr" class="paysub-content hidden">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div class="glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-qrcode mr-2 text-accent"></i>Generate QR Code (Receive)</h3>
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-qrcode mr-2 text-accent"></i>Generate QR Code (Receive)</h3>
             <div class="space-y-3">
               <div><label class="block text-xs text-gray-500 mb-1">Amount to Request (USD)</label><input id="qrAmount" type="number" class="w-full px-3 py-2 rounded-lg text-sm" value="50"></div>
-              <button onclick="generateQR()" class="w-full py-2.5 rounded-lg bg-accent text-dark-900 font-semibold hover:bg-accent/90 transition text-sm"><i class="fas fa-qrcode mr-2"></i>Generate QR Code</button>
+              <button onclick="generateQR()" class="w-full py-2.5 rounded-lg bg-accent text-white font-semibold hover:bg-accent/90 transition text-sm"><i class="fas fa-qrcode mr-2"></i>Generate QR Code</button>
               <div id="qrResult" class="text-center py-4"></div>
             </div>
           </div>
           <div class="glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-camera mr-2 text-blue-400"></i>Scan & Pay</h3>
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-camera mr-2 text-blue-400"></i>Scan & Pay</h3>
             <div class="space-y-3">
               <div><label class="block text-xs text-gray-500 mb-1">Paste QR Data</label><textarea id="qrScanData" class="w-full px-3 py-2 rounded-lg text-sm" rows="3" placeholder="Paste QR code data here..."></textarea></div>
               <div><label class="block text-xs text-gray-500 mb-1">Amount (if not in QR)</label><input id="qrPayAmount" type="number" class="w-full px-3 py-2 rounded-lg text-sm" value="0"></div>
@@ -555,13 +556,13 @@ tailwind.config = {
 
       <!-- Feature Importance Chart -->
       <div class="glass rounded-xl p-6 mb-6">
-        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-chart-bar mr-2 text-accent"></i>Feature Importance</h3>
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-chart-bar mr-2 text-accent"></i>Feature Importance</h3>
         <canvas id="featureChart" height="200"></canvas>
       </div>
 
       <!-- SHAP Explainability -->
       <div class="glass rounded-xl p-6 mb-6">
-        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-lightbulb mr-2 text-yellow-400"></i>SHAP Explainability (Last Transaction)</h3>
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-lightbulb mr-2 text-yellow-400"></i>SHAP Explainability (Last Transaction)</h3>
         <div id="shapContainer" class="text-center text-gray-600 text-xs py-8">
           Execute a settlement to see SHAP feature contributions.
         </div>
@@ -570,7 +571,7 @@ tailwind.config = {
 
       <!-- Fraud Heatmap -->
       <div class="glass rounded-xl p-6 mb-6">
-        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-globe mr-2 text-red-400"></i>Global Fraud Heatmap — Real-Time Risk Hotspots</h3>
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-globe mr-2 text-red-400"></i>Global Fraud Heatmap — Real-Time Risk Hotspots</h3>
         <div id="fraudHeatmapContainer" class="text-center text-gray-500 text-sm py-4">Loading heatmap...</div>
       </div>
 
@@ -578,7 +579,7 @@ tailwind.config = {
       <div id="retrainSection" class="glass rounded-xl p-6">
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="text-sm font-semibold text-white"><i class="fas fa-rotate mr-2 text-accent"></i>Model Retraining</h3>
+            <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-rotate mr-2 text-accent"></i>Model Retraining</h3>
             <p class="text-xs text-gray-500 mt-1">Retrain all 5 models with fresh synthetic data</p>
           </div>
           <button onclick="retrainModels()" id="retrainBtn" class="px-6 py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-500 transition">
@@ -592,13 +593,13 @@ tailwind.config = {
     <div id="tab-graph" class="tab-content hidden fade-in">
       <!-- Graph View Toggle -->
       <div class="flex gap-2 mb-4">
-        <button onclick="switchGraphView('full')" id="graphViewFull" class="px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-dark-900">Full Network</button>
-        <button onclick="switchGraphView('connected')" id="graphViewConnected" class="px-4 py-2 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white">Connected Nodes Only</button>
+        <button onclick="switchGraphView('full')" id="graphViewFull" class="px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-white">Full Network</button>
+        <button onclick="switchGraphView('connected')" id="graphViewConnected" class="px-4 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 hover:text-gray-800">Connected Nodes Only</button>
       </div>
       <!-- Full Network Graph -->
       <div id="graphFullView" class="glass rounded-xl p-6 mb-4">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-sm font-semibold text-white"><i class="fas fa-diagram-project mr-2 text-accent"></i>Full Transaction Network</h3>
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-diagram-project mr-2 text-accent"></i>Full Transaction Network</h3>
           <div class="flex gap-2 text-xs">
             <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-accent inline-block"></span>Normal</span>
             <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>Cycle Node</span>
@@ -606,12 +607,12 @@ tailwind.config = {
             <span id="graphFullStats" class="text-gray-500 ml-2"></span>
           </div>
         </div>
-        <div id="graphContainer" style="width:100%;height:500px;background:#0d1117;border-radius:8px;overflow:hidden;position:relative;"></div>
+        <div id="graphContainer" style="width:100%;height:500px;background:#E8EDF2;border-radius:8px;overflow:hidden;position:relative;"></div>
       </div>
       <!-- Connected Nodes Graph -->
       <div id="graphConnectedView" class="glass rounded-xl p-6 hidden">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-sm font-semibold text-white"><i class="fas fa-project-diagram mr-2 text-purple-400"></i>Connected Nodes (Edges &ge; 1)</h3>
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-project-diagram mr-2 text-purple-400"></i>Connected Nodes (Edges &ge; 1)</h3>
           <div class="flex gap-2 text-xs">
             <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-accent inline-block"></span>Normal</span>
             <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>Cycle Node</span>
@@ -619,7 +620,7 @@ tailwind.config = {
             <span id="graphConnectedStats" class="text-gray-500 ml-2"></span>
           </div>
         </div>
-        <div id="graphContainerConnected" style="width:100%;height:500px;background:#0d1117;border-radius:8px;overflow:hidden;position:relative;"></div>
+        <div id="graphContainerConnected" style="width:100%;height:500px;background:#E8EDF2;border-radius:8px;overflow:hidden;position:relative;"></div>
       </div>
     </div>
 
@@ -628,13 +629,13 @@ tailwind.config = {
       <!-- HITL Queue -->
       <div class="glass rounded-xl p-6 mb-6">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-sm font-semibold text-white"><i class="fas fa-user-check mr-2 text-yellow-400"></i>Human-in-the-Loop Queue</h3>
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-user-check mr-2 text-yellow-400"></i>Human-in-the-Loop Queue</h3>
           <button onclick="loadHITL()" class="text-xs text-accent hover:underline"><i class="fas fa-refresh mr-1"></i>Refresh</button>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-xs">
             <thead>
-              <tr class="text-gray-500 border-b border-dark-600">
+              <tr class="text-gray-500 border-b border-gray-200">
                 <th class="text-left py-2 px-2">ID</th>
                 <th class="text-left py-2 px-2">Beneficiary</th>
                 <th class="text-right py-2 px-2">Amount</th>
@@ -655,13 +656,13 @@ tailwind.config = {
       <!-- Audit Log -->
       <div class="glass rounded-xl p-6 mb-6">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-sm font-semibold text-white"><i class="fas fa-clipboard-list mr-2 text-cyan-400"></i>Audit Log</h3>
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-clipboard-list mr-2 text-cyan-400"></i>Audit Log</h3>
           <button onclick="loadAudit()" class="text-xs text-accent hover:underline"><i class="fas fa-refresh mr-1"></i>Refresh</button>
         </div>
         <div class="overflow-x-auto max-h-64 overflow-y-auto">
           <table class="w-full text-xs">
-            <thead class="sticky top-0 bg-dark-800">
-              <tr class="text-gray-500 border-b border-dark-600">
+            <thead class="sticky top-0 bg-white">
+              <tr class="text-gray-500 border-b border-gray-200">
                 <th class="text-left py-2 px-2">Time</th>
                 <th class="text-left py-2 px-2">Event</th>
                 <th class="text-left py-2 px-2">Actor</th>
@@ -677,7 +678,7 @@ tailwind.config = {
 
       <!-- GDPR Erasure -->
       <div class="glass rounded-xl p-6">
-        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-eraser mr-2 text-red-400"></i>GDPR Right to Erasure</h3>
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-eraser mr-2 text-red-400"></i>GDPR Right to Erasure</h3>
         <div class="flex gap-3">
           <input id="gdprEntityId" type="text" class="flex-1 px-3 py-2 rounded-lg text-sm" placeholder="Entity ID to erase">
           <button onclick="gdprErase()" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-500 transition">
@@ -691,7 +692,7 @@ tailwind.config = {
     <div id="tab-compliance" class="tab-content hidden fade-in">
       <!-- Sanctions Management -->
       <div class="glass rounded-xl p-6 mb-6">
-        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-gavel mr-2 text-red-400"></i>Sanctions List Management</h3>
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-gavel mr-2 text-red-400"></i>Sanctions List Management</h3>
         <div class="flex gap-3 mb-4">
           <input id="sanctionName" type="text" class="flex-1 px-3 py-2 rounded-lg text-sm" placeholder="Entity name">
           <select id="sanctionType" class="px-3 py-2 rounded-lg text-sm">
@@ -705,8 +706,8 @@ tailwind.config = {
         </div>
         <div class="overflow-x-auto max-h-48 overflow-y-auto">
           <table class="w-full text-xs">
-            <thead class="sticky top-0 bg-dark-800">
-              <tr class="text-gray-500 border-b border-dark-600">
+            <thead class="sticky top-0 bg-white">
+              <tr class="text-gray-500 border-b border-gray-200">
                 <th class="text-left py-2 px-2">Entity Name</th>
                 <th class="text-left py-2 px-2">Type</th>
                 <th class="text-left py-2 px-2">Added By</th>
@@ -722,7 +723,7 @@ tailwind.config = {
 
       <!-- SWIFT GPI Tracker -->
       <div class="glass rounded-xl p-6 mb-6">
-        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-search mr-2 text-blue-400"></i>SWIFT GPI Tracker</h3>
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-search mr-2 text-blue-400"></i>SWIFT GPI Tracker</h3>
         <div class="flex gap-3 mb-4">
           <input id="gpiUetr" type="text" class="flex-1 px-3 py-2 rounded-lg text-sm" placeholder="Enter UETR (UUID)">
           <button onclick="trackGPI()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-500 transition">
@@ -734,7 +735,7 @@ tailwind.config = {
 
       <!-- FX Converter Tool -->
       <div class="glass rounded-xl p-6 mb-6">
-        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-calculator mr-2 text-accent"></i>FX Converter</h3>
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-calculator mr-2 text-accent"></i>FX Converter</h3>
         <div class="grid grid-cols-5 gap-3 items-end">
           <div class="col-span-2">
             <label class="block text-xs text-gray-500 mb-1">Amount</label>
@@ -752,7 +753,7 @@ tailwind.config = {
               <option value="EUR">EUR</option>
             </select>
           </div>
-          <button onclick="convertFX()" class="px-4 py-2 rounded-lg bg-accent text-dark-900 text-sm font-medium hover:bg-accent/90 transition">
+          <button onclick="convertFX()" class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition">
             <i class="fas fa-exchange-alt mr-1"></i>Convert
           </button>
         </div>
@@ -761,7 +762,7 @@ tailwind.config = {
 
       <!-- Nostro Balances -->
       <div class="glass rounded-xl p-6">
-        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-dollar-sign mr-2 text-blue-400"></i>Nostro Balances (USD)</h3>
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-dollar-sign mr-2 text-blue-400"></i>Nostro Balances (USD)</h3>
         <div id="nostroBalances" class="space-y-2">
           <p class="text-gray-500 text-sm">Loading...</p>
         </div>
@@ -854,7 +855,7 @@ tailwind.config = {
           </div>
           <div class="ml-auto">
             <label class="block text-xs text-gray-500 mb-1">&nbsp;</label>
-            <button onclick="loadCases()" class="px-4 py-1.5 rounded-lg bg-dark-600 text-gray-300 text-sm hover:bg-dark-500 transition">
+            <button onclick="loadCases()" class="px-4 py-1.5 rounded-lg bg-gray-200 text-gray-600 text-sm hover:bg-gray-300 transition">
               <i class="fas fa-refresh mr-1"></i>Refresh
             </button>
           </div>
@@ -866,7 +867,7 @@ tailwind.config = {
         <div class="overflow-x-auto">
           <table class="w-full text-xs">
             <thead>
-              <tr class="text-gray-500 border-b border-dark-600">
+              <tr class="text-gray-500 border-b border-gray-200">
                 <th class="text-left py-2 px-2">Case #</th>
                 <th class="text-left py-2 px-2">Type</th>
                 <th class="text-center py-2 px-2">Severity</th>
@@ -893,7 +894,7 @@ tailwind.config = {
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Add Beneficiary Form -->
         <div class="glass rounded-xl p-6 lg:col-span-1">
-          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-user-plus mr-2 text-accent"></i>Add Beneficiary</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-user-plus mr-2 text-accent"></i>Add Beneficiary</h3>
           <div class="space-y-3" id="beneficiaryForm">
             <div>
               <label class="block text-xs text-gray-500 mb-1">Full Name *</label>
@@ -976,7 +977,7 @@ tailwind.config = {
             </div>
             <div id="benFormError" class="hidden text-red-400 text-sm bg-red-500/10 rounded-lg p-2"></div>
             <div id="benFormSuccess" class="hidden text-green-400 text-sm bg-green-500/10 rounded-lg p-2"></div>
-            <button onclick="addBeneficiary()" id="benAddBtn" class="w-full py-2.5 rounded-lg bg-accent text-dark-900 font-semibold hover:bg-accent/90 transition text-sm">
+            <button onclick="addBeneficiary()" id="benAddBtn" class="w-full py-2.5 rounded-lg bg-accent text-white font-semibold hover:bg-accent/90 transition text-sm">
               <i class="fas fa-plus mr-2"></i>Add Beneficiary
             </button>
           </div>
@@ -985,7 +986,7 @@ tailwind.config = {
         <!-- Beneficiaries List -->
         <div class="glass rounded-xl p-6 lg:col-span-2">
           <div class="flex justify-between items-center mb-4">
-            <h3 class="text-sm font-semibold text-white"><i class="fas fa-address-book mr-2 text-blue-400"></i>My Beneficiaries</h3>
+            <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-address-book mr-2 text-blue-400"></i>My Beneficiaries</h3>
             <div class="flex items-center gap-3">
               <input id="benSearch" type="text" class="px-3 py-1.5 rounded-lg text-xs w-48" placeholder="Search beneficiaries..." oninput="filterBeneficiaries()">
               <span id="benCount" class="text-xs text-gray-500">0 beneficiaries</span>
@@ -994,7 +995,7 @@ tailwind.config = {
           <div class="overflow-x-auto">
             <table class="w-full text-xs">
               <thead>
-                <tr class="text-left text-gray-500 uppercase border-b border-dark-600">
+                <tr class="text-left text-gray-500 uppercase border-b border-gray-200">
                   <th class="pb-2 pr-3">Name</th>
                   <th class="pb-2 pr-3">Type</th>
                   <th class="pb-2 pr-3">Bank</th>
@@ -1019,7 +1020,7 @@ tailwind.config = {
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <div class="glass rounded-xl p-5 glow-green">
           <p class="text-xs text-gray-500 uppercase tracking-wider">Total Sent</p>
-          <p id="rptTotalSent" class="text-2xl font-bold text-white mt-1">$0</p>
+          <p id="rptTotalSent" class="text-2xl font-bold text-gray-800 mt-1">$0</p>
           <p id="rptTotalSentCount" class="text-xs text-gray-500 mt-1">0 transactions</p>
         </div>
         <div class="glass rounded-xl p-5">
@@ -1047,13 +1048,13 @@ tailwind.config = {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <!-- Monthly Trend Chart -->
         <div class="glass rounded-xl p-6">
-          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-chart-area mr-2 text-accent"></i>Monthly Spending Trend</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-chart-area mr-2 text-accent"></i>Monthly Spending Trend</h3>
           <div style="position:relative;height:250px;"><canvas id="rptMonthlyChart"></canvas></div>
         </div>
 
         <!-- Spending by Status (Donut) -->
         <div class="glass rounded-xl p-6">
-          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-chart-pie mr-2 text-blue-400"></i>Spending by Status</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-chart-pie mr-2 text-blue-400"></i>Spending by Status</h3>
           <div style="position:relative;height:250px;"><canvas id="rptStatusChart"></canvas></div>
         </div>
       </div>
@@ -1061,13 +1062,13 @@ tailwind.config = {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <!-- Risk Distribution -->
         <div class="glass rounded-xl p-6">
-          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-shield-halved mr-2 text-yellow-400"></i>Risk Distribution</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-shield-halved mr-2 text-yellow-400"></i>Risk Distribution</h3>
           <div style="position:relative;height:250px;"><canvas id="rptRiskChart"></canvas></div>
         </div>
 
         <!-- Spending by Currency -->
         <div class="glass rounded-xl p-6">
-          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-coins mr-2 text-purple-400"></i>Spending by Currency</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-coins mr-2 text-purple-400"></i>Spending by Currency</h3>
           <div style="position:relative;height:250px;"><canvas id="rptCurrencyChart"></canvas></div>
         </div>
       </div>
@@ -1075,24 +1076,24 @@ tailwind.config = {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <!-- Activity Heatmap (Hour of Day) -->
         <div class="glass rounded-xl p-6">
-          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-clock mr-2 text-orange-400"></i>Activity by Hour of Day</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-clock mr-2 text-orange-400"></i>Activity by Hour of Day</h3>
           <div style="position:relative;height:250px;"><canvas id="rptHourlyChart"></canvas></div>
         </div>
 
         <!-- Activity by Day of Week -->
         <div class="glass rounded-xl p-6">
-          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-calendar-week mr-2 text-cyan-400"></i>Activity by Day of Week</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-calendar-week mr-2 text-cyan-400"></i>Activity by Day of Week</h3>
           <div style="position:relative;height:250px;"><canvas id="rptDowChart"></canvas></div>
         </div>
       </div>
 
       <!-- Top Beneficiaries Table -->
       <div class="glass rounded-xl p-6 mb-6">
-        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-ranking-star mr-2 text-yellow-400"></i>Top Beneficiaries by Spend</h3>
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-ranking-star mr-2 text-yellow-400"></i>Top Beneficiaries by Spend</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-xs">
             <thead>
-              <tr class="text-left text-gray-500 uppercase border-b border-dark-600">
+              <tr class="text-left text-gray-500 uppercase border-b border-gray-200">
                 <th class="pb-2 pr-3">#</th>
                 <th class="pb-2 pr-3">Beneficiary</th>
                 <th class="pb-2 pr-3 text-right">Transactions</th>
@@ -1110,11 +1111,11 @@ tailwind.config = {
 
       <!-- Recent Transactions -->
       <div class="glass rounded-xl p-6">
-        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-receipt mr-2 text-gray-400"></i>Recent Transactions</h3>
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-receipt mr-2 text-gray-400"></i>Recent Transactions</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-xs">
             <thead>
-              <tr class="text-left text-gray-500 uppercase border-b border-dark-600">
+              <tr class="text-left text-gray-500 uppercase border-b border-gray-200">
                 <th class="pb-2 pr-3">Date</th>
                 <th class="pb-2 pr-3">Beneficiary</th>
                 <th class="pb-2 pr-3 text-right">Amount</th>
@@ -1136,24 +1137,24 @@ tailwind.config = {
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Generate Card -->
         <div class="glass rounded-xl p-6">
-          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-plus-circle mr-2 text-accent"></i>Generate Virtual Card</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-plus-circle mr-2 text-accent"></i>Generate Virtual Card</h3>
           <div class="space-y-3">
             <div><label class="block text-xs text-gray-500 mb-1">Card Label</label><input id="cardLabel" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g. Online Shopping"></div>
             <div><label class="block text-xs text-gray-500 mb-1">Spending Limit (USD)</label><input id="cardLimit" type="number" class="w-full px-3 py-2 rounded-lg text-sm" value="5000"></div>
-            <div id="cardGenResult" class="hidden bg-dark-700 rounded-lg p-4 border border-accent/30">
+            <div id="cardGenResult" class="hidden bg-gray-100 rounded-lg p-4 border border-accent/30">
               <p class="text-xs text-gray-500 mb-1">New Card Generated</p>
-              <p id="cardGenNumber" class="text-white font-mono text-lg tracking-widest"></p>
+              <p id="cardGenNumber" class="text-gray-800 font-mono text-lg tracking-widest"></p>
               <div class="flex justify-between mt-2">
                 <span id="cardGenExpiry" class="text-xs text-gray-400"></span>
                 <span id="cardGenCVV" class="text-xs text-accent font-mono"></span>
               </div>
             </div>
-            <button onclick="generateCard()" class="w-full py-2.5 rounded-lg bg-accent text-dark-900 font-semibold hover:bg-accent/90 transition text-sm"><i class="fas fa-credit-card mr-2"></i>Generate Card</button>
+            <button onclick="generateCard()" class="w-full py-2.5 rounded-lg bg-accent text-white font-semibold hover:bg-accent/90 transition text-sm"><i class="fas fa-credit-card mr-2"></i>Generate Card</button>
           </div>
         </div>
         <!-- My Cards -->
         <div class="glass rounded-xl p-6 lg:col-span-2">
-          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-wallet mr-2 text-purple-400"></i>My Virtual Cards</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-wallet mr-2 text-purple-400"></i>My Virtual Cards</h3>
           <div id="cardsList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <p class="text-gray-600 text-sm text-center py-8 col-span-2">No virtual cards yet. Generate one!</p>
           </div>
@@ -1166,13 +1167,13 @@ tailwind.config = {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- E-KYC -->
         <div class="glass rounded-xl p-6">
-          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-id-card mr-2 text-blue-400"></i>E-KYC Verification</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-id-card mr-2 text-blue-400"></i>E-KYC Verification</h3>
           <div id="kycStatusPanel">
             <div id="kycNotStarted" class="text-center py-6">
               <div class="w-16 h-16 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-4">
                 <i class="fas fa-id-card text-3xl text-yellow-400"></i>
               </div>
-              <p class="text-white font-semibold mb-1">Identity Not Verified</p>
+              <p class="text-gray-800 font-semibold mb-1">Identity Not Verified</p>
               <p class="text-gray-500 text-xs mb-4">Complete KYC to unlock all features</p>
               <div class="space-y-3">
                 <div><label class="block text-xs text-gray-500 mb-1">Document Type</label>
@@ -1182,7 +1183,7 @@ tailwind.config = {
                 </div>
                 <div>
                   <input type="file" id="kycFileInput" accept=".jpg,.jpeg,.png,.pdf" class="hidden" onchange="onKycFileSelected(this)">
-                  <div id="kycDropZone" class="border-2 border-dashed border-dark-500 rounded-xl p-8 text-center cursor-pointer hover:border-accent/50 transition" onclick="document.getElementById('kycFileInput').click()">
+                  <div id="kycDropZone" class="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-accent/50 transition" onclick="document.getElementById('kycFileInput').click()">
                     <i class="fas fa-cloud-upload-alt text-2xl text-gray-500 mb-2"></i>
                     <p class="text-gray-400 text-xs">Click to upload document</p>
                     <p class="text-gray-600 text-[10px] mt-1">Accepted: JPG, PNG, PDF</p>
@@ -1198,22 +1199,22 @@ tailwind.config = {
             </div>
             <div id="kycVerifying" class="hidden text-center py-8">
               <div class="w-20 h-20 rounded-full border-4 border-accent/30 border-t-accent animate-spin mx-auto mb-4"></div>
-              <p class="text-white font-semibold">Verifying Identity...</p>
+              <p class="text-gray-800 font-semibold">Verifying Identity...</p>
               <p class="text-gray-500 text-xs">Checking document & liveness</p>
             </div>
             <div id="kycVerified" class="hidden text-center py-6">
               <div id="kycResultIcon" class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"></div>
-              <p id="kycResultTitle" class="text-white font-semibold mb-1"></p>
+              <p id="kycResultTitle" class="text-gray-800 font-semibold mb-1"></p>
               <p id="kycScore" class="text-sm mb-2"></p>
               <p id="kycDocInfo" class="text-gray-500 text-xs mb-3"></p>
-              <div id="kycDetails" class="text-left bg-dark-700 rounded-lg p-4 space-y-2 text-xs hidden">
-                <div class="flex justify-between"><span class="text-gray-500">Document Detected</span><span id="kycDetDocType" class="text-white"></span></div>
-                <div class="flex justify-between"><span class="text-gray-500">Name on Document</span><span id="kycDetExtName" class="text-white font-mono"></span></div>
-                <div class="flex justify-between"><span class="text-gray-500">Expected Name</span><span id="kycDetExpName" class="text-white font-mono"></span></div>
-                <div class="flex justify-between"><span class="text-gray-500">Match Type</span><span id="kycDetMatchType" class="text-white"></span></div>
-                <hr class="border-dark-500">
-                <div class="flex justify-between"><span class="text-gray-500">Doc Score</span><span id="kycDetDocScore" class="text-white font-mono"></span></div>
-                <div class="flex justify-between"><span class="text-gray-500">Name Score</span><span id="kycDetNameScore" class="text-white font-mono"></span></div>
+              <div id="kycDetails" class="text-left bg-gray-100 rounded-lg p-4 space-y-2 text-xs hidden">
+                <div class="flex justify-between"><span class="text-gray-500">Document Detected</span><span id="kycDetDocType" class="text-gray-800"></span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Name on Document</span><span id="kycDetExtName" class="text-gray-800 font-mono"></span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Expected Name</span><span id="kycDetExpName" class="text-gray-800 font-mono"></span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Match Type</span><span id="kycDetMatchType" class="text-gray-800"></span></div>
+                <hr class="border-gray-200">
+                <div class="flex justify-between"><span class="text-gray-500">Doc Score</span><span id="kycDetDocScore" class="text-gray-800 font-mono"></span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Name Score</span><span id="kycDetNameScore" class="text-gray-800 font-mono"></span></div>
                 <div class="flex justify-between font-semibold"><span class="text-gray-400">Total Score</span><span id="kycDetTotalScore" class="text-accent font-mono"></span></div>
               </div>
               <button id="kycRetryBtn" class="hidden mt-4 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition" onclick="resetKYC()"><i class="fas fa-redo mr-2"></i>Try Again</button>
@@ -1222,22 +1223,22 @@ tailwind.config = {
         </div>
         <!-- Biometric & Auth -->
         <div class="glass rounded-xl p-6">
-          <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-fingerprint mr-2 text-purple-400"></i>Biometric Authentication</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-fingerprint mr-2 text-purple-400"></i>Biometric Authentication</h3>
           <div class="space-y-4">
-            <div class="flex items-center justify-between bg-dark-700 rounded-lg p-4">
-              <div class="flex items-center gap-3"><i class="fas fa-fingerprint text-xl text-purple-400"></i><div><p class="text-white text-sm font-medium">Fingerprint</p><p class="text-gray-500 text-xs">Touch ID / Fingerprint sensor</p></div></div>
-              <label class="relative inline-flex cursor-pointer"><input type="checkbox" id="bioFingerprint" class="sr-only peer" checked><div class="w-9 h-5 bg-dark-500 rounded-full peer peer-checked:bg-accent after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div></label>
+            <div class="flex items-center justify-between bg-gray-100 rounded-lg p-4">
+              <div class="flex items-center gap-3"><i class="fas fa-fingerprint text-xl text-purple-400"></i><div><p class="text-gray-800 text-sm font-medium">Fingerprint</p><p class="text-gray-500 text-xs">Touch ID / Fingerprint sensor</p></div></div>
+              <label class="relative inline-flex cursor-pointer"><input type="checkbox" id="bioFingerprint" class="sr-only peer" checked><div class="w-9 h-5 bg-gray-300 rounded-full peer peer-checked:bg-accent after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div></label>
             </div>
-            <div class="flex items-center justify-between bg-dark-700 rounded-lg p-4">
-              <div class="flex items-center gap-3"><i class="fas fa-face-smile text-xl text-blue-400"></i><div><p class="text-white text-sm font-medium">Face ID</p><p class="text-gray-500 text-xs">Facial recognition login</p></div></div>
-              <label class="relative inline-flex cursor-pointer"><input type="checkbox" id="bioFaceID" class="sr-only peer"><div class="w-9 h-5 bg-dark-500 rounded-full peer peer-checked:bg-accent after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div></label>
+            <div class="flex items-center justify-between bg-gray-100 rounded-lg p-4">
+              <div class="flex items-center gap-3"><i class="fas fa-face-smile text-xl text-blue-400"></i><div><p class="text-gray-800 text-sm font-medium">Face ID</p><p class="text-gray-500 text-xs">Facial recognition login</p></div></div>
+              <label class="relative inline-flex cursor-pointer"><input type="checkbox" id="bioFaceID" class="sr-only peer"><div class="w-9 h-5 bg-gray-300 rounded-full peer peer-checked:bg-accent after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div></label>
             </div>
-            <div class="flex items-center justify-between bg-dark-700 rounded-lg p-4">
-              <div class="flex items-center gap-3"><i class="fas fa-key text-xl text-yellow-400"></i><div><p class="text-white text-sm font-medium">PIN Code</p><p class="text-gray-500 text-xs">6-digit secure PIN</p></div></div>
-              <label class="relative inline-flex cursor-pointer"><input type="checkbox" id="bioPIN" class="sr-only peer" checked><div class="w-9 h-5 bg-dark-500 rounded-full peer peer-checked:bg-accent after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div></label>
+            <div class="flex items-center justify-between bg-gray-100 rounded-lg p-4">
+              <div class="flex items-center gap-3"><i class="fas fa-key text-xl text-yellow-400"></i><div><p class="text-gray-800 text-sm font-medium">PIN Code</p><p class="text-gray-500 text-xs">6-digit secure PIN</p></div></div>
+              <label class="relative inline-flex cursor-pointer"><input type="checkbox" id="bioPIN" class="sr-only peer" checked><div class="w-9 h-5 bg-gray-300 rounded-full peer peer-checked:bg-accent after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div></label>
             </div>
           </div>
-          <h3 class="text-sm font-semibold text-white mt-6 mb-4"><i class="fas fa-shield-halved mr-2 text-red-400"></i>Fraud Alerts</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mt-6 mb-4"><i class="fas fa-shield-halved mr-2 text-red-400"></i>Fraud Alerts</h3>
           <div id="fraudAlertsList" class="space-y-2 max-h-64 overflow-y-auto"><p class="text-gray-600 text-sm text-center py-4">No fraud alerts</p></div>
         </div>
       </div>
@@ -1247,7 +1248,7 @@ tailwind.config = {
     <div id="tab-documents" class="tab-content hidden fade-in">
       <div class="glass rounded-xl p-6">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-sm font-semibold text-white"><i class="fas fa-file-invoice mr-2 text-blue-400"></i>Document Center</h3>
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-file-invoice mr-2 text-blue-400"></i>Document Center</h3>
           <div class="flex items-center gap-2">
             <select id="docFilter" class="px-3 py-1.5 rounded-lg text-xs" onchange="loadDocuments()">
               <option value="">All Documents</option><option value="statement">Statements</option><option value="tax_1099">Tax Documents</option><option value="receipt">Receipts</option>
@@ -1264,16 +1265,16 @@ tailwind.config = {
     <div id="tab-defi" class="tab-content hidden fade-in">
       <!-- DeFi Sub-tabs -->
       <div class="flex gap-2 mb-4">
-        <button onclick="showDefiSub('swap')" id="defiSubSwap" class="px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-dark-900">Swap (AMM)</button>
-        <button onclick="showDefiSub('stake')" id="defiSubStake" class="px-4 py-2 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white">Staking</button>
-        <button onclick="showDefiSub('escrow')" id="defiSubEscrow" class="px-4 py-2 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white">Escrow (HTLC)</button>
+        <button onclick="showDefiSub('swap')" id="defiSubSwap" class="px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-white">Swap (AMM)</button>
+        <button onclick="showDefiSub('stake')" id="defiSubStake" class="px-4 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 hover:text-gray-800">Staking</button>
+        <button onclick="showDefiSub('escrow')" id="defiSubEscrow" class="px-4 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 hover:text-gray-800">Escrow (HTLC)</button>
       </div>
 
       <!-- SWAP SUB-TAB -->
       <div id="defiSwap" class="defi-sub">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div class="glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-exchange-alt mr-2 text-accent"></i>Token Swap</h3>
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-exchange-alt mr-2 text-accent"></i>Token Swap</h3>
             <div class="space-y-3">
               <div>
                 <label class="text-xs text-gray-400">From (USD)</label>
@@ -1287,20 +1288,20 @@ tailwind.config = {
                   <option value="USD/AED">AED</option><option value="USD/ETH">ETH</option>
                 </select>
               </div>
-              <div id="swapPreview" class="bg-dark-700/50 rounded-lg p-3 text-xs text-gray-400 hidden">
+              <div id="swapPreview" class="bg-gray-50 rounded-lg p-3 text-xs text-gray-400 hidden">
                 <div class="flex justify-between"><span>Rate:</span><span id="swapRate">-</span></div>
                 <div class="flex justify-between mt-1"><span>You receive:</span><span id="swapOut" class="text-accent font-semibold">-</span></div>
                 <div class="flex justify-between mt-1"><span>Price Impact:</span><span id="swapImpact">-</span></div>
                 <div class="flex justify-between mt-1"><span>Fee (0.3%):</span><span id="swapFee">-</span></div>
               </div>
-              <button onclick="executeSwap()" class="w-full py-2.5 rounded-lg bg-accent text-dark-900 font-semibold hover:bg-accent/90 transition text-sm">
+              <button onclick="executeSwap()" class="w-full py-2.5 rounded-lg bg-accent text-white font-semibold hover:bg-accent/90 transition text-sm">
                 <i class="fas fa-exchange-alt mr-2"></i>Swap
               </button>
               <div id="swapResult" class="hidden text-xs mt-2 p-3 rounded-lg"></div>
             </div>
           </div>
           <div class="lg:col-span-2 glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-water mr-2 text-blue-400"></i>Liquidity Pools</h3>
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-water mr-2 text-blue-400"></i>Liquidity Pools</h3>
             <div id="poolsList" class="space-y-2">
               <p class="text-gray-500 text-sm text-center py-4">Loading pools...</p>
             </div>
@@ -1312,7 +1313,7 @@ tailwind.config = {
       <div id="defiStake" class="defi-sub hidden">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div class="glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-lock mr-2 text-yellow-400"></i>Stake Funds</h3>
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-lock mr-2 text-yellow-400"></i>Stake Funds</h3>
             <div class="space-y-3">
               <div>
                 <label class="text-xs text-gray-400">Pool</label>
@@ -1326,23 +1327,23 @@ tailwind.config = {
                 <label class="text-xs text-gray-400">Amount (USD)</label>
                 <input id="stakeAmount" type="number" placeholder="Min $100" class="w-full px-3 py-2 rounded-lg text-sm mt-1" oninput="updateStakePreview()">
               </div>
-              <div id="stakePreview" class="bg-dark-700/50 rounded-lg p-3 text-xs text-gray-400 hidden">
+              <div id="stakePreview" class="bg-gray-50 rounded-lg p-3 text-xs text-gray-400 hidden">
                 <div class="flex justify-between"><span>APY:</span><span id="stakeAPY" class="text-accent font-semibold">-</span></div>
                 <div class="flex justify-between mt-1"><span>30-Day Yield:</span><span id="stakeYield30">-</span></div>
                 <div class="flex justify-between mt-1"><span>Annual Yield:</span><span id="stakeYieldAnnual">-</span></div>
               </div>
-              <button onclick="executeSstake()" class="w-full py-2.5 rounded-lg bg-yellow-500 text-dark-900 font-semibold hover:bg-yellow-400 transition text-sm">
+              <button onclick="executeSstake()" class="w-full py-2.5 rounded-lg bg-yellow-500 text-white font-semibold hover:bg-yellow-400 transition text-sm">
                 <i class="fas fa-lock mr-2"></i>Stake
               </button>
               <div id="stakeResult" class="hidden text-xs mt-2 p-3 rounded-lg"></div>
             </div>
           </div>
           <div class="lg:col-span-2 glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-chart-line mr-2 text-green-400"></i>Your Staking Positions</h3>
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-chart-line mr-2 text-green-400"></i>Your Staking Positions</h3>
             <div id="stakingPositions" class="space-y-2">
               <p class="text-gray-500 text-sm text-center py-4">Loading positions...</p>
             </div>
-            <div id="stakingSummary" class="mt-4 bg-dark-700/50 rounded-lg p-3 text-xs text-gray-400 hidden">
+            <div id="stakingSummary" class="mt-4 bg-gray-50 rounded-lg p-3 text-xs text-gray-400 hidden">
               <span>Total Staked: </span><span id="totalStaked" class="text-accent font-semibold">$0</span>
             </div>
           </div>
@@ -1353,7 +1354,7 @@ tailwind.config = {
       <div id="defiEscrow" class="defi-sub hidden">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div class="glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-handshake mr-2 text-purple-400"></i>Create Escrow (HTLC)</h3>
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-handshake mr-2 text-purple-400"></i>Create Escrow (HTLC)</h3>
             <div class="space-y-3">
               <div>
                 <label class="text-xs text-gray-400">Receiver Username</label>
@@ -1374,7 +1375,7 @@ tailwind.config = {
             </div>
           </div>
           <div class="lg:col-span-2 glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-file-contract mr-2 text-blue-400"></i>Active Escrow Contracts</h3>
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-file-contract mr-2 text-blue-400"></i>Active Escrow Contracts</h3>
             <div id="escrowList" class="space-y-2">
               <p class="text-gray-500 text-sm text-center py-4">Loading escrows...</p>
             </div>
@@ -1388,20 +1389,20 @@ tailwind.config = {
 
 <!-- Support Chat Widget -->
 <div id="chatWidget" class="fixed bottom-6 right-6 z-50">
-  <button onclick="toggleChat()" id="chatToggle" class="w-14 h-14 rounded-full bg-accent text-dark-900 shadow-lg hover:bg-accent/90 transition flex items-center justify-center text-xl">
+  <button onclick="toggleChat()" id="chatToggle" class="w-14 h-14 rounded-full bg-accent text-white shadow-lg hover:bg-accent/90 transition flex items-center justify-center text-xl">
     <i class="fas fa-headset"></i>
   </button>
-  <div id="chatPanel" class="hidden absolute bottom-16 right-0 w-80 glass rounded-xl border border-dark-600 shadow-xl overflow-hidden">
+  <div id="chatPanel" class="hidden absolute bottom-16 right-0 w-80 glass rounded-xl border border-gray-200 shadow-xl overflow-hidden">
     <div class="bg-accent/20 px-4 py-3 flex justify-between items-center">
-      <span class="text-sm font-semibold text-white"><i class="fas fa-robot mr-2"></i>IPTS Support</span>
-      <button onclick="toggleChat()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+      <span class="text-sm font-semibold text-gray-800"><i class="fas fa-robot mr-2"></i>IPTS Support</span>
+      <button onclick="toggleChat()" class="text-gray-400 hover:text-gray-800"><i class="fas fa-times"></i></button>
     </div>
     <div id="chatMessages" class="h-64 overflow-y-auto p-3 space-y-2">
-      <div class="bg-accent/10 rounded-lg p-2 text-xs text-gray-300 max-w-[85%]"><span class="text-accent font-semibold">Bot:</span> Hi! I'm IPTS Support Bot. How can I help?</div>
+      <div class="bg-blue-50 rounded-lg p-2 text-xs text-gray-600 max-w-[85%]"><span class="text-accent font-semibold">Bot:</span> Hi! I'm IPTS Support Bot. How can I help?</div>
     </div>
-    <div class="p-3 border-t border-dark-600 flex gap-2">
+    <div class="p-3 border-t border-gray-200 flex gap-2">
       <input id="chatInput" class="flex-1 px-3 py-2 rounded-lg text-xs" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendChat()">
-      <button onclick="sendChat()" class="px-3 py-2 rounded-lg bg-accent text-dark-900 text-xs font-semibold"><i class="fas fa-paper-plane"></i></button>
+      <button onclick="sendChat()" class="px-3 py-2 rounded-lg bg-accent text-white text-xs font-semibold"><i class="fas fa-paper-plane"></i></button>
     </div>
   </div>
 </div>
@@ -1410,8 +1411,8 @@ tailwind.config = {
 <div id="caseModal" class="modal-overlay hidden" onclick="if(event.target===this)closeCaseModal()">
   <div class="modal-content fade-in">
     <div class="flex justify-between items-center mb-6">
-      <h2 id="caseModalTitle" class="text-lg font-bold text-white">Case Details</h2>
-      <button onclick="closeCaseModal()" class="text-gray-500 hover:text-white"><i class="fas fa-times text-lg"></i></button>
+      <h2 id="caseModalTitle" class="text-lg font-bold text-gray-800">Case Details</h2>
+      <button onclick="closeCaseModal()" class="text-gray-500 hover:text-gray-800"><i class="fas fa-times text-lg"></i></button>
     </div>
     <div id="caseModalBody" class="space-y-4"></div>
   </div>
@@ -1592,13 +1593,13 @@ async function loadSubAccounts() {
     const icons = { checking: 'fa-money-check', savings: 'fa-piggy-bank', business: 'fa-briefcase', vault: 'fa-vault' };
     const colors = { checking: 'text-accent', savings: 'text-blue-400', business: 'text-purple-400', vault: 'text-yellow-400' };
     container.innerHTML = accounts.map(a => `
-      <div class="bg-dark-700 rounded-lg p-3 border border-dark-500 hover:border-accent/30 transition cursor-pointer">
+      <div class="bg-gray-100 rounded-lg p-3 border border-gray-200 hover:border-accent/30 transition cursor-pointer">
         <div class="flex items-center gap-2 mb-2">
           <i class="fas ${icons[a.account_type] || 'fa-wallet'} ${colors[a.account_type] || 'text-gray-400'}"></i>
-          <span class="font-semibold text-white capitalize">${a.account_type}</span>
-          <span class="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-dark-600 text-gray-400 uppercase">${a.currency}</span>
+          <span class="font-semibold text-gray-800 capitalize">${a.account_type}</span>
+          <span class="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-400 uppercase">${a.currency}</span>
         </div>
-        <p class="text-lg font-mono text-white">$${Number(a.balance).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
+        <p class="text-lg font-mono text-gray-800">$${Number(a.balance).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
         <p class="text-[10px] text-gray-500 mt-1 font-mono">ACC-${a.id}</p>
       </div>
     `).join('');
@@ -1620,12 +1621,12 @@ async function loadLedger() {
       const amtColor = isCredit ? 'text-green-400' : 'text-red-400';
       const amtPrefix = isCredit ? '+' : '-';
       const statusColor = e.status === 'settled' ? 'text-accent' : e.status === 'blocked' ? 'text-red-400' : 'text-yellow-400';
-      return `<tr class="border-b border-dark-600/30 hover:bg-dark-700/30">
+      return `<tr class="border-b border-gray-200/30 hover:bg-gray-100/30">
         <td class="py-1.5 px-2 text-gray-500">${e.created_at || '-'}</td>
         <td class="py-1.5 px-2"><span class="px-1.5 py-0.5 rounded text-[10px] ${isCredit ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'} uppercase">${e.direction}</span></td>
-        <td class="py-1.5 px-2 text-gray-300">${e.counterparty || '-'} <span class="${statusColor} text-[10px] uppercase">[${e.status}]</span></td>
+        <td class="py-1.5 px-2 text-gray-600">${e.counterparty || '-'} <span class="${statusColor} text-[10px] uppercase">[${e.status}]</span></td>
         <td class="py-1.5 px-2 text-right font-mono ${amtColor}">${amtPrefix}$${Number(e.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-        <td class="py-1.5 px-2 text-right font-mono text-white">$${Number(currentBal).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+        <td class="py-1.5 px-2 text-right font-mono text-gray-800">$${Number(currentBal).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
       </tr>`;
     }).join('');
   } catch (e) { console.error('Ledger error:', e); }
@@ -1645,7 +1646,7 @@ async function loadTransactions() {
       const shortHash = tx.tx_hash ? tx.tx_hash.substring(0, 12) + '...' : 'N/A';
       const senderDisplay = tx.sender || 'N/A';
       const benefDisplay = tx.beneficiary_name || 'N/A';
-      return `<tr class="${rowBg} border-b border-dark-600/50 hover:bg-dark-700/50">
+      return `<tr class="${rowBg} border-b border-gray-200/50 hover:bg-gray-50">
         <td class="py-2 px-2">${tx.created_at || '-'}</td>
         <td class="py-2 px-2">${senderDisplay.length > 20 ? senderDisplay.substring(0, 18) + '...' : senderDisplay}</td>
         <td class="py-2 px-2">${benefDisplay.length > 20 ? benefDisplay.substring(0, 18) + '...' : benefDisplay}</td>
@@ -1669,7 +1670,7 @@ function initVolumeChart() {
       datasets: [{
         label: 'Settlements',
         data: [],
-        borderColor: '#10b981',
+        borderColor: '#0D47A1',
         backgroundColor: 'rgba(16,185,129,0.1)',
         fill: true,
         tension: 0.4,
@@ -1831,26 +1832,26 @@ async function executeSettlement() {
           ${result.case_number ? `<span class="text-xs text-red-400 ml-2"><i class="fas fa-folder-open mr-1"></i>${result.case_number}</span>` : ''}
         </div>
         <div class="grid grid-cols-2 gap-3 text-xs">
-          <div class="bg-dark-700 rounded-lg p-3">
+          <div class="bg-gray-100 rounded-lg p-3">
             <p class="text-gray-500">Risk Score</p>
             <p class="text-xl font-bold ${result.risk_score >= 80 ? 'text-red-400' : result.risk_score >= 60 ? 'text-yellow-400' : 'text-green-400'}">${(result.risk_score || 0).toFixed(1)}</p>
           </div>
-          <div class="bg-dark-700 rounded-lg p-3">
+          <div class="bg-gray-100 rounded-lg p-3">
             <p class="text-gray-500">Settlement Time</p>
             <p class="text-xl font-bold text-accent">${result.settlement_time_ms || 'N/A'}ms</p>
           </div>
         </div>
-        ${result.tx_hash ? `<div class="bg-dark-700 rounded-lg p-3 text-xs"><p class="text-gray-500">Transaction Hash</p><p class="font-mono text-accent break-all">${result.tx_hash}</p></div>` : ''}
-        ${result.uetr ? `<div class="bg-dark-700 rounded-lg p-3 text-xs"><p class="text-gray-500">SWIFT GPI UETR</p><p class="font-mono text-blue-400">${result.uetr}</p></div>` : ''}
+        ${result.tx_hash ? `<div class="bg-gray-100 rounded-lg p-3 text-xs"><p class="text-gray-500">Transaction Hash</p><p class="font-mono text-accent break-all">${result.tx_hash}</p></div>` : ''}
+        ${result.uetr ? `<div class="bg-gray-100 rounded-lg p-3 text-xs"><p class="text-gray-500">SWIFT GPI UETR</p><p class="font-mono text-blue-400">${result.uetr}</p></div>` : ''}
         ${result.risk_reasons && result.risk_reasons.length > 0 ? `
-          <div class="bg-dark-700 rounded-lg p-3 text-xs">
+          <div class="bg-gray-100 rounded-lg p-3 text-xs">
             <p class="text-gray-500 mb-1">Risk Reasons</p>
             <ul class="list-disc list-inside text-yellow-400 space-y-1">
               ${result.risk_reasons.map(r => `<li>${r}</li>`).join('')}
             </ul>
           </div>` : ''}
         ${result.risk_breakdown ? `
-          <div class="bg-dark-700 rounded-lg p-3 text-xs">
+          <div class="bg-gray-100 rounded-lg p-3 text-xs">
             <p class="text-gray-500 mb-2">Score Breakdown</p>
             <div class="space-y-1">
               ${Object.entries(result.risk_breakdown).map(([k, v]) => `
@@ -1858,14 +1859,14 @@ async function executeSettlement() {
                   <span class="capitalize">${k}</span>
                   <span class="font-mono">${v.toFixed(1)}</span>
                 </div>
-                <div class="w-full bg-dark-600 rounded-full h-1.5">
+                <div class="w-full bg-gray-200 rounded-full h-1.5">
                   <div class="h-1.5 rounded-full ${v > 60 ? 'bg-red-500' : v > 30 ? 'bg-yellow-500' : 'bg-green-500'}" style="width:${Math.min(v, 100)}%"></div>
                 </div>
               `).join('')}
             </div>
           </div>` : ''}
         ${result.shap_values ? `
-          <div class="bg-dark-700 rounded-lg p-3 text-xs">
+          <div class="bg-gray-100 rounded-lg p-3 text-xs">
             <p class="text-gray-500 mb-2"><i class="fas fa-lightbulb text-yellow-400 mr-1"></i>SHAP Feature Contributions</p>
             <div class="space-y-1">
               ${Object.entries(result.shap_values).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1])).map(([k, v]) => `
@@ -1914,10 +1915,10 @@ async function loadModelMetrics() {
       <div class="glass rounded-xl p-5">
         <div class="flex items-center gap-2 mb-3">
           <i class="fas ${modelIcons[key] || 'fa-brain'} text-${modelColors[key] || 'accent'}"></i>
-          <span class="text-sm font-semibold text-white">${modelNames[key] || key}</span>
+          <span class="text-sm font-semibold text-gray-800">${modelNames[key] || key}</span>
         </div>
         <div class="grid grid-cols-2 gap-2 text-xs">
-          <div><span class="text-gray-500">Accuracy</span><p class="font-mono text-lg text-white">${(m.accuracy * 100).toFixed(1)}%</p></div>
+          <div><span class="text-gray-500">Accuracy</span><p class="font-mono text-lg text-gray-800">${(m.accuracy * 100).toFixed(1)}%</p></div>
           <div><span class="text-gray-500">F1 Score</span><p class="font-mono text-lg text-accent">${(m.f1 * 100).toFixed(1)}%</p></div>
         </div>
       </div>
@@ -1989,11 +1990,11 @@ function switchGraphView(view) {
   const btnConn = document.getElementById('graphViewConnected');
   if (view === 'full') {
     fullView.classList.remove('hidden'); connView.classList.add('hidden');
-    btnFull.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-dark-900';
-    btnConn.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white';
+    btnFull.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-white';
+    btnConn.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 hover:text-gray-800';
   } else {
     fullView.classList.add('hidden'); connView.classList.remove('hidden');
-    btnFull.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white';
+    btnFull.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 hover:text-gray-800';
     btnConn.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-purple-600 text-white';
     if (_graphData) renderGraph('graphContainerConnected', _graphData, true);
   }
@@ -2052,7 +2053,7 @@ function renderGraph(containerId, data, connectedOnly) {
     .force('collision', d3.forceCollide().radius(connectedOnly ? 12 : 8));
 
   const link = g.append('g').selectAll('line').data(edges).join('line')
-    .attr('stroke', connectedOnly ? '#3b5998' : '#2a3f55')
+    .attr('stroke', connectedOnly ? '#5C7A99' : '#90A4AE')
     .attr('stroke-width', d => Math.min(d.weight || 1, 4) * (connectedOnly ? 1 : 0.5))
     .attr('stroke-opacity', connectedOnly ? 0.6 : 0.4);
 
@@ -2088,7 +2089,7 @@ function renderGraph(containerId, data, connectedOnly) {
 
   // Tooltip
   const tooltip = d3.select('#' + containerId).append('div')
-    .style('position', 'absolute').style('background', '#1a2332').style('border', '1px solid #2a3f55')
+    .style('position', 'absolute').style('background', '#003366').style('border', '1px solid #0D47A1')
     .style('padding', '8px 12px').style('border-radius', '6px').style('font-size', '11px')
     .style('color', '#e2e8f0').style('pointer-events', 'none').style('opacity', 0).style('z-index', 100);
 
@@ -2124,7 +2125,7 @@ async function loadHITL() {
       } else {
         fourEyesBadge = `<span class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-xs"><i class="fas fa-eye mr-1"></i>Required</span>`;
       }
-      return `<tr class="border-b border-dark-600/50 hover:bg-dark-700/50">
+      return `<tr class="border-b border-gray-200/50 hover:bg-gray-50">
         <td class="py-2 px-2 font-mono">${item.id.substring(0, 8)}...</td>
         <td class="py-2 px-2">${item.beneficiary_name || 'N/A'}</td>
         <td class="py-2 px-2 text-right">$${Number(item.amount).toLocaleString()}</td>
@@ -2181,9 +2182,9 @@ async function loadAudit() {
       return;
     }
     tbody.innerHTML = data.entries.map(e => `
-      <tr class="border-b border-dark-600/50">
+      <tr class="border-b border-gray-200/50">
         <td class="py-1.5 px-2 text-gray-500">${e.created_at || ''}</td>
-        <td class="py-1.5 px-2"><span class="px-2 py-0.5 rounded text-xs bg-dark-600">${e.event_type}</span></td>
+        <td class="py-1.5 px-2"><span class="px-2 py-0.5 rounded text-xs bg-gray-200">${e.event_type}</span></td>
         <td class="py-1.5 px-2 text-accent">${e.actor}</td>
         <td class="py-1.5 px-2 text-gray-500 font-mono truncate max-w-xs">${e.details || ''}</td>
       </tr>
@@ -2220,7 +2221,7 @@ async function loadSanctions() {
       return;
     }
     tbody.innerHTML = data.sanctions.map(s => `
-      <tr class="border-b border-dark-600/50">
+      <tr class="border-b border-gray-200/50">
         <td class="py-1.5 px-2 text-red-400">${s.entity_name}</td>
         <td class="py-1.5 px-2">${s.entity_type}</td>
         <td class="py-1.5 px-2 text-accent">${s.added_by || 'system'}</td>
@@ -2253,7 +2254,7 @@ async function trackGPI() {
   try {
     const data = await apiFetch(`/api/compliance/swift-gpi/${uetr}`);
     document.getElementById('gpiResult').innerHTML = `
-      <div class="bg-dark-700 rounded-lg p-4 fade-in space-y-2">
+      <div class="bg-gray-100 rounded-lg p-4 fade-in space-y-2">
         <div class="flex justify-between"><span class="text-gray-500">UETR</span><span class="font-mono text-accent">${data.uetr}</span></div>
         <div class="flex justify-between"><span class="text-gray-500">Status</span><span class="text-green-400 font-bold">${data.status}</span></div>
         <div class="flex justify-between"><span class="text-gray-500">Amount</span><span>$${Number(data.amount).toLocaleString()} ${data.currency}</span></div>
@@ -2276,7 +2277,7 @@ async function loadNostro() {
     const nostroUsd = data.nostro_liquidity_usd || 0;
     if (data.accounts && data.accounts.length > 0) {
       container.innerHTML = `
-        <div class="bg-dark-700 rounded-lg p-3">
+        <div class="bg-gray-100 rounded-lg p-3">
           <div class="flex justify-between items-center">
             <div>
               <p class="text-xs text-gray-500">Primary Nostro Account</p>
@@ -2286,7 +2287,7 @@ async function loadNostro() {
           </div>
         </div>
         ${data.accounts.slice(1).map((a, i) => `
-          <div class="bg-dark-700 rounded-lg p-3">
+          <div class="bg-gray-100 rounded-lg p-3">
             <div class="flex justify-between items-center">
               <p class="font-mono text-xs text-gray-500">${a.substring(0, 22)}...</p>
               <p class="text-sm text-gray-400">Account ${i + 1}</p>
@@ -2334,7 +2335,7 @@ async function loadCases() {
       const sevClass = `severity-${c.severity}`;
       const statusBg = c.status === 'open' ? 'text-red-400' : c.status === 'investigating' ? 'text-yellow-400' : c.status === 'escalated' ? 'text-orange-400' : c.status === 'resolved' ? 'text-green-400' : 'text-gray-400';
       const slaHtml = getSLABadge(c);
-      return `<tr class="border-b border-dark-600/50 hover:bg-dark-700/50 cursor-pointer" onclick="openCaseModal('${c.id}')">
+      return `<tr class="border-b border-gray-200/50 hover:bg-gray-50 cursor-pointer" onclick="openCaseModal('${c.id}')">
         <td class="py-2 px-2 font-mono text-accent">${c.case_number}</td>
         <td class="py-2 px-2 uppercase text-xs">${c.case_type}</td>
         <td class="py-2 px-2 text-center"><span class="badge ${sevClass}">${c.severity}</span></td>
@@ -2346,7 +2347,7 @@ async function loadCases() {
         <td class="py-2 px-2">${c.assigned_to || '<span class="text-gray-600">Unassigned</span>'}</td>
         <td class="py-2 px-2 text-gray-500">${c.created_at ? c.created_at.substring(0, 16) : ''}</td>
         <td class="py-2 px-2 text-center">
-          <button onclick="event.stopPropagation();openCaseModal('${c.id}')" class="px-2 py-1 rounded bg-dark-500 text-gray-300 text-xs hover:bg-dark-600">
+          <button onclick="event.stopPropagation();openCaseModal('${c.id}')" class="px-2 py-1 rounded bg-gray-300 text-gray-600 text-xs hover:bg-gray-200">
             <i class="fas fa-eye mr-1"></i>View
           </button>
         </td>
@@ -2364,49 +2365,49 @@ async function openCaseModal(caseId) {
 
     document.getElementById('caseModalBody').innerHTML = `
       <div class="grid grid-cols-2 gap-4">
-        <div class="bg-dark-700 rounded-lg p-3">
+        <div class="bg-gray-100 rounded-lg p-3">
           <p class="text-xs text-gray-500">Status</p>
           <p class="${statusBg} font-bold uppercase mt-1">${c.status}</p>
         </div>
-        <div class="bg-dark-700 rounded-lg p-3">
+        <div class="bg-gray-100 rounded-lg p-3">
           <p class="text-xs text-gray-500">Severity</p>
           <p class="mt-1"><span class="badge ${sevClass}">${c.severity}</span></p>
         </div>
-        <div class="bg-dark-700 rounded-lg p-3">
+        <div class="bg-gray-100 rounded-lg p-3">
           <p class="text-xs text-gray-500">Type</p>
-          <p class="text-white mt-1 uppercase">${c.case_type}</p>
+          <p class="text-gray-800 mt-1 uppercase">${c.case_type}</p>
         </div>
-        <div class="bg-dark-700 rounded-lg p-3">
+        <div class="bg-gray-100 rounded-lg p-3">
           <p class="text-xs text-gray-500">Risk Score</p>
           <p class="text-xl font-bold mt-1 ${(c.risk_score||0) >= 80 ? 'text-red-400' : 'text-yellow-400'}">${(c.risk_score || 0).toFixed(1)}</p>
         </div>
       </div>
       <div class="grid grid-cols-2 gap-4">
-        <div class="bg-dark-700 rounded-lg p-3">
+        <div class="bg-gray-100 rounded-lg p-3">
           <p class="text-xs text-gray-500">Sender</p>
-          <p class="text-white mt-1">${c.sender_name || 'N/A'}</p>
+          <p class="text-gray-800 mt-1">${c.sender_name || 'N/A'}</p>
         </div>
-        <div class="bg-dark-700 rounded-lg p-3">
+        <div class="bg-gray-100 rounded-lg p-3">
           <p class="text-xs text-gray-500">Beneficiary</p>
-          <p class="text-white mt-1">${c.beneficiary_name || 'N/A'}</p>
+          <p class="text-gray-800 mt-1">${c.beneficiary_name || 'N/A'}</p>
         </div>
       </div>
-      <div class="bg-dark-700 rounded-lg p-3">
+      <div class="bg-gray-100 rounded-lg p-3">
         <p class="text-xs text-gray-500">Amount</p>
-        <p class="text-2xl font-bold text-white mt-1">$${Number(c.amount || 0).toLocaleString()}</p>
+        <p class="text-2xl font-bold text-gray-800 mt-1">$${Number(c.amount || 0).toLocaleString()}</p>
       </div>
-      <div class="bg-dark-700 rounded-lg p-3">
+      <div class="bg-gray-100 rounded-lg p-3">
         <p class="text-xs text-gray-500">Description</p>
-        <p class="text-sm text-gray-300 mt-1">${c.description || 'No description'}</p>
+        <p class="text-sm text-gray-600 mt-1">${c.description || 'No description'}</p>
       </div>
-      ${c.findings ? `<div class="bg-dark-700 rounded-lg p-3"><p class="text-xs text-gray-500">Findings</p><p class="text-sm text-gray-300 mt-1">${c.findings}</p></div>` : ''}
-      ${c.resolution ? `<div class="bg-dark-700 rounded-lg p-3"><p class="text-xs text-gray-500">Resolution</p><p class="text-sm text-green-400 mt-1">${c.resolution}</p></div>` : ''}
-      ${c.sar_number ? `<div class="bg-dark-700 rounded-lg p-3"><p class="text-xs text-gray-500">SAR Number</p><p class="text-sm text-yellow-400 font-mono mt-1">${c.sar_number}</p></div>` : ''}
-      <div class="bg-dark-700 rounded-lg p-3">
+      ${c.findings ? `<div class="bg-gray-100 rounded-lg p-3"><p class="text-xs text-gray-500">Findings</p><p class="text-sm text-gray-600 mt-1">${c.findings}</p></div>` : ''}
+      ${c.resolution ? `<div class="bg-gray-100 rounded-lg p-3"><p class="text-xs text-gray-500">Resolution</p><p class="text-sm text-green-400 mt-1">${c.resolution}</p></div>` : ''}
+      ${c.sar_number ? `<div class="bg-gray-100 rounded-lg p-3"><p class="text-xs text-gray-500">SAR Number</p><p class="text-sm text-yellow-400 font-mono mt-1">${c.sar_number}</p></div>` : ''}
+      <div class="bg-gray-100 rounded-lg p-3">
         <p class="text-xs text-gray-500">Assigned To</p>
-        <p class="text-sm text-gray-300 mt-1">${c.assigned_to || 'Unassigned'}</p>
+        <p class="text-sm text-gray-600 mt-1">${c.assigned_to || 'Unassigned'}</p>
       </div>
-      <div class="bg-dark-700 rounded-lg p-3">
+      <div class="bg-gray-100 rounded-lg p-3">
         <p class="text-xs text-gray-500">Settlement ID</p>
         <p class="text-xs text-gray-400 font-mono mt-1">${c.settlement_id || 'N/A'}</p>
       </div>
@@ -2416,7 +2417,7 @@ async function openCaseModal(caseId) {
       </div>
 
       <!-- Actions -->
-      <div class="border-t border-dark-600 pt-4 mt-2">
+      <div class="border-t border-gray-200 pt-4 mt-2">
         <p class="text-xs text-gray-500 mb-3 uppercase tracking-wider">Actions</p>
         <div class="flex flex-wrap gap-2">
           ${c.status !== 'resolved' && c.status !== 'closed' ? `
@@ -2510,7 +2511,7 @@ async function loadFXRates() {
     const ticker = document.getElementById('fxTicker');
     if (ticker && Object.keys(FX_RATES).length > 0) {
       ticker.innerHTML = Object.entries(FX_RATES).map(([ccy, rate]) => {
-        return `<span class="px-2 py-1 rounded bg-dark-700 text-gray-300"><span class="text-accent font-mono">${ccy}</span> ${rate.toFixed(4)}</span>`;
+        return `<span class="px-2 py-1 rounded bg-gray-100 text-gray-600"><span class="text-accent font-mono">${ccy}</span> ${rate.toFixed(4)}</span>`;
       }).join('');
     }
     // Populate currency dropdowns
@@ -2572,11 +2573,11 @@ async function convertFX() {
   try {
     const data = await apiFetch(`/api/fx/convert?from=${from}&to=${to}&amount=${amount}`);
     resultDiv.innerHTML = `
-      <div class="bg-dark-700 rounded-lg p-3 fade-in">
+      <div class="bg-gray-100 rounded-lg p-3 fade-in">
         <div class="flex justify-between items-center">
           <span class="text-gray-500">${amount.toLocaleString()} ${from}</span>
           <i class="fas fa-arrow-right text-accent"></i>
-          <span class="text-white font-bold text-lg">${data.converted_amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ${to}</span>
+          <span class="text-gray-800 font-bold text-lg">${data.converted_amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ${to}</span>
         </div>
         <p class="text-xs text-gray-600 mt-1">Rate: ${data.rate.toFixed(6)} | Spread: ${((data.spread || 0) * 100).toFixed(2)}%</p>
       </div>`;
@@ -2692,7 +2693,7 @@ function getSLABadge(caseItem) {
     return `<span class="px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 text-xs font-mono"><i class="fas fa-clock mr-1"></i>${hrs}h ${mins}m</span>`;
   } else {
     const hrs = Math.floor(remaining);
-    return `<span class="px-1.5 py-0.5 rounded bg-dark-600 text-gray-400 text-xs font-mono"><i class="fas fa-clock mr-1"></i>${hrs}h</span>`;
+    return `<span class="px-1.5 py-0.5 rounded bg-gray-200 text-gray-400 text-xs font-mono"><i class="fas fa-clock mr-1"></i>${hrs}h</span>`;
   }
 }
 
@@ -2733,12 +2734,12 @@ function renderBeneficiaries(list) {
     const typeIcon = b.beneficiary_type === 'corporate' ? 'fa-building' : b.beneficiary_type === 'trust' ? 'fa-landmark' : 'fa-user';
     const typeBadge = b.beneficiary_type === 'corporate' ? 'bg-blue-500/20 text-blue-400' : b.beneficiary_type === 'trust' ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-500/20 text-gray-400';
     const dateStr = b.created_at ? new Date(b.created_at).toLocaleDateString() : '—';
-    return `<tr class="border-b border-dark-700 hover:bg-dark-700/50 transition">
+    return `<tr class="border-b border-gray-100 hover:bg-gray-50 transition">
       <td class="py-3 pr-3">
         <div class="flex items-center gap-2">
-          <div class="w-8 h-8 rounded-full bg-dark-600 flex items-center justify-center text-accent text-sm font-bold">${b.name.charAt(0).toUpperCase()}</div>
+          <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-accent text-sm font-bold">${b.name.charAt(0).toUpperCase()}</div>
           <div>
-            <p class="text-white font-medium">${b.name}</p>
+            <p class="text-gray-800 font-medium">${b.name}</p>
             ${b.nickname ? `<p class="text-gray-500 text-xs">${b.nickname}</p>` : ''}
             ${b.account_number ? `<p class="text-gray-600 text-xs font-mono">${b.account_number.slice(0,4)}****${b.account_number.slice(-4)}</p>` : ''}
           </div>
@@ -2926,11 +2927,11 @@ function renderMonthlyTrend(data) {
       datasets: [{
         label: 'Spending ($)',
         data: data.map(d => d.amount),
-        borderColor: '#10b981',
+        borderColor: '#0D47A1',
         backgroundColor: 'rgba(16,185,129,0.1)',
         fill: true,
         tension: 0.4,
-        pointBackgroundColor: '#10b981',
+        pointBackgroundColor: '#0D47A1',
         pointRadius: 4,
       }, {
         label: 'Tx Count',
@@ -2957,7 +2958,7 @@ function renderMonthlyTrend(data) {
 
 function renderStatusChart(data) {
   if (rptStatusChart) rptStatusChart.destroy();
-  const colors = { settled: '#10b981', blocked: '#ef4444', flagged: '#f59e0b', pending: '#8b5cf6' };
+  const colors = { settled: '#0D47A1', blocked: '#ef4444', flagged: '#f59e0b', pending: '#8b5cf6' };
   rptStatusChart = makeChart('rptStatusChart', {
     type: 'doughnut',
     data: {
@@ -2987,7 +2988,7 @@ function renderRiskChart(data) {
       labels: ['Low (<30)', 'Medium (30-60)', 'High (60-80)', 'Critical (80+)'],
       datasets: [{
         data: [data.low || 0, data.medium || 0, data.high || 0, data.critical || 0],
-        backgroundColor: ['#10b981', '#f59e0b', '#f97316', '#ef4444'],
+        backgroundColor: ['#0D47A1', '#f59e0b', '#f97316', '#ef4444'],
         borderRadius: 6,
         barThickness: 40,
       }]
@@ -3005,7 +3006,7 @@ function renderRiskChart(data) {
 
 function renderCurrencyChart(data) {
   if (rptCurrencyChart) rptCurrencyChart.destroy();
-  const currColors = ['#10b981','#3b82f6','#8b5cf6','#f59e0b','#ef4444','#ec4899','#06b6d4','#f97316','#84cc16','#6366f1','#14b8a6','#e11d48','#a855f7'];
+  const currColors = ['#0D47A1','#3b82f6','#8b5cf6','#f59e0b','#ef4444','#ec4899','#06b6d4','#f97316','#84cc16','#6366f1','#14b8a6','#e11d48','#a855f7'];
   rptCurrencyChart = makeChart('rptCurrencyChart', {
     type: 'doughnut',
     data: {
@@ -3101,11 +3102,11 @@ function renderTopBeneficiaries(data) {
     const riskColor = b.avg_risk >= 80 ? 'text-red-400' : b.avg_risk >= 60 ? 'text-orange-400' : b.avg_risk >= 30 ? 'text-yellow-400' : 'text-green-400';
     const riskLabel = b.avg_risk >= 80 ? 'CRITICAL' : b.avg_risk >= 60 ? 'HIGH' : b.avg_risk >= 30 ? 'MEDIUM' : 'LOW';
     const riskBg = b.avg_risk >= 80 ? 'severity-critical' : b.avg_risk >= 60 ? 'severity-high' : b.avg_risk >= 30 ? 'severity-medium' : 'severity-low';
-    return `<tr class="border-b border-dark-700 hover:bg-dark-700/50">
+    return `<tr class="border-b border-gray-100 hover:bg-gray-50">
       <td class="py-2.5 pr-3 text-gray-500">${i + 1}</td>
-      <td class="py-2.5 pr-3 text-white font-medium">${b.name || 'Unknown'}</td>
+      <td class="py-2.5 pr-3 text-gray-800 font-medium">${b.name || 'Unknown'}</td>
       <td class="py-2.5 pr-3 text-right text-gray-400">${b.count}</td>
-      <td class="py-2.5 pr-3 text-right text-white font-mono">$${Number(b.amount).toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
+      <td class="py-2.5 pr-3 text-right text-gray-800 font-mono">$${Number(b.amount).toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
       <td class="py-2.5 pr-3 text-right ${riskColor} font-mono">${b.avg_risk}</td>
       <td class="py-2.5"><span class="badge ${riskBg}">${riskLabel}</span></td>
     </tr>`;
@@ -3121,10 +3122,10 @@ function renderRecentTransactions(data) {
   tbody.innerHTML = data.map(tx => {
     const dateStr = tx.created_at ? new Date(tx.created_at).toLocaleString() : '—';
     const statusCls = 'status-' + (tx.status || 'pending');
-    return `<tr class="border-b border-dark-700 hover:bg-dark-700/50">
+    return `<tr class="border-b border-gray-100 hover:bg-gray-50">
       <td class="py-2.5 pr-3 text-gray-500">${dateStr}</td>
-      <td class="py-2.5 pr-3 text-white">${tx.beneficiary || '—'}</td>
-      <td class="py-2.5 pr-3 text-right text-white font-mono">$${Number(tx.amount || 0).toLocaleString()}</td>
+      <td class="py-2.5 pr-3 text-gray-800">${tx.beneficiary || '—'}</td>
+      <td class="py-2.5 pr-3 text-right text-gray-800 font-mono">$${Number(tx.amount || 0).toLocaleString()}</td>
       <td class="py-2.5 pr-3 font-mono text-accent">${tx.currency || 'USD'}</td>
       <td class="py-2.5 pr-3 text-right font-mono ${(tx.risk_score||0) >= 60 ? 'text-red-400' : (tx.risk_score||0) >= 30 ? 'text-yellow-400' : 'text-green-400'}">${(tx.risk_score || 0).toFixed(1)}</td>
       <td class="py-2.5"><span class="badge ${statusCls}">${(tx.status || 'pending').toUpperCase()}</span></td>
@@ -3139,10 +3140,10 @@ let currentExtType = 'ach';
 
 function switchPaySub(sub) {
   document.querySelectorAll('.paysub-content').forEach(el => el.classList.add('hidden'));
-  document.querySelectorAll('.paysub-btn').forEach(el => { el.className = 'paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white transition'; });
+  document.querySelectorAll('.paysub-btn').forEach(el => { el.className = 'paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 hover:text-gray-800 transition'; });
   document.getElementById('paysub-' + sub).classList.remove('hidden');
   const btn = document.querySelector(`[data-paysub="${sub}"]`);
-  if (btn) btn.className = 'paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-accent text-dark-900 transition';
+  if (btn) btn.className = 'paysub-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white transition';
   if (sub === 'p2p') loadP2PHistory();
   if (sub === 'scheduled') loadScheduled();
 }
@@ -3170,8 +3171,8 @@ async function loadP2PHistory() {
     const data = await apiFetch('/api/p2p/history');
     const div = document.getElementById('p2pHistory');
     if (!data.transfers.length) { div.innerHTML = '<p class="text-gray-600 text-sm text-center py-8">No P2P transfers yet.</p>'; return; }
-    div.innerHTML = data.transfers.map(t => `<div class="bg-dark-700 rounded-lg p-3 flex justify-between items-center">
-      <div><p class="text-white text-sm">${t.recipient_username || t.recipient_value}</p><p class="text-gray-500 text-xs">${t.note || t.recipient_type} • ${new Date(t.created_at).toLocaleDateString()}</p></div>
+    div.innerHTML = data.transfers.map(t => `<div class="bg-gray-100 rounded-lg p-3 flex justify-between items-center">
+      <div><p class="text-gray-800 text-sm">${t.recipient_username || t.recipient_value}</p><p class="text-gray-500 text-xs">${t.note || t.recipient_type} • ${new Date(t.created_at).toLocaleDateString()}</p></div>
       <span class="text-red-400 font-mono text-sm">-$${Number(t.amount).toLocaleString()}</span>
     </div>`).join('');
   } catch (e) { console.error(e); }
@@ -3180,7 +3181,7 @@ async function loadP2PHistory() {
 // ACH/Wire/SEPA
 function selectExtType(type) {
   currentExtType = type;
-  document.querySelectorAll('.ext-type-btn').forEach(el => { el.className = 'ext-type-btn px-3 py-3 rounded-lg bg-dark-700 text-gray-400 border border-dark-600 text-xs font-semibold text-center'; });
+  document.querySelectorAll('.ext-type-btn').forEach(el => { el.className = 'ext-type-btn px-3 py-3 rounded-lg bg-gray-100 text-gray-400 border border-gray-200 text-xs font-semibold text-center'; });
   const btn = document.getElementById('extType' + type.toUpperCase());
   if (btn) btn.className = 'ext-type-btn px-3 py-3 rounded-lg bg-accent/20 text-accent border border-accent text-xs font-semibold text-center';
   const fees = {ach: '$0.00', wire: '$25.00', sepa: '€5.00'};
@@ -3225,8 +3226,8 @@ async function loadScheduled() {
     const data = await apiFetch('/api/payments/scheduled');
     const div = document.getElementById('scheduledList');
     if (!data.scheduled.length) { div.innerHTML = '<p class="text-gray-600 text-sm text-center py-8">No scheduled payments.</p>'; return; }
-    div.innerHTML = data.scheduled.map(s => `<div class="bg-dark-700 rounded-lg p-3 flex justify-between items-center">
-      <div><p class="text-white text-sm">${s.beneficiary_name}</p>
+    div.innerHTML = data.scheduled.map(s => `<div class="bg-gray-100 rounded-lg p-3 flex justify-between items-center">
+      <div><p class="text-gray-800 text-sm">${s.beneficiary_name}</p>
         <p class="text-gray-500 text-xs">${s.frequency} • Next: ${s.next_run_date || 'TBD'} ${s.description ? '• ' + s.description : ''}</p></div>
       <div class="flex items-center gap-2">
         <span class="text-accent font-mono text-sm">$${Number(s.amount).toLocaleString()}</span>
@@ -3253,7 +3254,7 @@ async function generateQR() {
           ${Array.from({length:100}, () => `<div style="background:${Math.random()>0.5?'#000':'#fff'}"></div>`).join('')}
         </div>
       </div>
-      <p class="text-white text-sm font-semibold">${FULL_NAME}</p>
+      <p class="text-gray-800 text-sm font-semibold">${FULL_NAME}</p>
       <p class="text-accent text-lg font-bold">${amount > 0 ? '$' + amount.toLocaleString() : 'Any amount'}</p>
       <p class="text-gray-500 text-xs mt-2 break-all font-mono">${result.qr_data.substring(0, 40)}...</p>
       <button onclick="navigator.clipboard.writeText('${result.qr_data}')" class="mt-2 text-xs text-accent hover:underline"><i class="fas fa-copy mr-1"></i>Copy QR Data</button>`;
@@ -3294,12 +3295,12 @@ async function loadCards() {
           <span class="text-xs text-gray-500">${c.label || 'Virtual Card'}</span>
           <i class="${networkIcon} text-2xl text-gray-400"></i>
         </div>
-        <p class="text-white font-mono text-lg tracking-[0.2em] mb-4">${c.card_number}</p>
+        <p class="text-gray-800 font-mono text-lg tracking-[0.2em] mb-4">${c.card_number}</p>
         <div class="flex justify-between items-end">
-          <div><p class="text-[10px] text-gray-500 uppercase">Expires</p><p class="text-white text-sm font-mono">${String(c.expiry_month).padStart(2,'0')}/${c.expiry_year}</p></div>
-          <div><p class="text-[10px] text-gray-500 uppercase">Limit</p><p class="text-white text-sm font-mono">$${Number(c.spending_limit).toLocaleString()}</p></div>
+          <div><p class="text-[10px] text-gray-500 uppercase">Expires</p><p class="text-gray-800 text-sm font-mono">${String(c.expiry_month).padStart(2,'0')}/${c.expiry_year}</p></div>
+          <div><p class="text-[10px] text-gray-500 uppercase">Limit</p><p class="text-gray-800 text-sm font-mono">$${Number(c.spending_limit).toLocaleString()}</p></div>
         </div>
-        ${!cancelled ? `<div class="flex gap-2 mt-4 pt-3 border-t border-dark-500">
+        ${!cancelled ? `<div class="flex gap-2 mt-4 pt-3 border-t border-gray-200">
           <button onclick="freezeCard('${c.id}')" class="flex-1 py-1.5 rounded text-xs ${frozen ? 'bg-accent/20 text-accent' : 'bg-yellow-500/20 text-yellow-400'} hover:opacity-80"><i class="fas fa-${frozen ? 'play' : 'pause'} mr-1"></i>${frozen ? 'Unfreeze' : 'Freeze'}</button>
           <button onclick="provisionCard('${c.id}')" class="flex-1 py-1.5 rounded text-xs bg-blue-500/20 text-blue-400 hover:opacity-80"><i class="fab fa-apple mr-1"></i>Wallet</button>
           <button onclick="cancelCard('${c.id}')" class="py-1.5 px-2 rounded text-xs bg-red-500/10 text-red-400 hover:opacity-80"><i class="fas fa-times"></i></button>
@@ -3404,7 +3405,7 @@ async function submitKYC() {
         iconDiv.className = 'w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4';
         iconDiv.innerHTML = '<i class="fas fa-check-circle text-3xl text-green-400"></i>';
         titleEl.textContent = 'Identity Verified';
-        titleEl.className = 'text-white font-semibold mb-1';
+        titleEl.className = 'text-gray-800 font-semibold mb-1';
         scoreEl.textContent = `Verification Score: ${result.score}%`;
         scoreEl.className = 'text-accent text-sm mb-2';
         retryBtn.classList.add('hidden');
@@ -3459,8 +3460,8 @@ async function loadFraudAlerts() {
     const data = await apiFetch('/api/fraud/alerts');
     const div = document.getElementById('fraudAlertsList');
     if (!data.alerts.length) { div.innerHTML = '<p class="text-gray-600 text-sm text-center py-4">No fraud alerts</p>'; return; }
-    div.innerHTML = data.alerts.slice(0, 8).map(a => `<div class="bg-dark-700 rounded-lg p-3 border-l-2 ${a.severity === 'critical' ? 'border-red-500' : 'border-orange-500'}">
-      <div class="flex justify-between"><span class="text-white text-xs font-medium">${a.beneficiary}</span><span class="badge ${a.severity === 'critical' ? 'severity-critical' : 'severity-high'}">${a.severity}</span></div>
+    div.innerHTML = data.alerts.slice(0, 8).map(a => `<div class="bg-gray-100 rounded-lg p-3 border-l-2 ${a.severity === 'critical' ? 'border-red-500' : 'border-orange-500'}">
+      <div class="flex justify-between"><span class="text-gray-800 text-xs font-medium">${a.beneficiary}</span><span class="badge ${a.severity === 'critical' ? 'severity-critical' : 'severity-high'}">${a.severity}</span></div>
       <p class="text-gray-500 text-xs mt-1">$${Number(a.amount).toLocaleString()} • Risk: ${a.risk_score} • ${a.reason}</p>
     </div>`).join('');
   } catch (e) { console.error(e); }
@@ -3476,10 +3477,10 @@ async function loadDocuments() {
     const docs = data.documents || [];
     if (!docs.length) { div.innerHTML = '<p class="text-gray-600 text-sm text-center py-8">No documents available.</p>'; return; }
     const icons = { statement: 'fa-file-lines text-blue-400', tax_1099: 'fa-file-invoice-dollar text-green-400', receipt: 'fa-receipt text-purple-400' };
-    div.innerHTML = docs.map(d => `<div class="bg-dark-700 rounded-lg p-4 flex items-center justify-between hover:bg-dark-600 transition">
+    div.innerHTML = docs.map(d => `<div class="bg-gray-100 rounded-lg p-4 flex items-center justify-between hover:bg-gray-200 transition">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-dark-600 flex items-center justify-center"><i class="fas ${icons[d.doc_type] || 'fa-file text-gray-400'}"></i></div>
-        <div><p class="text-white text-sm font-medium">${d.title}</p><p class="text-gray-500 text-xs">Period: ${d.period} • ${(d.file_size / 1024).toFixed(0)} KB</p></div>
+        <div class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center"><i class="fas ${icons[d.doc_type] || 'fa-file text-gray-400'}"></i></div>
+        <div><p class="text-gray-800 text-sm font-medium">${d.title}</p><p class="text-gray-500 text-xs">Period: ${d.period} • ${(d.file_size / 1024).toFixed(0)} KB</p></div>
       </div>
       <button onclick="downloadDoc('${d.id}')" class="px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-xs font-semibold hover:bg-accent/20 transition"><i class="fas fa-download mr-1"></i>Download</button>
     </div>`).join('');
@@ -3507,10 +3508,10 @@ async function loadNotifications() {
     if (!data.notifications.length) { div.innerHTML = '<p class="text-center text-gray-600 text-xs py-6">No notifications</p>'; return; }
     div.innerHTML = data.notifications.slice(0, 15).map(n => {
       const colors = { green: 'text-green-400', red: 'text-red-400', blue: 'text-blue-400', orange: 'text-orange-400', purple: 'text-purple-400', yellow: 'text-yellow-400' };
-      return `<div class="px-3 py-2.5 hover:bg-dark-700 transition cursor-pointer ${n.is_read ? 'opacity-60' : ''}" onclick="markRead('${n.id}')">
+      return `<div class="px-3 py-2.5 hover:bg-gray-100 transition cursor-pointer ${n.is_read ? 'opacity-60' : ''}" onclick="markRead('${n.id}')">
         <div class="flex items-start gap-2">
           <i class="fas ${n.icon || 'fa-bell'} ${colors[n.color] || 'text-gray-400'} mt-0.5 text-xs"></i>
-          <div><p class="text-white text-xs font-medium">${n.title}</p><p class="text-gray-500 text-[10px]">${n.message}</p>
+          <div><p class="text-gray-800 text-xs font-medium">${n.title}</p><p class="text-gray-500 text-[10px]">${n.message}</p>
             <p class="text-gray-600 text-[10px] mt-0.5">${n.created_at ? new Date(n.created_at).toLocaleString() : ''}</p></div>
         </div></div>`;
     }).join('');
@@ -3533,16 +3534,16 @@ async function sendChat() {
   if (!msg) return;
   input.value = '';
   const div = document.getElementById('chatMessages');
-  div.innerHTML += `<div class="bg-dark-600 rounded-lg p-2 text-xs text-white max-w-[85%] ml-auto">${msg}</div>`;
+  div.innerHTML += `<div class="bg-gray-200 rounded-lg p-2 text-xs text-gray-800 max-w-[85%] ml-auto">${msg}</div>`;
   // Typing indicator
   const typingId = 'typing-' + Date.now();
-  div.innerHTML += `<div id="${typingId}" class="bg-accent/10 rounded-lg p-2 text-xs text-gray-400 max-w-[85%] animate-pulse"><span class="text-accent font-semibold">Bot:</span> Thinking...</div>`;
+  div.innerHTML += `<div id="${typingId}" class="bg-blue-50 rounded-lg p-2 text-xs text-gray-400 max-w-[85%] animate-pulse"><span class="text-accent font-semibold">Bot:</span> Thinking...</div>`;
   div.scrollTop = div.scrollHeight;
   try {
     const result = await apiFetch('/api/support/message', { method: 'POST', body: JSON.stringify({ message: msg, session_id: chatSessionId }) });
     const typing = document.getElementById(typingId);
     if (typing) typing.remove();
-    div.innerHTML += `<div class="bg-accent/10 rounded-lg p-2 text-xs text-gray-300 max-w-[85%]"><span class="text-accent font-semibold">Bot:</span> ${result.response}</div>`;
+    div.innerHTML += `<div class="bg-blue-50 rounded-lg p-2 text-xs text-gray-600 max-w-[85%]"><span class="text-accent font-semibold">Bot:</span> ${result.response}</div>`;
     div.scrollTop = div.scrollHeight;
   } catch (e) {
     const typing = document.getElementById(typingId);
@@ -3606,8 +3607,8 @@ function showDefiSub(sub) {
   document.getElementById('defi' + sub.charAt(0).toUpperCase() + sub.slice(1)).classList.remove('hidden');
   ['Swap','Stake','Escrow'].forEach(s => {
     const btn = document.getElementById('defiSub' + s);
-    if (s.toLowerCase() === sub) { btn.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-dark-900'; }
-    else { btn.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white'; }
+    if (s.toLowerCase() === sub) { btn.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-white'; }
+    else { btn.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 hover:text-gray-800'; }
   });
   if (sub === 'swap') loadPools();
   if (sub === 'stake') loadStaking();
@@ -3623,11 +3624,11 @@ async function loadPools() {
     const div = document.getElementById('poolsList');
     if (!pools.length) { div.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No pools available</p>'; return; }
     div.innerHTML = pools.map(p => `
-      <div class="flex items-center justify-between bg-dark-700/50 rounded-lg p-3">
+      <div class="flex items-center justify-between bg-gray-50 rounded-lg p-3">
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-400">${p.quote}</div>
           <div>
-            <div class="text-sm font-semibold text-white">${p.pair}</div>
+            <div class="text-sm font-semibold text-gray-800">${p.pair}</div>
             <div class="text-xs text-gray-400">Swaps: ${p.swap_count}</div>
           </div>
         </div>
@@ -3702,9 +3703,9 @@ async function loadStaking() {
     else {
       div.innerHTML = data.positions.map(p => {
         const statusColor = p.status === 'active' ? 'text-green-400 bg-green-500/10' : 'text-gray-400 bg-gray-500/10';
-        return `<div class="flex items-center justify-between bg-dark-700/50 rounded-lg p-3">
+        return `<div class="flex items-center justify-between bg-gray-50 rounded-lg p-3">
           <div>
-            <div class="text-sm font-semibold text-white">$${Number(p.amount).toLocaleString()} <span class="text-xs text-gray-400">in ${p.pool}</span></div>
+            <div class="text-sm font-semibold text-gray-800">$${Number(p.amount).toLocaleString()} <span class="text-xs text-gray-400">in ${p.pool}</span></div>
             <div class="text-xs text-gray-400">${p.apy}% APY · ${p.days_elapsed} days · Earned: <span class="text-accent font-semibold">$${p.accrued_yield.toFixed(2)}</span></div>
           </div>
           <div class="flex items-center gap-2">
@@ -3786,11 +3787,11 @@ async function loadEscrows() {
       if ((e.status === 'locked' || e.status === 'expired') && e.is_sender) {
         actions = `<button onclick="refundEscrow('${e.id}')" class="px-2 py-1 rounded bg-blue-500/20 text-blue-400 text-xs font-semibold">Refund</button>`;
       }
-      return `<div class="flex items-center justify-between bg-dark-700/50 rounded-lg p-3">
+      return `<div class="flex items-center justify-between bg-gray-50 rounded-lg p-3">
         <div>
-          <div class="text-sm font-semibold text-white">$${Number(e.amount).toLocaleString()} <span class="text-xs text-gray-400">→ ${other} (${role})</span></div>
+          <div class="text-sm font-semibold text-gray-800">$${Number(e.amount).toLocaleString()} <span class="text-xs text-gray-400">→ ${other} (${role})</span></div>
           <div class="text-xs text-gray-400 mt-1">Hashlock: ${e.hashlock.substring(0,16)}... · Expires: ${new Date(e.timelock).toLocaleString()}</div>
-          ${e.is_sender && e.status === 'locked' ? `<div class="text-xs text-yellow-400 mt-1">Secret: <code class="bg-dark-700 px-1 rounded">${e.secret}</code></div>` : ''}
+          ${e.is_sender && e.status === 'locked' ? `<div class="text-xs text-yellow-400 mt-1">Secret: <code class="bg-gray-100 px-1 rounded">${e.secret}</code></div>` : ''}
         </div>
         <div class="flex items-center gap-2">
           <span class="px-2 py-0.5 rounded-full text-xs font-bold ${sc}">${e.status}</span>
@@ -3810,7 +3811,7 @@ async function createEscrow() {
   try {
     const result = await apiFetch('/api/defi/escrow/create', { method: 'POST', body: JSON.stringify({ receiver, amount, timelock_hours }) });
     res.className = 'text-xs mt-2 p-3 rounded-lg bg-green-500/10 text-green-400';
-    res.innerHTML = `<i class="fas fa-check-circle mr-1"></i>Escrow created! Share this secret with ${receiver}:<br><code class="bg-dark-700 px-2 py-1 rounded mt-1 block break-all text-yellow-400">${result.secret}</code>`;
+    res.innerHTML = `<i class="fas fa-check-circle mr-1"></i>Escrow created! Share this secret with ${receiver}:<br><code class="bg-gray-100 px-2 py-1 rounded mt-1 block break-all text-yellow-400">${result.secret}</code>`;
     res.classList.remove('hidden');
     document.getElementById('escrowReceiver').value = '';
     document.getElementById('escrowAmount').value = '';

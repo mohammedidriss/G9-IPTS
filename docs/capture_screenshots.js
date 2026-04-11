@@ -149,12 +149,66 @@ async function run() {
   // 17: Chat
   await nav('switchTab("dashboard"); window.scrollTo(0,0);');
   await nav('toggleChat();');
-  await nav('document.getElementById("chatInput").value="How do I transfer money?"; sendChat();');
-  await new Promise(r => setTimeout(r, 1500));
+  await nav('document.getElementById("chatInput").value="What is my balance?"; sendChat();');
+  await new Promise(r => setTimeout(r, 8000));
   await snap("Support_Chat.png");
+  await nav('toggleChat();');
+
+  // 18: AI/ML with Fraud Heatmap
+  await nav('switchTab("aiml"); window.scrollTo(0,0);');
+  await new Promise(r => setTimeout(r, 2000));
+  await snap("AIML_Models.png");
+
+  await nav('window.scrollTo(0, 1200);');
+  await new Promise(r => setTimeout(r, 1000));
+  await snap("Fraud_Heatmap.png");
+
+  // 19-20: Network Graph (Full + Connected)
+  await nav('switchTab("graph"); window.scrollTo(0,0);');
+  await new Promise(r => setTimeout(r, 3000));
+  await snap("Network_Graph_Full.png");
+
+  await nav('switchGraphView("connected");');
+  await new Promise(r => setTimeout(r, 3000));
+  await snap("Network_Graph_Connected.png");
+
+  // 21: Admin - HITL
+  await nav('switchTab("admin"); window.scrollTo(0,0);');
+  await new Promise(r => setTimeout(r, 1500));
+  await snap("Admin_HITL.png");
+
+  // 22: Compliance
+  await nav('switchTab("compliance"); window.scrollTo(0,0);');
+  await new Promise(r => setTimeout(r, 1500));
+  await snap("Compliance_Tab.png");
+
+  // 23: Cases
+  await nav('switchTab("cases"); window.scrollTo(0,0);');
+  await new Promise(r => setTimeout(r, 1500));
+  await snap("Cases_Tab.png");
+
+  // 24: Dashboard with Proof of Reserve
+  await nav('switchTab("dashboard"); window.scrollTo(0,0);');
+  await new Promise(r => setTimeout(r, 2000));
+  await snap("Dashboard_ProofOfReserve.png");
+
+  // 25-27: DeFi Tab - Swap
+  await nav('switchTab("defi"); window.scrollTo(0,0);');
+  await new Promise(r => setTimeout(r, 2000));
+  await snap("DeFi_Swap.png");
+
+  // DeFi - Staking
+  await nav('showDefiSub("stake"); window.scrollTo(0,0);');
+  await new Promise(r => setTimeout(r, 1500));
+  await snap("DeFi_Staking.png");
+
+  // DeFi - Escrow
+  await nav('showDefiSub("escrow"); window.scrollTo(0,0);');
+  await new Promise(r => setTimeout(r, 1500));
+  await snap("DeFi_Escrow.png");
 
   await browser.close();
-  console.log("\n=== ALL 17 SCREENSHOTS CAPTURED ===");
+  console.log("\n=== ALL 27 SCREENSHOTS CAPTURED ===");
 }
 
 run().catch(e => { console.error("FATAL:", e.message); process.exit(1); });

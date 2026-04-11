@@ -90,7 +90,7 @@ slide.addText([
   { text: "Mohamad Idriss  |  Rohit Jacob Isaac  |  Sriram Acharya Mudumbai\n", options: { fontSize: 14, color: WHITE, bold: true } },
   { text: "Walid Elmahdy  |  Vibin Chandrabose", options: { fontSize: 14, color: WHITE, bold: true } },
 ], { x: 0.5, y: 4.5, w: 12, h: 0.8, fontFace: "Calibri" });
-slide.addText("Version 5.0  |  April 2026", { x: 0.5, y: 5.6, w: 12, h: 0.4, fontSize: 16, color: GRAY, fontFace: "Calibri" });
+slide.addText("Version 6.0  |  April 2026", { x: 0.5, y: 5.6, w: 12, h: 0.4, fontSize: 16, color: GRAY, fontFace: "Calibri" });
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -103,13 +103,14 @@ const agendaItems = [
   ["2", "Architecture Overview", "7-Layer Convergent Architecture"],
   ["3", "Live Dashboard", "KPIs, multi-account, ledger, notifications"],
   ["4", "Payment Hub", "Settlement, P2P, ACH/Wire/SEPA, Scheduled, QR Pay"],
-  ["5", "AI Risk Scoring", "5-model ensemble with SHAP explainability"],
-  ["6", "Account & Beneficiaries", "Multi-account, beneficiary management, spending 360"],
-  ["7", "Card Services", "Virtual cards, freeze/unfreeze, digital wallet"],
-  ["8", "Security & KYC", "E-KYC verification, fraud alerts, biometrics"],
-  ["9", "Compliance & Cases", "Four-eyes, HITL, SLA, sanctions, case mgmt"],
-  ["10", "Support & Documents", "AI chat bot, notification center, statements"],
-  ["11", "Key Differentiators", "What makes IPTS unique"],
+  ["5", "DeFi Suite", "AMM Swap, Staking, Escrow HTLC, Liquidity Pools"],
+  ["6", "AI Risk Scoring", "5-model ensemble with SHAP explainability"],
+  ["7", "Account & Beneficiaries", "Multi-account, beneficiary management, spending 360"],
+  ["8", "Card Services", "Virtual cards, freeze/unfreeze, digital wallet"],
+  ["9", "Security & KYC", "E-KYC verification, fraud alerts, biometrics"],
+  ["10", "Compliance & Cases", "Four-eyes, HITL, SLA, sanctions, case mgmt"],
+  ["11", "Support & Documents", "AI chat bot, notification center, statements"],
+  ["12", "Key Differentiators", "What makes IPTS unique"],
 ];
 agendaItems.forEach((item, idx) => {
   const y = 1.1 + idx * 0.50;
@@ -192,19 +193,20 @@ const techStack = [
   { cat: "Blockchain", items: "7 Solidity Contracts\nWeb3.py 6.15  |  Ganache\npy-solc-x 2.0", color: "8B5CF6" },
   { cat: "AI/ML", items: "5-Model Ensemble\n16-Feature Vector  |  SHAP\nVelocityTracker  |  SMOTE", color: GREEN },
   { cat: "Security", items: "Zero Trust JWT\nRBAC (5 roles)  |  Four-Eyes\nRate Limiting  |  HSTS", color: RED },
-  { cat: "Backend", items: "Flask 3.0  |  SQLite\n17 Database Tables  |  60+ APIs\nSSE Streaming  |  REST API", color: BLUE },
+  { cat: "Backend", items: "Flask 3.0  |  SQLite\n22 Database Tables  |  75+ APIs\nSSE Streaming  |  REST API", color: BLUE },
   { cat: "Frontend", items: "Tailwind CSS  |  Chart.js\nD3.js Network Graph\n12 Tabs  |  Dark Theme", color: YELLOW },
   { cat: "Compliance", items: "HITL + SLA Tracking  |  E-KYC\nSAR Filing  |  SWIFT GPI\n13-Currency FX  |  Fraud Alerts", color: "F97316" },
+  { cat: "DeFi", items: "AMM Swap  |  Liquidity Pools\nStaking Rewards  |  Escrow HTLC\nProof of Reserve", color: "06B6D4" },
 ];
 techStack.forEach((t, idx) => {
-  const col = idx % 3;
-  const row = Math.floor(idx / 3);
-  const x = 0.5 + col * 4.2;
+  const col = idx % 4;
+  const row = Math.floor(idx / 4);
+  const x = 0.3 + col * 3.25;
   const y = 1.1 + row * 3.0;
-  slide.addShape(pptx.ShapeType.rect, { x: x, y: y, w: 3.9, h: 2.6, fill: { color: WHITE }, shadow: { type: "outer", blur: 4, offset: 2, color: "CCCCCC" }, rectRadius: 0.1 });
-  slide.addShape(pptx.ShapeType.rect, { x: x, y: y, w: 3.9, h: 0.06, fill: { color: t.color }, rectRadius: 0.05 });
-  slide.addText(t.cat, { x: x + 0.3, y: y + 0.2, w: 3.3, h: 0.5, fontSize: 16, bold: true, color: NAVY });
-  slide.addText(t.items, { x: x + 0.3, y: y + 0.8, w: 3.3, h: 1.6, fontSize: 12, color: "555555", lineSpacingMultiple: 1.4 });
+  slide.addShape(pptx.ShapeType.rect, { x: x, y: y, w: 3.05, h: 2.6, fill: { color: WHITE }, shadow: { type: "outer", blur: 4, offset: 2, color: "CCCCCC" }, rectRadius: 0.1 });
+  slide.addShape(pptx.ShapeType.rect, { x: x, y: y, w: 3.05, h: 0.06, fill: { color: t.color }, rectRadius: 0.05 });
+  slide.addText(t.cat, { x: x + 0.2, y: y + 0.2, w: 2.65, h: 0.5, fontSize: 15, bold: true, color: NAVY });
+  slide.addText(t.items, { x: x + 0.2, y: y + 0.8, w: 2.65, h: 1.6, fontSize: 11, color: "555555", lineSpacingMultiple: 1.4 });
 });
 
 
@@ -242,6 +244,11 @@ addImageSafe(slide, ss("Notifications_Panel.png"), { x: 6.8, y: 0.8, w: 6.3, h: 
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("Dashboard — Settlement Volume & AML Telemetry", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
 addImageSafe(slide, ss("Dashboard + AMLl.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
+
+// Dashboard Proof of Reserve
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("Dashboard — Proof of Reserve", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Dashboard_ProofOfReserve.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -284,6 +291,42 @@ addImageSafe(slide, ss("Payment_QR_Pay.png"), { x: 6.8, y: 0.8, w: 6.3, h: 5.5 }
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("Settlement — $700K High-Value Transaction (Blocked)", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
 addImageSafe(slide, ss("Settlement_result-blocked.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
+
+
+// ═══════════════════════════════════════════════════════════════
+// SLIDE — DeFi SUITE
+// ═══════════════════════════════════════════════════════════════
+slide = pptx.addSlide({ masterName: "SECTION" });
+slide.addText("DeFi Suite", { x: 0.5, y: 1.5, w: 12, h: 1.2, fontSize: 44, bold: true, color: WHITE });
+slide.addText("AMM Swap, Staking, Escrow HTLC, Liquidity Pools", { x: 0.5, y: 3.5, w: 12, h: 0.7, fontSize: 24, color: GREEN });
+
+// DeFi AMM Swap
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("DeFi — AMM Swap & Liquidity Pools", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("DeFi_Swap.png"), { x: 0.3, y: 0.8, w: 8.5, h: 5.3 });
+slide.addShape(pptx.ShapeType.rect, { x: 9.1, y: 0.8, w: 4, h: 5.3, fill: { color: "1E293B" }, rectRadius: 0.1 });
+const defiSwapPoints = [
+  "Automated Market Maker",
+  "Token-to-token swaps",
+  "Slippage protection",
+  "Liquidity pool balances",
+  "Price impact preview",
+  "On-chain settlement",
+  "Real-time pricing",
+];
+defiSwapPoints.forEach((p, idx) => {
+  slide.addText("\u2022  " + p, { x: 9.3, y: 1.0 + idx * 0.65, w: 3.5, h: 0.5, fontSize: 13, color: WHITE });
+});
+
+// DeFi Staking
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("DeFi — Staking Rewards", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("DeFi_Staking.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
+
+// DeFi Escrow HTLC
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("DeFi — Escrow HTLC (Hash Time-Locked Contracts)", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("DeFi_Escrow.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -341,7 +384,7 @@ slide.addText("5-Model Ensemble with 16-Feature Vector", { x: 0.5, y: 3.5, w: 12
 
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("AI/ML — 5 Model Performance Cards", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("AML_tab.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
+addImageSafe(slide, ss("AIML_Models.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
 
 // SHAP chart slide
 slide = pptx.addSlide({ masterName: "DARK" });
@@ -377,6 +420,11 @@ slide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 4.0, w: 12.3, h: 2.8, fill: { c
 slide.addText("VelocityTracker — Real-Time Behavioral Analytics", { x: 0.8, y: 4.1, w: 11, h: 0.5, fontSize: 16, bold: true, color: NAVY });
 slide.addText("The VelocityTracker maintains a per-sender sliding window of transaction history, computing real-time features that capture behavioral anomalies invisible to static analysis. This enables detection of sudden volume spikes, amount deviations, and receiver diversification patterns that indicate fraud, structuring, or money laundering.", { x: 0.8, y: 4.7, w: 11.5, h: 1.8, fontSize: 13, color: "444444", lineSpacingMultiple: 1.5 });
 
+// Fraud Heatmap
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("Fraud Heatmap — Geographic & Temporal Analysis", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Fraud_Heatmap.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
+
 
 // ═══════════════════════════════════════════════════════════════
 // SLIDE 10 — FOUR-EYES APPROVAL
@@ -387,7 +435,7 @@ slide.addText("Dual-Approval for High-Value Transactions ($100K+)", { x: 0.5, y:
 
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("HITL Queue — Four-Eyes Approval Badges", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("HITL-Approval-1st.png"), { x: 0.3, y: 0.8, w: 8.5, h: 5.3 });
+addImageSafe(slide, ss("Admin_HITL.png"), { x: 0.3, y: 0.8, w: 8.5, h: 5.3 });
 slide.addShape(pptx.ShapeType.rect, { x: 9.1, y: 0.8, w: 4, h: 5.3, fill: { color: "1E293B" }, rectRadius: 0.1 });
 slide.addText("Four-Eyes Workflow", { x: 9.3, y: 1.0, w: 3.5, h: 0.5, fontSize: 16, bold: true, color: GREEN });
 const feSteps = [
@@ -425,7 +473,7 @@ slide.addText("SLA Tracking & Compliance Workflows", { x: 0.5, y: 3.5, w: 12, h:
 
 slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("Case Management — SLA Countdown Tracking", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Case_details.png"), { x: 0.3, y: 0.8, w: 8.5, h: 5.3 });
+addImageSafe(slide, ss("Cases_Tab.png"), { x: 0.3, y: 0.8, w: 8.5, h: 5.3 });
 slide.addShape(pptx.ShapeType.rect, { x: 9.1, y: 0.8, w: 4, h: 5.3, fill: { color: "1E293B" }, rectRadius: 0.1 });
 slide.addText("SLA Thresholds", { x: 9.3, y: 1.0, w: 3.5, h: 0.5, fontSize: 16, bold: true, color: GREEN });
 const slaItems = [
@@ -531,9 +579,14 @@ slide.addText("Support & Documents", { x: 0.5, y: 1.5, w: 12, h: 1.2, fontSize: 
 slide.addText("AI Chat Bot, Notification Center, Document Hub", { x: 0.5, y: 3.5, w: 12, h: 0.7, fontSize: 24, color: GREEN });
 
 slide = pptx.addSlide({ masterName: "DARK" });
-slide.addText("Documents, Support Chat & Notifications", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+slide.addText("Documents & Notification Center", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
 addImageSafe(slide, ss("Documents_Tab.png"), { x: 0.3, y: 0.8, w: 6.3, h: 5.5 });
-addImageSafe(slide, ss("Support_Chat.png"), { x: 6.8, y: 0.8, w: 6.3, h: 5.5 });
+addImageSafe(slide, ss("Notifications_Panel.png"), { x: 6.8, y: 0.8, w: 6.3, h: 5.5 });
+
+// Support Chat with LLM
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("Support Chat — LLM-Powered AI Assistant", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Support_Chat.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -544,13 +597,8 @@ slide.addText("Compliance Tools", { x: 0.5, y: 1.5, w: 12, h: 1.2, fontSize: 44,
 slide.addText("Sanctions, SWIFT GPI, FX Converter, Nostro", { x: 0.5, y: 3.5, w: 12, h: 0.7, fontSize: 24, color: GREEN });
 
 slide = pptx.addSlide({ masterName: "DARK" });
-slide.addText("Compliance — Sanctions, GDPR, SWIFT GPI", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Sanction_list_Add.png"), { x: 0.3, y: 0.8, w: 4, h: 2.8 });
-addImageSafe(slide, ss("GDPR_Right_to_erase.png"), { x: 4.6, y: 0.8, w: 4, h: 2.8 });
-addImageSafe(slide, ss("Swift_GPI_tracker.png"), { x: 8.9, y: 0.8, w: 4, h: 2.8 });
-slide.addText("Sanctions Management", { x: 0.3, y: 3.7, w: 4, h: 0.4, fontSize: 12, bold: true, color: GREEN, align: "center" });
-slide.addText("GDPR Right to Erasure", { x: 4.6, y: 3.7, w: 4, h: 0.4, fontSize: 12, bold: true, color: GREEN, align: "center" });
-slide.addText("SWIFT GPI Tracker", { x: 8.9, y: 3.7, w: 4, h: 0.4, fontSize: 12, bold: true, color: GREEN, align: "center" });
+slide.addText("Compliance — Overview & Tools", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Compliance_Tab.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
 
 // FX + Nostro
 slide = pptx.addSlide({ masterName: "DARK" });
@@ -561,6 +609,12 @@ slide.addText("13 Supported Currencies", { x: 0.5, y: 4.6, w: 5.5, h: 0.4, fontS
 slide.addText("USD  EUR  GBP  JPY  CHF  AUD  CAD\nCNY  INR  SGD  AED  SAR  BRL", { x: 0.5, y: 5.1, w: 5.5, h: 0.9, fontSize: 14, color: WHITE, align: "center", lineSpacingMultiple: 1.5 });
 slide.addText("Nostro Account Positions", { x: 6.5, y: 4.6, w: 6.3, h: 0.4, fontSize: 13, bold: true, color: GREEN, align: "center" });
 slide.addText("Real-time liquidity monitoring across\nblockchain-backed Nostro accounts", { x: 6.5, y: 5.1, w: 6.3, h: 0.9, fontSize: 13, color: GRAY, align: "center", lineSpacingMultiple: 1.5 });
+
+// Network Graph
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("Network Graph — Transaction Relationship Analysis", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Network_Graph_Full.png"), { x: 0.3, y: 0.8, w: 6.3, h: 5.5 });
+addImageSafe(slide, ss("Network_Graph_Connected.png"), { x: 6.8, y: 0.8, w: 6.3, h: 5.5 });
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -576,17 +630,18 @@ const diffs = [
   { title: "Virtual Card Services", desc: "Visa/MC generation, freeze/unfreeze, spending controls, and one-click provisioning to Apple Pay, Google Pay, Samsung Pay.", icon: "\uD83D\uDCB3", color: "F97316" },
   { title: "Spending 360", desc: "Comprehensive analytics with monthly trends, risk distribution, currency breakdown, activity heatmaps, and top beneficiary rankings.", icon: "\uD83D\uDCCA", color: YELLOW },
   { title: "E-KYC + Notifications", desc: "3-phase animated identity verification, real-time notification center with SSE push, and AI-powered support chat bot.", icon: "\uD83D\uDD12", color: RED },
+  { title: "DeFi / AMM Suite", desc: "On-chain AMM swaps, staking rewards, escrow HTLC, liquidity pools, and Proof of Reserve — bridging TradFi and DeFi.", icon: "\uD83D\uDD17", color: "06B6D4" },
 ];
 diffs.forEach((d, idx) => {
-  const col = idx % 3;
-  const row = Math.floor(idx / 3);
-  const x = 0.5 + col * 4.2;
+  const col = idx % 4;
+  const row = Math.floor(idx / 4);
+  const x = 0.3 + col * 3.25;
   const y = 1.1 + row * 3.0;
-  slide.addShape(pptx.ShapeType.rect, { x: x, y: y, w: 3.9, h: 2.7, fill: { color: WHITE }, shadow: { type: "outer", blur: 4, offset: 2, color: "CCCCCC" }, rectRadius: 0.1 });
-  slide.addShape(pptx.ShapeType.rect, { x: x, y: y, w: 3.9, h: 0.06, fill: { color: d.color }, rectRadius: 0.05 });
-  slide.addText(d.icon, { x: x + 0.2, y: y + 0.2, w: 0.6, h: 0.6, fontSize: 26 });
-  slide.addText(d.title, { x: x + 0.9, y: y + 0.25, w: 2.8, h: 0.5, fontSize: 15, bold: true, color: NAVY });
-  slide.addText(d.desc, { x: x + 0.2, y: y + 0.9, w: 3.5, h: 1.6, fontSize: 11, color: "555555", lineSpacingMultiple: 1.4 });
+  slide.addShape(pptx.ShapeType.rect, { x: x, y: y, w: 3.05, h: 2.7, fill: { color: WHITE }, shadow: { type: "outer", blur: 4, offset: 2, color: "CCCCCC" }, rectRadius: 0.1 });
+  slide.addShape(pptx.ShapeType.rect, { x: x, y: y, w: 3.05, h: 0.06, fill: { color: d.color }, rectRadius: 0.05 });
+  slide.addText(d.icon, { x: x + 0.15, y: y + 0.2, w: 0.5, h: 0.5, fontSize: 24 });
+  slide.addText(d.title, { x: x + 0.7, y: y + 0.25, w: 2.2, h: 0.5, fontSize: 14, bold: true, color: NAVY });
+  slide.addText(d.desc, { x: x + 0.15, y: y + 0.9, w: 2.75, h: 1.6, fontSize: 10, color: "555555", lineSpacingMultiple: 1.4 });
 });
 
 
@@ -601,7 +656,7 @@ const tableX = 0.5, tableY = 1.1, colW = [4.1, 4.1, 4.1];
 slide.addShape(pptx.ShapeType.rect, { x: tableX, y: tableY, w: 12.3, h: 0.5, fill: { color: NAVY }, rectRadius: 0.05 });
 slide.addText("KPI Metric", { x: tableX, y: tableY, w: colW[0], h: 0.5, fontSize: 13, bold: true, color: WHITE, align: "center", valign: "middle" });
 slide.addText("Before IPTS", { x: tableX + colW[0], y: tableY, w: colW[1], h: 0.5, fontSize: 13, bold: true, color: WHITE, align: "center", valign: "middle" });
-slide.addText("After IPTS v5.0", { x: tableX + colW[0] + colW[1], y: tableY, w: colW[2], h: 0.5, fontSize: 13, bold: true, color: WHITE, align: "center", valign: "middle" });
+slide.addText("After IPTS v6.0", { x: tableX + colW[0] + colW[1], y: tableY, w: colW[2], h: 0.5, fontSize: 13, bold: true, color: WHITE, align: "center", valign: "middle" });
 
 const kpis = [
   ["Settlement Time", "T+2 to T+5", "< 10 seconds"],
@@ -612,15 +667,18 @@ const kpis = [
   ["Currency Support", "USD only", "13 currencies"],
   ["Card Services", "Physical only", "Virtual Visa/MC + digital wallet"],
   ["Identity (KYC)", "Manual paper", "E-KYC with AI scoring"],
-  ["Tabs / Features", "3-5 screens", "12 tabs, 60+ API endpoints"],
+  ["Tabs / Features", "3-5 screens", "12 tabs, 75+ API endpoints"],
+  ["DeFi Liquidity Pools", "None", "AMM swap + pool management"],
+  ["Staking", "None", "On-chain staking with rewards"],
+  ["Escrow", "None", "HTLC smart contract escrow"],
 ];
 kpis.forEach((row, idx) => {
-  const y = tableY + 0.5 + idx * 0.55;
+  const y = tableY + 0.5 + idx * 0.45;
   const bg = idx % 2 === 0 ? "EDF2F7" : WHITE;
-  slide.addShape(pptx.ShapeType.rect, { x: tableX, y: y, w: 12.3, h: 0.55, fill: { color: bg } });
-  slide.addText(row[0], { x: tableX + 0.2, y: y, w: colW[0] - 0.2, h: 0.55, fontSize: 12, bold: true, color: NAVY, valign: "middle" });
-  slide.addText(row[1], { x: tableX + colW[0], y: y, w: colW[1], h: 0.55, fontSize: 12, color: "666666", align: "center", valign: "middle" });
-  slide.addText(row[2], { x: tableX + colW[0] + colW[1], y: y, w: colW[2], h: 0.55, fontSize: 12, bold: true, color: GREEN, align: "center", valign: "middle" });
+  slide.addShape(pptx.ShapeType.rect, { x: tableX, y: y, w: 12.3, h: 0.45, fill: { color: bg } });
+  slide.addText(row[0], { x: tableX + 0.2, y: y, w: colW[0] - 0.2, h: 0.45, fontSize: 11, bold: true, color: NAVY, valign: "middle" });
+  slide.addText(row[1], { x: tableX + colW[0], y: y, w: colW[1], h: 0.45, fontSize: 11, color: "666666", align: "center", valign: "middle" });
+  slide.addText(row[2], { x: tableX + colW[0] + colW[1], y: y, w: colW[2], h: 0.45, fontSize: 11, bold: true, color: GREEN, align: "center", valign: "middle" });
 });
 
 
@@ -633,10 +691,10 @@ slide.addText("Questions & Discussion", { x: 0.5, y: 2.8, w: 12, h: 0.7, fontSiz
 slide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 3.7, w: 3.5, h: 0.04, fill: { color: GREEN } });
 
 slide.addText([
-  { text: "G9-IPTS v5.0\n", options: { fontSize: 16, bold: true, color: WHITE } },
+  { text: "G9-IPTS v6.0\n", options: { fontSize: 16, bold: true, color: WHITE } },
   { text: "7-Layer Architecture  |  5 AI Models  |  SHAP Explainability\n", options: { fontSize: 14, color: GRAY } },
-  { text: "12 Tabs  |  5 Payment Channels  |  Virtual Cards  |  E-KYC\n", options: { fontSize: 14, color: GRAY } },
-  { text: "Spending 360  |  Notifications  |  Support Chat  |  60+ APIs", options: { fontSize: 14, color: GRAY } },
+  { text: "12 Tabs  |  5 Payment Channels  |  DeFi Suite  |  Virtual Cards  |  E-KYC\n", options: { fontSize: 14, color: GRAY } },
+  { text: "AMM Swap  |  Staking  |  Escrow HTLC  |  Support Chat  |  75+ APIs", options: { fontSize: 14, color: GRAY } },
 ], { x: 0.5, y: 4.2, w: 12, h: 1.8, fontFace: "Calibri", lineSpacingMultiple: 1.5 });
 
 slide.addText([
