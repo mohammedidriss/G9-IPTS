@@ -3296,12 +3296,22 @@ async function sendChat() {
   input.value = '';
   const div = document.getElementById('chatMessages');
   div.innerHTML += `<div class="bg-dark-600 rounded-lg p-2 text-xs text-white max-w-[85%] ml-auto">${msg}</div>`;
+  // Typing indicator
+  const typingId = 'typing-' + Date.now();
+  div.innerHTML += `<div id="${typingId}" class="bg-accent/10 rounded-lg p-2 text-xs text-gray-400 max-w-[85%] animate-pulse"><span class="text-accent font-semibold">Bot:</span> Thinking...</div>`;
   div.scrollTop = div.scrollHeight;
   try {
     const result = await apiFetch('/api/support/message', { method: 'POST', body: JSON.stringify({ message: msg, session_id: chatSessionId }) });
+    const typing = document.getElementById(typingId);
+    if (typing) typing.remove();
     div.innerHTML += `<div class="bg-accent/10 rounded-lg p-2 text-xs text-gray-300 max-w-[85%]"><span class="text-accent font-semibold">Bot:</span> ${result.response}</div>`;
     div.scrollTop = div.scrollHeight;
-  } catch (e) { console.error(e); }
+  } catch (e) {
+    const typing = document.getElementById(typingId);
+    if (typing) typing.remove();
+    div.innerHTML += `<div class="bg-red-500/10 rounded-lg p-2 text-xs text-red-400 max-w-[85%]"><span class="font-semibold">Error:</span> Could not reach support. Please try again.</div>`;
+    div.scrollTop = div.scrollHeight;
+  }
 }
 
 // ============================================================
