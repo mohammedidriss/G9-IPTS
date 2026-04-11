@@ -601,7 +601,7 @@ const tableX = 0.5, tableY = 1.1, colW = [4.1, 4.1, 4.1];
 slide.addShape(pptx.ShapeType.rect, { x: tableX, y: tableY, w: 12.3, h: 0.5, fill: { color: NAVY }, rectRadius: 0.05 });
 slide.addText("KPI Metric", { x: tableX, y: tableY, w: colW[0], h: 0.5, fontSize: 13, bold: true, color: WHITE, align: "center", valign: "middle" });
 slide.addText("Before IPTS", { x: tableX + colW[0], y: tableY, w: colW[1], h: 0.5, fontSize: 13, bold: true, color: WHITE, align: "center", valign: "middle" });
-slide.addText("After IPTS v4.0", { x: tableX + colW[0] + colW[1], y: tableY, w: colW[2], h: 0.5, fontSize: 13, bold: true, color: WHITE, align: "center", valign: "middle" });
+slide.addText("After IPTS v5.0", { x: tableX + colW[0] + colW[1], y: tableY, w: colW[2], h: 0.5, fontSize: 13, bold: true, color: WHITE, align: "center", valign: "middle" });
 
 const kpis = [
   ["Settlement Time", "T+2 to T+5", "< 10 seconds"],
