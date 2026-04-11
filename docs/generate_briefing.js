@@ -230,7 +230,7 @@ const coverPage = [
   new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { after: 80 },
-    children: [new TextRun({ text: "Version 4.0  |  April 2026", font: FONT, size: 24, color: "666666" })]
+    children: [new TextRun({ text: "Version 5.0  |  April 2026", font: FONT, size: 24, color: "666666" })]
   }),
   new Paragraph({ spacing: { before: 600 }, children: [] }),
   new Paragraph({
@@ -287,7 +287,7 @@ const section1 = [
   heading1("1. Executive Summary"),
   para("The Integrated Payment Transformation System (IPTS) is an enterprise-grade financial settlement platform that collapses cross-border payment cycles from the traditional T+2 to T+5 window to near-real-time settlement in under 10 seconds. Built on a 7-layer convergent architecture, IPTS integrates blockchain-based atomic settlement, a 5-model AI/ML fraud detection ensemble with SHAP explainability, four-eyes dual approval for high-value transactions, multi-currency FX conversion, Zero Trust security, and GDPR-compliant data sovereignty into a unified platform."),
   emptyLine(),
-  para("This briefing provides senior leadership with a comprehensive overview of IPTS capabilities, including the significant enhancements delivered in Version 4.0: explainable AI, dual-approval controls, real-time velocity tracking, multi-currency support, SLA monitoring, and local deployment capability."),
+  para("This briefing provides senior leadership with a comprehensive overview of IPTS capabilities, including the significant enhancements delivered in Version 5.0: 17 new features spanning P2P transfers, ACH/Wire/SEPA payments, scheduled and QR code payments, multi-account management, beneficiary management, real-time ledger, virtual card generation, card controls, digital wallet provisioning, Spending 360 analytics, e-KYC verification, biometric controls, fraud alert monitoring, notification center, AI-powered support chat, and a fully redesigned 12-tab dashboard."),
   emptyLine(),
 
   heading2("1.1 Key Performance Indicators"),
@@ -457,99 +457,98 @@ const section3 = [
 // ═══════════════════════════════════════════════════════════════
 const section4 = [
   heading1("4. System Walkthrough"),
-  para("The following screenshots demonstrate the fully operational IPTS platform v4.0, captured from the live system running locally on macOS. Each screenshot highlights a key functional area including the new SHAP explainability, four-eyes approval, FX conversion, and SLA tracking features."),
+  para("The following screenshots demonstrate the fully operational IPTS platform v5.0, captured from the live system running locally on macOS. The platform now features 12 functional tabs, 5 payment channels, virtual card services, spending analytics, E-KYC verification, and real-time notifications."),
   emptyLine(),
 
-  heading2("4.1 Dashboard \u2014 KPIs & Health Monitoring"),
-  para("The main dashboard provides KPI cards, settlement volume charting, AML telemetry, and a health status dot (green/yellow/red) polled every 30 seconds."),
-  tryImageParagraph(ss("Screenshot 2026-04-09 at 11.01.04 AM.png"), 580, 310,
-    "Dashboard", "Dashboard with KPIs, volume chart, and health status"
+  heading2("4.1 Dashboard \u2014 Multi-Account, KPIs & Notifications"),
+  para("The main dashboard provides KPI cards, multi-account overview (Checking, Savings, Business), a real-time ledger panel, live FX rates ticker, settlement volume chart, AML telemetry, and a notification bell with badge count polled via SSE."),
+  tryImageParagraph(ss("Dashboard_MultiAccount.png"), 580, 310,
+    "Dashboard", "Dashboard with multi-account cards, KPIs, and notification bell"
   ),
-  imageCaption("Figure 7: Dashboard \u2014 KPI Cards, Settlement Volume, and Health Status"),
+  imageCaption("Figure 7: Dashboard \u2014 Multi-Account Cards, KPIs, and Notification Bell"),
   emptyLine(),
 
-  heading2("4.2 Payments \u2014 Multi-Currency Settlement"),
-  para("The payment form now includes a currency selector with 13 currencies, FX preview showing the USD equivalent, and AML jurisdiction warnings for high-risk currencies. Post-settlement, SHAP feature contributions are displayed inline."),
-  tryImageParagraph(ss("Screenshot 2026-04-09 at 11.02.13 AM.png"), 580, 310,
-    "Payment Settlement", "Payment execution with multi-currency and SHAP"
+  heading2("4.2 Dashboard \u2014 Real-Time Ledger & Notifications"),
+  para("The real-time ledger shows the latest transactions with direction (debit/credit), counterparty, status, and balance. The notification center provides a dropdown panel with unread alerts for settlements, P2P transfers, card generation, and KYC verification events."),
+  tryImageParagraph(ss("Dashboard_Ledger.png"), 580, 310,
+    "Ledger", "Real-time ledger panel"
   ),
-  imageCaption("Figure 8: Payments \u2014 Settlement with FX Preview and SHAP Contributions"),
+  imageCaption("Figure 8: Dashboard \u2014 Real-Time Ledger and Transaction History"),
   emptyLine(),
 
-  heading2("4.3 SHAP Feature Contributions"),
-  para("Every settlement returns per-transaction SHAP values showing how each of the 16 features contributed to the risk score. Positive values (red) increase risk; negative values (green) decrease risk. This provides full regulatory explainability for every AI-driven decision."),
-  tryImageParagraph(ss("Screenshot 2026-04-09 at 11.01.42 AM.png"), 550, 300,
-    "SHAP Contributions", "SHAP feature values for a transaction"
+  heading2("4.3 Payment Hub \u2014 5 Payment Channels"),
+  para("The Payments tab now features 5 sub-tabs: Settlement (multi-currency with SHAP), P2P Transfer (by username/email/phone), ACH/Wire/SEPA (external bank transfers with fee calculation), Scheduled Payments (recurring daily/weekly/bi-weekly/monthly), and QR Pay (generate/scan QR codes)."),
+  tryImageParagraph(ss("Payment_Settlement.png"), 580, 310,
+    "Payment Settlement", "Payment settlement with FX preview"
   ),
-  imageCaption("Figure 9: SHAP Feature Contributions \u2014 Per-Transaction Explainability"),
+  imageCaption("Figure 9: Payments \u2014 Settlement with FX Preview and SHAP Contributions"),
   emptyLine(),
 
-  heading2("4.4 Risk Score Breakdown"),
-  para("The composite risk score is decomposed into its four components: Rules (deterministic checks), ML (5-model ensemble), NLP (watchlist screening), and Graph (PageRank centrality)."),
-  tryImageParagraph(ss("Screenshot 2026-04-09 at 11.01.48 AM.png"), 400, 200,
-    "Score Breakdown", "Risk score component breakdown"
+  tryImageParagraph(ss("Payment_P2P.png"), 280, 180,
+    "P2P Transfer", "P2P transfer form"
   ),
-  imageCaption("Figure 10: Risk Score Breakdown \u2014 Rules, ML, NLP, Graph Components"),
+  tryImageParagraph(ss("Payment_ACH_Wire_SEPA.png"), 280, 180,
+    "ACH/Wire/SEPA", "External bank transfer"
+  ),
+  imageCaption("Figure 10: P2P Transfer (left) and ACH/Wire/SEPA External Transfer (right)"),
+  emptyLine(),
+
+  tryImageParagraph(ss("Payment_Scheduled.png"), 280, 180,
+    "Scheduled Payments", "Scheduled payment form"
+  ),
+  tryImageParagraph(ss("Payment_QR_Pay.png"), 280, 180,
+    "QR Pay", "QR code payment"
+  ),
+  imageCaption("Figure 11: Scheduled Payments (left) and QR Pay (right)"),
   pageBreak(),
 
-  heading2("4.5 AI/ML \u2014 Five Model Cards"),
-  para("The AI/ML tab now displays five model cards including the new Sequence Detector, each showing F1 score and accuracy. Below, the SHAP explainability chart renders a horizontal bar chart for the last transaction."),
-  tryImageParagraph(ss("Screenshot 2026-04-09 at 11.02.24 AM.png"), 580, 340,
-    "5 Model Cards", "AI/ML tab with 5 model performance cards"
+  heading2("4.4 Beneficiary Management"),
+  para("A dedicated Beneficiaries tab enables account owners to add, edit, and manage beneficiaries with full details including account numbers, SWIFT codes, bank names, countries, currencies, and risk levels. Added beneficiaries automatically appear in the Settlement payment dropdown."),
+  tryImageParagraph(ss("Beneficiaries_Tab.png"), 580, 310,
+    "Beneficiaries", "Beneficiary management tab"
   ),
-  imageCaption("Figure 11: AI/ML \u2014 Five Model Performance Cards (Including Sequence Detector)"),
+  imageCaption("Figure 12: Beneficiary Management \u2014 Add, Edit, Delete with Risk Levels"),
   emptyLine(),
 
-  heading2("4.6 SHAP Explainability Chart"),
-  para("The SHAP chart in the AI/ML tab provides a visual breakdown of feature contributions, enabling compliance officers and data scientists to understand which features drove the risk assessment."),
-  tryImageParagraph(ss("Screenshot 2026-04-09 at 11.02.28 AM.png"), 550, 300,
-    "SHAP Chart", "SHAP horizontal bar chart"
+  heading2("4.5 Spending 360 Analytics"),
+  para("The Spending 360 dashboard provides comprehensive analytics including KPI cards (Total Sent, Total Received, Avg Risk Score, Highest Transaction, Account Balance), monthly spending trend charts, risk distribution, currency breakdown, activity by hour, and top beneficiary rankings."),
+  tryImageParagraph(ss("Spending_360_Overview.png"), 580, 310,
+    "Spending 360", "Spending 360 analytics dashboard"
   ),
-  imageCaption("Figure 12: SHAP Explainability Chart \u2014 Feature Impact on Risk Score"),
+  imageCaption("Figure 13: Spending 360 \u2014 KPI Cards and Monthly Spending Trend"),
   emptyLine(),
 
-  heading2("4.7 HITL Queue \u2014 Four-Eyes Approval"),
-  para("The HITL queue now displays four-eyes approval badges (Required/1 of 2/2 of 2) for transactions >= $100K. Two independent compliance officers must approve before settlement proceeds."),
-  tryImageParagraph(ss("Screenshot 2026-04-09 at 11.02.44 AM.png"), 580, 310,
-    "HITL Four-Eyes", "HITL queue with four-eyes badges"
+  tryImageParagraph(ss("Spending_360_Charts.png"), 580, 310,
+    "Spending Charts", "Spending analytics charts"
   ),
-  imageCaption("Figure 13: HITL Queue \u2014 Four-Eyes Dual Approval Badges"),
+  imageCaption("Figure 14: Spending 360 \u2014 Currency Breakdown and Activity Heatmap"),
   emptyLine(),
 
-  tryImageParagraph(ss("Screenshot 2026-04-09 at 12.55.04 AM.png"), 450, 200,
-    "Four-Eyes Dialog", "Four-eyes approval enforcement dialog"
+  heading2("4.6 Virtual Card Services"),
+  para("The Cards tab enables generation of Visa and Mastercard virtual cards with masked numbers, gradient styling, and spending controls. Cards can be frozen/unfrozen, provisioned to Apple Pay/Google Pay/Samsung Pay, or permanently cancelled."),
+  tryImageParagraph(ss("Cards_Tab.png"), 580, 310,
+    "Virtual Cards", "Virtual card gallery"
   ),
-  imageCaption("Figure 14: Four-Eyes Enforcement \u2014 Second Approver Required"),
-  emptyLine(),
-
-  heading2("4.8 Compliance \u2014 FX Converter & Sanctions"),
-  para("The Compliance tab now includes an FX Converter tool supporting 13 currencies, alongside sanctions management, SWIFT GPI tracking, and Nostro balance monitoring."),
-  tryImageParagraph(ss("Screenshot 2026-04-09 at 11.03.15 AM.png"), 450, 250,
-    "FX Converter", "FX conversion tool"
-  ),
-  imageCaption("Figure 15: Compliance \u2014 FX Converter Tool (13 Currencies)"),
-  emptyLine(),
-
-  tryImageParagraph(ss("Screenshot 2026-04-09 at 11.03.19 AM.png"), 550, 300,
-    "Nostro Balances", "Nostro account positions"
-  ),
-  imageCaption("Figure 16: Compliance \u2014 Nostro Balances and Account Positions"),
+  imageCaption("Figure 15: Virtual Cards \u2014 Generate, Freeze, Provision to Digital Wallets"),
   pageBreak(),
 
-  heading2("4.9 Case Management \u2014 SLA Tracking"),
-  para("The Case Management dashboard now includes SLA countdown badges per case, color-coded by urgency. Critical cases (4h SLA) show red countdown; cases approaching breach are highlighted."),
-  tryImageParagraph(ss("Screenshot 2026-04-09 at 11.03.33 AM.png"), 580, 310,
-    "Case Management SLA", "Case management with SLA countdown"
+  heading2("4.7 Security \u2014 E-KYC & Fraud Monitoring"),
+  para("The Security tab features a 3-phase E-KYC verification flow (document upload, AI processing, identity verified with confidence score), biometric control toggles (Face ID, fingerprint), and a real-time fraud alert feed with severity levels and acknowledgment controls."),
+  tryImageParagraph(ss("Security_KYC.png"), 580, 310,
+    "E-KYC", "E-KYC verification flow"
   ),
-  imageCaption("Figure 17: Case Management \u2014 SLA Countdown Tracking"),
+  imageCaption("Figure 16: Security \u2014 E-KYC Verification and Biometric Controls"),
   emptyLine(),
 
-  heading2("4.10 Case Detail"),
-  para("Case detail modals show full case information with severity, type, associated transaction data, and action buttons for investigation, escalation, assignment, findings, and SAR filing."),
-  tryImageParagraph(ss("Screenshot 2026-04-09 at 11.03.58 AM.png"), 550, 340,
-    "Case Detail", "Case detail modal"
+  heading2("4.8 Documents & Support"),
+  para("The Documents tab provides auto-generated monthly statements with download capabilities. A floating AI-powered Support Chat widget (bottom-right) responds to account, payment, security, and card queries. The Notification Center provides real-time SSE-powered alerts with mark-as-read functionality."),
+  tryImageParagraph(ss("Documents_Tab.png"), 280, 180,
+    "Documents", "Document center"
   ),
-  imageCaption("Figure 18: Case Detail \u2014 SANCTIONS Case with CRITICAL Severity"),
+  tryImageParagraph(ss("Support_Chat.png"), 280, 180,
+    "Support Chat", "AI support chat bot"
+  ),
+  imageCaption("Figure 17: Documents Center (left) and AI Support Chat (right)"),
   pageBreak(),
 ];
 
@@ -558,7 +557,7 @@ const section4 = [
 // ═══════════════════════════════════════════════════════════════
 const section5 = [
   heading1("5. AI/ML Capabilities & Explainability"),
-  para("IPTS v4.0 deploys a 5-model machine learning ensemble trained on 15,000 synthetic transactions using a 16-dimensional feature vector that includes 8 real-time velocity features computed by the VelocityTracker. This represents a significant upgrade from the previous 4-model, 8-feature architecture."),
+  para("IPTS v5.0 deploys a 5-model machine learning ensemble trained on 15,000 synthetic transactions using a 16-dimensional feature vector that includes 8 real-time velocity features computed by the VelocityTracker. This represents a significant upgrade from the previous 4-model, 8-feature architecture."),
   emptyLine(),
 
   heading2("5.1 Five-Model Ensemble"),
@@ -598,7 +597,7 @@ const section5 = [
   emptyLine(),
 
   heading2("5.3 SHAP Explainability"),
-  para("Every risk decision in IPTS v4.0 is fully explainable. The system uses SHAP (SHapley Additive exPlanations) to decompose each risk score into per-feature contributions:"),
+  para("Every risk decision in IPTS v5.0 is fully explainable. The system uses SHAP (SHapley Additive exPlanations) to decompose each risk score into per-feature contributions:"),
   emptyLine(),
   bulletBold("TreeExplainer: ", "Uses XGBoost's tree structure to compute exact Shapley values in polynomial time. Each feature receives a signed contribution score indicating its positive (risk-increasing) or negative (risk-decreasing) impact."),
   bulletBold("RF Fallback: ", "If TreeExplainer fails, Random Forest feature_importances_ are multiplied by per-feature deviations from population means to produce approximate contribution scores."),
@@ -622,7 +621,7 @@ const section5 = [
 // ═══════════════════════════════════════════════════════════════
 const section6 = [
   heading1("6. Four-Eyes Approval & Operational Controls"),
-  para("IPTS v4.0 introduces a four-eyes dual approval mechanism that enforces segregation of duties for high-value transaction approvals, addressing a critical regulatory requirement for financial institutions."),
+  para("IPTS v5.0 introduces a four-eyes dual approval mechanism that enforces segregation of duties for high-value transaction approvals, addressing a critical regulatory requirement for financial institutions."),
   emptyLine(),
 
   heading2("6.1 Four-Eyes Mechanism"),
@@ -897,6 +896,10 @@ const section11 = [
         ["Compliance Cost", "$10.2M/yr", "$2.55M/yr", "-75%"],
         ["Currency Support", "1 (USD)", "13 currencies", "+1200%"],
         ["Approval Controls", "Single", "Four-eyes", "Dual"],
+        ["Payment Channels", "1 (Settlement)", "5 channels", "+400%"],
+        ["Card Services", "None", "Virtual cards", "New"],
+        ["Identity (KYC)", "Manual", "E-KYC automated", "New"],
+        ["UI Tabs/Features", "7 tabs", "12 tabs", "+71%"],
         ["Audit Trail", "Partial", "100% automated", "100%"],
       ].map((row, idx) => {
         const shading = idx % 2 === 0 ? COLOR_TABLE_ALT : undefined;
@@ -1009,7 +1012,7 @@ const section13 = [
 // ═══════════════════════════════════════════════════════════════
 const section14 = [
   heading1("14. Conclusion & Recommendations"),
-  para("IPTS v4.0 represents a transformational platform that addresses the fundamental challenges of cross-border settlement through blockchain, explainable AI, and enterprise-grade operational controls."),
+  para("IPTS v5.0 represents a transformational platform that addresses the fundamental challenges of cross-border settlement through blockchain, explainable AI, enterprise-grade operational controls, and a comprehensive digital banking experience including multi-channel payments, virtual card services, spending analytics, and E-KYC verification."),
   emptyLine(),
 
   heading2("14.1 Key Takeaways"),
@@ -1021,6 +1024,12 @@ const section14 = [
   checkPara("Multi-currency FX engine supporting 13 currencies with AML jurisdiction warnings enables true international settlement."),
   checkPara("SLA tracking with severity-based countdown (4h to 7d) ensures timely compliance case resolution."),
   checkPara("Health monitoring with 30-second polling provides continuous operational awareness."),
+  checkPara("5 payment channels (Settlement, P2P, ACH/Wire/SEPA, Scheduled, QR Pay) cover all enterprise payment needs."),
+  checkPara("Virtual card services with instant issuance, freeze/unfreeze, and spending limits enhance corporate card management."),
+  checkPara("Spending 360 analytics with category breakdowns, trend charts, and exportable reports drive financial insights."),
+  checkPara("E-KYC identity verification with biometric controls and fraud alert monitoring strengthen compliance posture."),
+  checkPara("Beneficiary management with SWIFT/IBAN validation and favorite marking streamlines recurring payments."),
+  checkPara("Real-time notification center with SSE-powered alerts and AI support chat improve user experience."),
   checkPara("3-year ROI of 287% with 5-month payback period, delivering $18.15M cumulative net benefit."),
   emptyLine(),
 
@@ -1099,7 +1108,7 @@ const doc = new Document({
           alignment: AlignmentType.RIGHT,
           border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC", space: 4 } },
           children: [
-            new TextRun({ text: "G9-IPTS Executive Briefing v4.0", font: FONT, size: 16, color: "999999", italics: true }),
+            new TextRun({ text: "G9-IPTS Executive Briefing v5.0", font: FONT, size: 16, color: "999999", italics: true }),
             new TextRun({ text: "  |  ", font: FONT, size: 16, color: "CCCCCC" }),
             new TextRun({ text: "Confidential", font: FONT, size: 16, color: "CC0000", bold: true }),
           ]
@@ -1114,7 +1123,7 @@ const doc = new Document({
           children: [
             new TextRun({ text: "Page ", font: FONT, size: 16, color: "999999" }),
             new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: "999999" }),
-            new TextRun({ text: "  |  G9-IPTS  |  April 2026  |  Version 4.0", font: FONT, size: 16, color: "999999" }),
+            new TextRun({ text: "  |  G9-IPTS  |  April 2026  |  Version 5.0", font: FONT, size: 16, color: "999999" }),
           ]
         })]
       })

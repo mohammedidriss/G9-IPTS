@@ -1127,11 +1127,20 @@ tailwind.config = {
                     <option value="passport">Passport</option><option value="drivers_license">Driver's License</option><option value="national_id">National ID</option>
                   </select>
                 </div>
-                <div class="border-2 border-dashed border-dark-500 rounded-xl p-8 text-center cursor-pointer hover:border-accent/50 transition" onclick="submitKYC()">
-                  <i class="fas fa-cloud-upload-alt text-2xl text-gray-500 mb-2"></i>
-                  <p class="text-gray-400 text-xs">Click to upload document</p>
+                <div>
+                  <input type="file" id="kycFileInput" accept=".jpg,.jpeg,.png,.pdf" class="hidden" onchange="onKycFileSelected(this)">
+                  <div id="kycDropZone" class="border-2 border-dashed border-dark-500 rounded-xl p-8 text-center cursor-pointer hover:border-accent/50 transition" onclick="document.getElementById('kycFileInput').click()">
+                    <i class="fas fa-cloud-upload-alt text-2xl text-gray-500 mb-2"></i>
+                    <p class="text-gray-400 text-xs">Click to upload document</p>
+                    <p class="text-gray-600 text-[10px] mt-1">Accepted: JPG, PNG, PDF</p>
+                  </div>
+                  <div id="kycFileInfo" class="hidden mt-2 flex items-center gap-2 bg-accent/10 rounded-lg px-3 py-2">
+                    <i class="fas fa-file-check text-accent"></i>
+                    <span id="kycFileName" class="text-accent text-xs font-medium truncate"></span>
+                    <button onclick="clearKycFile()" class="ml-auto text-gray-500 hover:text-red-400 text-xs"><i class="fas fa-times"></i></button>
+                  </div>
                 </div>
-                <button onclick="submitKYC()" id="kycBtn" class="w-full py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition text-sm"><i class="fas fa-shield-check mr-2"></i>Verify Identity</button>
+                <button onclick="submitKYC()" id="kycBtn" disabled class="w-full py-2.5 rounded-lg bg-blue-600/40 text-white/50 font-semibold cursor-not-allowed transition text-sm"><i class="fas fa-shield-check mr-2"></i>Upload document first</button>
               </div>
             </div>
             <div id="kycVerifying" class="hidden text-center py-8">
@@ -1140,12 +1149,21 @@ tailwind.config = {
               <p class="text-gray-500 text-xs">Checking document & liveness</p>
             </div>
             <div id="kycVerified" class="hidden text-center py-6">
-              <div class="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
-                <i class="fas fa-check-circle text-3xl text-green-400"></i>
+              <div id="kycResultIcon" class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"></div>
+              <p id="kycResultTitle" class="text-white font-semibold mb-1"></p>
+              <p id="kycScore" class="text-sm mb-2"></p>
+              <p id="kycDocInfo" class="text-gray-500 text-xs mb-3"></p>
+              <div id="kycDetails" class="text-left bg-dark-700 rounded-lg p-4 space-y-2 text-xs hidden">
+                <div class="flex justify-between"><span class="text-gray-500">Document Detected</span><span id="kycDetDocType" class="text-white"></span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Name on Document</span><span id="kycDetExtName" class="text-white font-mono"></span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Expected Name</span><span id="kycDetExpName" class="text-white font-mono"></span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Match Type</span><span id="kycDetMatchType" class="text-white"></span></div>
+                <hr class="border-dark-500">
+                <div class="flex justify-between"><span class="text-gray-500">Doc Score</span><span id="kycDetDocScore" class="text-white font-mono"></span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Name Score</span><span id="kycDetNameScore" class="text-white font-mono"></span></div>
+                <div class="flex justify-between font-semibold"><span class="text-gray-400">Total Score</span><span id="kycDetTotalScore" class="text-accent font-mono"></span></div>
               </div>
-              <p class="text-white font-semibold mb-1">Identity Verified</p>
-              <p id="kycScore" class="text-accent text-sm mb-2"></p>
-              <p id="kycDocInfo" class="text-gray-500 text-xs"></p>
+              <button id="kycRetryBtn" class="hidden mt-4 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition" onclick="resetKYC()"><i class="fas fa-redo mr-2"></i>Try Again</button>
             </div>
           </div>
         </div>
@@ -1596,6 +1614,14 @@ async function executeSettlement() {
   const selectedOpt = document.getElementById('payBeneficiary').selectedOptions[0];
   const receiverUsername = selectedOpt ? selectedOpt.dataset.username : '';
 
+  // Requirement: User Confirmation
+  const confirmed = confirm(`Are you sure you want to execute this settlement for $${Number(amount).toLocaleString('en-US', {minimumFractionDigits: 2})} to ${beneficiaryName}?`);
+  if (!confirmed) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-bolt mr-2"></i>Execute Settlement';
+    return;
+  }
+
   try {
     const currency = document.getElementById('payCurrency').value || 'USD';
     const result = await apiFetch('/api/settlement', {
@@ -1605,6 +1631,7 @@ async function executeSettlement() {
         amount: amount,
         currency: currency,
         receiver_username: receiverUsername,
+        confirmed: true, // Send confirmation flag
       })
     });
 
@@ -3081,22 +3108,112 @@ async function loadKYCStatus() {
   } catch (e) { console.error(e); }
 }
 
+function onKycFileSelected(input) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    document.getElementById('kycFileName').textContent = file.name;
+    document.getElementById('kycFileInfo').classList.remove('hidden');
+    document.getElementById('kycDropZone').classList.add('hidden');
+    const btn = document.getElementById('kycBtn');
+    btn.disabled = false;
+    btn.className = 'w-full py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition text-sm';
+    btn.innerHTML = '<i class="fas fa-shield-check mr-2"></i>Verify Identity';
+  }
+}
+
+function clearKycFile() {
+  document.getElementById('kycFileInput').value = '';
+  document.getElementById('kycFileInfo').classList.add('hidden');
+  document.getElementById('kycDropZone').classList.remove('hidden');
+  const btn = document.getElementById('kycBtn');
+  btn.disabled = true;
+  btn.className = 'w-full py-2.5 rounded-lg bg-blue-600/40 text-white/50 font-semibold cursor-not-allowed transition text-sm';
+  btn.innerHTML = '<i class="fas fa-shield-check mr-2"></i>Upload document first';
+}
+
 async function submitKYC() {
+  const fileInput = document.getElementById('kycFileInput');
+  if (!fileInput.files.length) {
+    alert('Please upload a document first.');
+    return;
+  }
   document.getElementById('kycNotStarted').classList.add('hidden');
   document.getElementById('kycVerifying').classList.remove('hidden');
   try {
-    const result = await apiFetch('/api/kyc/submit', { method: 'POST', body: JSON.stringify({ doc_type: document.getElementById('kycDocType').value }) });
+    const formData = new FormData();
+    formData.append('document', fileInput.files[0]);
+    formData.append('doc_type', document.getElementById('kycDocType').value);
+    
+    const resp = await fetch(API + '/api/kyc/submit', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${TOKEN}` },
+      body: formData
+    });
+    const result = await resp.json();
+    
     setTimeout(() => {
       document.getElementById('kycVerifying').classList.add('hidden');
       document.getElementById('kycVerified').classList.remove('hidden');
-      document.getElementById('kycScore').textContent = `Verification Score: ${result.score}%`;
-      document.getElementById('kycDocInfo').textContent = `Document verified successfully`;
+      
+      const iconDiv = document.getElementById('kycResultIcon');
+      const titleEl = document.getElementById('kycResultTitle');
+      const scoreEl = document.getElementById('kycScore');
+      const infoEl = document.getElementById('kycDocInfo');
+      const detailsDiv = document.getElementById('kycDetails');
+      const retryBtn = document.getElementById('kycRetryBtn');
+      
+      if (result.status === 'verified') {
+        iconDiv.className = 'w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4';
+        iconDiv.innerHTML = '<i class="fas fa-check-circle text-3xl text-green-400"></i>';
+        titleEl.textContent = 'Identity Verified';
+        titleEl.className = 'text-white font-semibold mb-1';
+        scoreEl.textContent = `Verification Score: ${result.score}%`;
+        scoreEl.className = 'text-accent text-sm mb-2';
+        retryBtn.classList.add('hidden');
+      } else if (result.status === 'review') {
+        iconDiv.className = 'w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto mb-4';
+        iconDiv.innerHTML = '<i class="fas fa-exclamation-triangle text-3xl text-yellow-400"></i>';
+        titleEl.textContent = 'Manual Review Required';
+        titleEl.className = 'text-yellow-400 font-semibold mb-1';
+        scoreEl.textContent = `Verification Score: ${result.score}% (threshold: 70%)`;
+        scoreEl.className = 'text-yellow-400 text-sm mb-2';
+        retryBtn.classList.remove('hidden');
+      } else {
+        iconDiv.className = 'w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4';
+        iconDiv.innerHTML = '<i class="fas fa-times-circle text-3xl text-red-400"></i>';
+        titleEl.textContent = 'Verification Failed';
+        titleEl.className = 'text-red-400 font-semibold mb-1';
+        scoreEl.textContent = `Score: ${result.score}%`;
+        scoreEl.className = 'text-red-400 text-sm mb-2';
+        retryBtn.classList.remove('hidden');
+      }
+      
+      infoEl.textContent = result.message || '';
+      
+      // Show score breakdown
+      if (result.details) {
+        detailsDiv.classList.remove('hidden');
+        document.getElementById('kycDetDocType').textContent = result.details.document_detected ? '✅ Yes' : '❌ No';
+        document.getElementById('kycDetExtName').textContent = result.details.extracted_name || '—';
+        document.getElementById('kycDetExpName').textContent = result.details.expected_name || '—';
+        document.getElementById('kycDetMatchType').textContent = result.details.name_match_type || 'none';
+        document.getElementById('kycDetDocScore').textContent = (result.details.doc_score || 0) + '/40';
+        document.getElementById('kycDetNameScore').textContent = (result.details.name_score || 0) + '/50';
+        document.getElementById('kycDetTotalScore').textContent = result.score + '/100';
+      }
     }, 2500);
   } catch (e) {
     document.getElementById('kycVerifying').classList.add('hidden');
     document.getElementById('kycNotStarted').classList.remove('hidden');
-    alert(e.message);
+    alert(e.message || 'Verification failed');
   }
+}
+
+function resetKYC() {
+  document.getElementById('kycVerified').classList.add('hidden');
+  document.getElementById('kycNotStarted').classList.remove('hidden');
+  document.getElementById('kycDetails').classList.add('hidden');
+  clearKycFile();
 }
 
 async function loadFraudAlerts() {

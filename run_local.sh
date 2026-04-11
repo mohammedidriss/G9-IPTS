@@ -53,18 +53,26 @@ pip install -q \
     xgboost==2.0.3 \
     shap==0.44.0 \
     numpy \
-    pandas
+    pandas \
+    pytesseract \
+    Pillow
 
 echo "  Python dependencies installed"
 
-# --- Step 3: Install Ganache ---
+# --- Step 3: Install Ganache & Tesseract ---
 echo ""
-echo "[3/6] Checking Ganache..."
+echo "[3/6] Checking Ganache & Tesseract..."
 if command -v ganache &>/dev/null; then
     echo "  Ganache already installed"
 else
     echo "  Installing Ganache..."
     npm install -g ganache
+fi
+if command -v tesseract &>/dev/null; then
+    echo "  Tesseract OCR already installed"
+else
+    echo "  Installing Tesseract OCR..."
+    brew install tesseract
 fi
 
 # --- Step 4: Create local deploy script ---
