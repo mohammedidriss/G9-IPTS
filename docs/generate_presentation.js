@@ -90,7 +90,7 @@ slide.addText([
   { text: "Mohamad Idriss  |  Rohit Jacob Isaac  |  Sriram Acharya Mudumbai\n", options: { fontSize: 14, color: WHITE, bold: true } },
   { text: "Walid Elmahdy  |  Vibin Chandrabose", options: { fontSize: 14, color: WHITE, bold: true } },
 ], { x: 0.5, y: 4.5, w: 12, h: 0.8, fontFace: "Calibri" });
-slide.addText("Version 4.0  |  April 2026", { x: 0.5, y: 5.6, w: 12, h: 0.4, fontSize: 16, color: GRAY, fontFace: "Calibri" });
+slide.addText("Version 5.0  |  April 2026", { x: 0.5, y: 5.6, w: 12, h: 0.4, fontSize: 16, color: GRAY, fontFace: "Calibri" });
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -101,17 +101,18 @@ slide.addText("Demo Agenda", { x: 0.3, y: 0.1, w: 12, h: 0.7, fontSize: 28, bold
 const agendaItems = [
   ["1", "The Problem", "Why cross-border settlements need transformation"],
   ["2", "Architecture Overview", "7-Layer Convergent Architecture"],
-  ["3", "Live Dashboard", "KPIs, telemetry, and health monitoring"],
-  ["4", "Payment Execution", "Multi-currency settlement with FX preview"],
+  ["3", "Live Dashboard", "KPIs, multi-account, ledger, notifications"],
+  ["4", "Payment Hub", "Settlement, P2P, ACH/Wire/SEPA, Scheduled, QR Pay"],
   ["5", "AI Risk Scoring", "5-model ensemble with SHAP explainability"],
-  ["6", "SHAP Explainability", "Per-transaction feature contribution breakdown"],
-  ["7", "Four-Eyes Approval", "Dual-approval for high-value transactions"],
-  ["8", "Case Management", "SLA tracking and compliance workflows"],
-  ["9", "Compliance Tools", "Sanctions, SWIFT GPI, FX converter, Nostro"],
-  ["10", "Key Differentiators", "What makes IPTS unique"],
+  ["6", "Account & Beneficiaries", "Multi-account, beneficiary management, spending 360"],
+  ["7", "Card Services", "Virtual cards, freeze/unfreeze, digital wallet"],
+  ["8", "Security & KYC", "E-KYC verification, fraud alerts, biometrics"],
+  ["9", "Compliance & Cases", "Four-eyes, HITL, SLA, sanctions, case mgmt"],
+  ["10", "Support & Documents", "AI chat bot, notification center, statements"],
+  ["11", "Key Differentiators", "What makes IPTS unique"],
 ];
 agendaItems.forEach((item, idx) => {
-  const y = 1.1 + idx * 0.55;
+  const y = 1.1 + idx * 0.50;
   const bgColor = idx % 2 === 0 ? "E8F0FE" : WHITE;
   slide.addShape(pptx.ShapeType.rect, { x: 0.5, y: y, w: 12.3, h: 0.5, fill: { color: bgColor }, rectRadius: 0.05 });
   slide.addShape(pptx.ShapeType.rect, { x: 0.5, y: y, w: 0.55, h: 0.5, fill: { color: NAVY }, rectRadius: 0.05 });
@@ -191,9 +192,9 @@ const techStack = [
   { cat: "Blockchain", items: "7 Solidity Contracts\nWeb3.py 6.15  |  Ganache\npy-solc-x 2.0", color: "8B5CF6" },
   { cat: "AI/ML", items: "5-Model Ensemble\n16-Feature Vector  |  SHAP\nVelocityTracker  |  SMOTE", color: GREEN },
   { cat: "Security", items: "Zero Trust JWT\nRBAC (5 roles)  |  Four-Eyes\nRate Limiting  |  HSTS", color: RED },
-  { cat: "Backend", items: "Flask 3.0  |  SQLite\n9 Database Tables\nSSE Streaming  |  REST API", color: BLUE },
-  { cat: "Frontend", items: "Tailwind CSS  |  Chart.js\nD3.js Network Graph\n7 Tabs  |  Dark Theme", color: YELLOW },
-  { cat: "Compliance", items: "HITL + SLA Tracking\nSAR Filing  |  SWIFT GPI\n13-Currency FX Engine", color: "F97316" },
+  { cat: "Backend", items: "Flask 3.0  |  SQLite\n17 Database Tables  |  60+ APIs\nSSE Streaming  |  REST API", color: BLUE },
+  { cat: "Frontend", items: "Tailwind CSS  |  Chart.js\nD3.js Network Graph\n12 Tabs  |  Dark Theme", color: YELLOW },
+  { cat: "Compliance", items: "HITL + SLA Tracking  |  E-KYC\nSAR Filing  |  SWIFT GPI\n13-Currency FX  |  Fraud Alerts", color: "F97316" },
 ];
 techStack.forEach((t, idx) => {
   const col = idx % 3;
@@ -215,20 +216,27 @@ slide.addText("Live Demo", { x: 0.5, y: 1.5, w: 12, h: 1.2, fontSize: 44, bold: 
 slide.addText("Dashboard & Real-Time Monitoring", { x: 0.5, y: 3.5, w: 12, h: 0.7, fontSize: 24, color: GREEN });
 
 slide = pptx.addSlide({ masterName: "DARK" });
-slide.addText("Dashboard — KPIs & Health Monitoring", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Dashboard.png"), { x: 0.3, y: 0.8, w: 8.5, h: 5.3 });
+slide.addText("Dashboard — Multi-Account, KPIs & Notifications", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Dashboard_MultiAccount.png"), { x: 0.3, y: 0.8, w: 8.5, h: 5.3 });
 slide.addShape(pptx.ShapeType.rect, { x: 9.1, y: 0.8, w: 4, h: 5.3, fill: { color: "1E293B" }, rectRadius: 0.1 });
 const dashPoints = [
   "Real-time KPI cards",
-  "Settlement volume chart",
-  "AML telemetry ledger",
+  "Multi-account cards",
+  "Checking / Savings / Business",
+  "Notification bell + badge",
+  "Live FX rates ticker",
   "Health status dot (30s poll)",
   "SSE auto-refresh (6s)",
-  "Color-coded statuses",
 ];
 dashPoints.forEach((p, idx) => {
-  slide.addText("\u2022  " + p, { x: 9.3, y: 1.1 + idx * 0.7, w: 3.5, h: 0.5, fontSize: 13, color: WHITE });
+  slide.addText("\u2022  " + p, { x: 9.3, y: 1.0 + idx * 0.65, w: 3.5, h: 0.5, fontSize: 13, color: WHITE });
 });
+
+// Dashboard ledger + notifications
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("Dashboard — Real-Time Ledger & Notifications", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Dashboard_Ledger.png"), { x: 0.3, y: 0.8, w: 6.3, h: 5.5 });
+addImageSafe(slide, ss("Notifications_Panel.png"), { x: 6.8, y: 0.8, w: 6.3, h: 5.5 });
 
 // Dashboard telemetry
 slide = pptx.addSlide({ masterName: "DARK" });
@@ -240,12 +248,12 @@ addImageSafe(slide, ss("Dashboard + AMLl.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.
 // SLIDE 7 — DEMO: PAYMENT EXECUTION
 // ═══════════════════════════════════════════════════════════════
 slide = pptx.addSlide({ masterName: "SECTION" });
-slide.addText("Payment Execution", { x: 0.5, y: 1.5, w: 12, h: 1.2, fontSize: 44, bold: true, color: WHITE });
-slide.addText("Multi-Currency Settlement with AI Risk Scoring", { x: 0.5, y: 3.5, w: 12, h: 0.7, fontSize: 24, color: GREEN });
+slide.addText("Payment Hub", { x: 0.5, y: 1.5, w: 12, h: 1.2, fontSize: 44, bold: true, color: WHITE });
+slide.addText("5 Payment Channels: Settlement, P2P, ACH/Wire/SEPA, Scheduled, QR", { x: 0.5, y: 3.5, w: 12, h: 0.7, fontSize: 22, color: GREEN });
 
 slide = pptx.addSlide({ masterName: "DARK" });
-slide.addText("Settlement Result — Risk Assessment & SHAP", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
-addImageSafe(slide, ss("Payment.png"), { x: 0.3, y: 0.8, w: 8, h: 5.0 });
+slide.addText("Settlement — Multi-Currency with AI Risk Scoring", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Payment_Settlement.png"), { x: 0.3, y: 0.8, w: 8, h: 5.0 });
 slide.addShape(pptx.ShapeType.rect, { x: 8.6, y: 0.8, w: 4.5, h: 5.0, fill: { color: "1E293B" }, rectRadius: 0.1 });
 const payPoints = [
   "13-currency selector",
@@ -260,9 +268,21 @@ payPoints.forEach((p, idx) => {
   slide.addText("\u2022  " + p, { x: 8.8, y: 1.0 + idx * 0.65, w: 4, h: 0.5, fontSize: 13, color: WHITE });
 });
 
-// Settlement with different amount
+// P2P + ACH/Wire/SEPA
 slide = pptx.addSlide({ masterName: "DARK" });
-slide.addText("Settlement — $700K High-Value Transaction", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+slide.addText("P2P Transfer & ACH/Wire/SEPA", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Payment_P2P.png"), { x: 0.3, y: 0.8, w: 6.3, h: 5.5 });
+addImageSafe(slide, ss("Payment_ACH_Wire_SEPA.png"), { x: 6.8, y: 0.8, w: 6.3, h: 5.5 });
+
+// Scheduled + QR Pay
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("Scheduled Payments & QR Pay", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Payment_Scheduled.png"), { x: 0.3, y: 0.8, w: 6.3, h: 5.5 });
+addImageSafe(slide, ss("Payment_QR_Pay.png"), { x: 6.8, y: 0.8, w: 6.3, h: 5.5 });
+
+// Settlement blocked
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("Settlement — $700K High-Value Transaction (Blocked)", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
 addImageSafe(slide, ss("Settlement_result-blocked.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
 
 
@@ -430,7 +450,94 @@ addImageSafe(slide, ss("Audit_log.png"), { x: 7.2, y: 0.8, w: 5.8, h: 5.5 });
 
 
 // ═══════════════════════════════════════════════════════════════
-// SLIDE 12 — COMPLIANCE TOOLS
+// SLIDE — BENEFICIARIES & SPENDING 360
+// ═══════════════════════════════════════════════════════════════
+slide = pptx.addSlide({ masterName: "SECTION" });
+slide.addText("Account Management", { x: 0.5, y: 1.5, w: 12, h: 1.2, fontSize: 44, bold: true, color: WHITE });
+slide.addText("Beneficiaries, Spending 360 Analytics", { x: 0.5, y: 3.5, w: 12, h: 0.7, fontSize: 24, color: GREEN });
+
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("Beneficiary Management — Add, Edit, Delete", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Beneficiaries_Tab.png"), { x: 0.3, y: 0.8, w: 8.5, h: 5.3 });
+slide.addShape(pptx.ShapeType.rect, { x: 9.1, y: 0.8, w: 4, h: 5.3, fill: { color: "1E293B" }, rectRadius: 0.1 });
+const benPoints = [
+  "Add beneficiaries with full details",
+  "Account number + SWIFT code",
+  "Country + Currency selection",
+  "Risk level assignment",
+  "Auto-populates payment dropdown",
+  "Edit & delete controls",
+  "Individual / Corporate types",
+];
+benPoints.forEach((p, idx) => {
+  slide.addText("\u2022  " + p, { x: 9.3, y: 1.0 + idx * 0.65, w: 3.5, h: 0.5, fontSize: 13, color: WHITE });
+});
+
+// Spending 360
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("Spending 360 — Comprehensive Analytics Dashboard", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Spending_360_Overview.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
+
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("Spending 360 — Charts & Transaction History", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Spending_360_Charts.png"), { x: 0.3, y: 0.8, w: 6.3, h: 5.5 });
+addImageSafe(slide, ss("Spending_360_Transactions.png"), { x: 6.8, y: 0.8, w: 6.3, h: 5.5 });
+
+
+// ═══════════════════════════════════════════════════════════════
+// SLIDE — CARD SERVICES
+// ═══════════════════════════════════════════════════════════════
+slide = pptx.addSlide({ masterName: "SECTION" });
+slide.addText("Card Services", { x: 0.5, y: 1.5, w: 12, h: 1.2, fontSize: 44, bold: true, color: WHITE });
+slide.addText("Virtual Cards, Digital Wallet, Spending Controls", { x: 0.5, y: 3.5, w: 12, h: 0.7, fontSize: 24, color: GREEN });
+
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("Virtual Cards — Generate, Freeze, Provision", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Cards_Tab.png"), { x: 0.3, y: 0.8, w: 8.5, h: 5.3 });
+slide.addShape(pptx.ShapeType.rect, { x: 9.1, y: 0.8, w: 4, h: 5.3, fill: { color: "1E293B" }, rectRadius: 0.1 });
+const cardPoints = [
+  "Visa / Mastercard generation",
+  "Masked card numbers",
+  "Gradient card styling",
+  "Freeze / Unfreeze toggle",
+  "Apple Pay provisioning",
+  "Google Pay provisioning",
+  "Samsung Pay provisioning",
+  "Card cancellation",
+];
+cardPoints.forEach((p, idx) => {
+  slide.addText("\u2022  " + p, { x: 9.3, y: 1.0 + idx * 0.55, w: 3.5, h: 0.45, fontSize: 12, color: WHITE });
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+// SLIDE — SECURITY & KYC
+// ═══════════════════════════════════════════════════════════════
+slide = pptx.addSlide({ masterName: "SECTION" });
+slide.addText("Security & KYC", { x: 0.5, y: 1.5, w: 12, h: 1.2, fontSize: 44, bold: true, color: WHITE });
+slide.addText("E-KYC Verification, Fraud Alerts, Biometric Controls", { x: 0.5, y: 3.5, w: 12, h: 0.7, fontSize: 24, color: GREEN });
+
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("E-KYC & Fraud Monitoring", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Security_KYC.png"), { x: 0.3, y: 0.8, w: 6.3, h: 5.5 });
+addImageSafe(slide, ss("Security_Fraud_Alerts.png"), { x: 6.8, y: 0.8, w: 6.3, h: 5.5 });
+
+
+// ═══════════════════════════════════════════════════════════════
+// SLIDE — DOCUMENTS & SUPPORT
+// ═══════════════════════════════════════════════════════════════
+slide = pptx.addSlide({ masterName: "SECTION" });
+slide.addText("Support & Documents", { x: 0.5, y: 1.5, w: 12, h: 1.2, fontSize: 44, bold: true, color: WHITE });
+slide.addText("AI Chat Bot, Notification Center, Document Hub", { x: 0.5, y: 3.5, w: 12, h: 0.7, fontSize: 24, color: GREEN });
+
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("Documents, Support Chat & Notifications", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Documents_Tab.png"), { x: 0.3, y: 0.8, w: 6.3, h: 5.5 });
+addImageSafe(slide, ss("Support_Chat.png"), { x: 6.8, y: 0.8, w: 6.3, h: 5.5 });
+
+
+// ═══════════════════════════════════════════════════════════════
+// SLIDE — COMPLIANCE TOOLS
 // ═══════════════════════════════════════════════════════════════
 slide = pptx.addSlide({ masterName: "SECTION" });
 slide.addText("Compliance Tools", { x: 0.5, y: 1.5, w: 12, h: 1.2, fontSize: 44, bold: true, color: WHITE });
@@ -464,11 +571,11 @@ slide.addText("Key Differentiators", { x: 0.3, y: 0.1, w: 12, h: 0.7, fontSize: 
 
 const diffs = [
   { title: "Explainable AI", desc: "Per-transaction SHAP values with 16-feature decomposition. Every risk decision is transparent and auditable — EU AI Act compliant.", icon: "\uD83E\uDDE0", color: "8B5CF6" },
-  { title: "Four-Eyes Approval", desc: "Dual-approval for transactions >= $100K. No single individual can approve high-value settlements. Full segregation of duties.", icon: "\uD83D\uDC41\uFE0F", color: RED },
+  { title: "5 Payment Channels", desc: "Settlement, P2P, ACH/Wire/SEPA, Scheduled, QR Pay — all in one unified Payment Hub with sub-tab navigation.", icon: "\uD83D\uDCB3", color: BLUE },
   { title: "5-Model Ensemble", desc: "Isolation Forest + Random Forest + XGBoost + Autoencoder + Sequence Detector. 98-100% detection, < 3% false positives.", icon: "\uD83E\uDD16", color: GREEN },
-  { title: "Real-Time Velocity", desc: "VelocityTracker computes per-sender behavioral features at 1h/24h/7d windows. Detects behavioral anomalies invisible to static analysis.", icon: "\u26A1", color: YELLOW },
-  { title: "13-Currency FX", desc: "Multi-currency settlements with live rates, AML jurisdiction warnings, and standalone converter tool.", icon: "\uD83D\uDCB1", color: BLUE },
-  { title: "SLA + Health", desc: "Severity-based SLA countdown (4h-7d). Health polling every 30s. Continuous operational awareness.", icon: "\uD83D\uDCCA", color: "F97316" },
+  { title: "Virtual Card Services", desc: "Visa/MC generation, freeze/unfreeze, spending controls, and one-click provisioning to Apple Pay, Google Pay, Samsung Pay.", icon: "\uD83D\uDCB3", color: "F97316" },
+  { title: "Spending 360", desc: "Comprehensive analytics with monthly trends, risk distribution, currency breakdown, activity heatmaps, and top beneficiary rankings.", icon: "\uD83D\uDCCA", color: YELLOW },
+  { title: "E-KYC + Notifications", desc: "3-phase animated identity verification, real-time notification center with SSE push, and AI-powered support chat bot.", icon: "\uD83D\uDD12", color: RED },
 ];
 diffs.forEach((d, idx) => {
   const col = idx % 3;
@@ -500,12 +607,12 @@ const kpis = [
   ["Settlement Time", "T+2 to T+5", "< 10 seconds"],
   ["Fraud Detection", "45-60%", "98-100%"],
   ["False Positives", "15-25%", "< 3%"],
-  ["AI Explainability", "None (black box)", "Full SHAP"],
-  ["Compliance Cost", "$10.2M/yr", "$2.55M/yr"],
+  ["AI Explainability", "None (black box)", "Full SHAP (16 features)"],
+  ["Payment Channels", "1 (wire only)", "5 (Settlement/P2P/ACH/Sched/QR)"],
   ["Currency Support", "USD only", "13 currencies"],
-  ["Approval Controls", "Single approver", "Four-eyes dual"],
-  ["3-Year ROI", "N/A", "287%"],
-  ["Annual Savings", "Baseline", "$7.65M"],
+  ["Card Services", "Physical only", "Virtual Visa/MC + digital wallet"],
+  ["Identity (KYC)", "Manual paper", "E-KYC with AI scoring"],
+  ["Tabs / Features", "3-5 screens", "12 tabs, 60+ API endpoints"],
 ];
 kpis.forEach((row, idx) => {
   const y = tableY + 0.5 + idx * 0.55;
@@ -526,10 +633,10 @@ slide.addText("Questions & Discussion", { x: 0.5, y: 2.8, w: 12, h: 0.7, fontSiz
 slide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 3.7, w: 3.5, h: 0.04, fill: { color: GREEN } });
 
 slide.addText([
-  { text: "G9-IPTS v4.0\n", options: { fontSize: 16, bold: true, color: WHITE } },
+  { text: "G9-IPTS v5.0\n", options: { fontSize: 16, bold: true, color: WHITE } },
   { text: "7-Layer Architecture  |  5 AI Models  |  SHAP Explainability\n", options: { fontSize: 14, color: GRAY } },
-  { text: "Four-Eyes Approval  |  13 Currencies  |  SLA Tracking\n", options: { fontSize: 14, color: GRAY } },
-  { text: "7 Smart Contracts  |  Zero Trust  |  GDPR Compliant", options: { fontSize: 14, color: GRAY } },
+  { text: "12 Tabs  |  5 Payment Channels  |  Virtual Cards  |  E-KYC\n", options: { fontSize: 14, color: GRAY } },
+  { text: "Spending 360  |  Notifications  |  Support Chat  |  60+ APIs", options: { fontSize: 14, color: GRAY } },
 ], { x: 0.5, y: 4.2, w: 12, h: 1.8, fontFace: "Calibri", lineSpacingMultiple: 1.5 });
 
 slide.addText([

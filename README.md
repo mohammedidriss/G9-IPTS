@@ -46,7 +46,12 @@ The system integrates:
 - **GDPR-Compliant Data Sovereignty** — Off-chain PII vaulting with on-chain hash anchoring
 - **SLA Tracking** — Severity-based countdown timers (Critical 4h, High 24h, Medium 72h, Low 7d)
 - **Health Monitoring** — 30-second polling of all system components with visual status indicator
-- **Real-Time Dashboard** — SSE-powered live telemetry with 7 functional tabs
+- **Real-Time Dashboard** — SSE-powered live telemetry with 12 functional tabs
+- **Notification Center** — Real-time push notifications via SSE with bell badge and dropdown panel
+- **Support Chat Bot** — AI-powered floating chat widget for instant help
+- **Virtual Card Services** — Generate, freeze, cancel, and provision Visa/MC cards to digital wallets
+- **Spending 360 Analytics** — Comprehensive spending reports with charts, trends, and beneficiary rankings
+- **E-KYC Verification** — Animated 3-phase identity verification with confidence scoring
 
 ---
 
@@ -98,7 +103,7 @@ IPTS implements a **7-Layer Convergent Architecture**, where each layer handles 
 |  Atomic Swaps, Nostro/Vostro, Multi-Sig, Compliance Oracle  |
 +-------------------------------------------------------------+
 |  LAYER 6 - Data Sovereignty & Privacy                       |
-|  SQLite Off-Chain Vault (9 tables), GDPR Right to Erasure   |
+|  SQLite Off-Chain Vault (17 tables), GDPR Right to Erasure  |
 |  PII Encryption, Keccak256 Hash Anchoring                   |
 |  Four-Eyes Approvals Table, ISO 20022 Payload Separation    |
 +-------------------------------------------------------------+
@@ -128,10 +133,20 @@ Architecture SVG diagrams are available in [`docs/architecture/`](docs/architect
 ### Payment Settlement
 - **T+0 Atomic Settlement** — Cross-border payments settle in < 10 seconds via Ethereum smart contracts
 - **Multi-Currency FX Engine** — 13 currencies (USD, EUR, GBP, JPY, CHF, AUD, CAD, CNY, INR, SGD, AED, SAR, BRL) with live rates and FX preview
+- **P2P Transfers** — Instant peer-to-peer payments by username, email, or phone number with real-time balance updates
+- **ACH/Wire/SEPA Transfers** — External bank transfers with fee calculation, routing/sort codes, and processing time estimates
+- **Scheduled Payments** — Recurring payment scheduling (daily, weekly, bi-weekly, monthly) with beneficiary and description fields
+- **QR Code Payments** — Generate QR codes for receiving payments and scan/paste QR data to send instant payments
 - **AML Jurisdiction Warnings** — Automatic alerts for high-risk currencies (CNY, INR, BRL, AED, SAR)
 - **Nostro Liquidity Management** — Real-time liquidity tracking in USD with ETH blockchain backing
 - **SWIFT GPI Tracking** — UETR-based payment tracking compatible with SWIFT gpi standards
 - **Balance Management** — Real user accounts with balance tracking, debit/credit on settlement
+
+### Account Management
+- **Multi-Account System** — Auto-provisioned Checking, Savings, and Business sub-accounts with independent balances
+- **Beneficiary Management** — Full CRUD for beneficiaries with account numbers, bank names, SWIFT codes, risk levels, and notes
+- **Internal Transfers** — Move funds between sub-accounts (Checking, Savings, Business) instantly
+- **Real-Time Ledger** — Paginated transaction history showing direction (debit/credit), counterparty, status, and running balance
 
 ### AI/ML Fraud Detection
 - **5-Model Ensemble** — Isolation Forest, Random Forest, XGBoost, Autoencoder, and Sequence Detector
@@ -144,6 +159,21 @@ Architecture SVG diagrams are available in [`docs/architecture/`](docs/architect
 - **Graph Analytics** — PageRank centrality analysis to detect money laundering networks
 - **Model Retraining** — On-demand retraining with fresh synthetic data on all 5 models
 
+### Card Services
+- **Virtual Card Generation** — Issue Visa/Mastercard virtual cards with masked numbers, expiry, and hashed CVV
+- **Card Controls** — Per-card spending limits, online/international/ATM toggles, and merchant category restrictions
+- **Freeze/Unfreeze** — Instant card suspension and reactivation with status tracking
+- **Digital Wallet Provisioning** — One-click provisioning to Apple Pay, Google Pay, and Samsung Pay
+- **Card Cancellation** — Permanent card deactivation with confirmation flow
+
+### Financial Tools
+- **Spending 360 Analytics** — Comprehensive spending dashboard with KPI cards (Total Sent, Total Received, Avg Risk Score, Highest TX)
+- **Monthly Spending Trend** — Dual-axis chart showing spending amount and transaction count by month
+- **Risk Distribution** — Bar chart categorizing transactions by risk level (Low, Medium, High, Critical)
+- **Currency Breakdown** — Doughnut chart showing spending distribution by currency
+- **Activity Heatmap** — Bar chart showing transaction activity by hour of day
+- **Top Beneficiaries** — Ranked table of most-transacted beneficiaries with counts, amounts, and risk scores
+
 ### Compliance & Regulation
 - **Four-Eyes Dual Approval** — Transactions >= $100K require two independent compliance officer approvals
 - **Human-in-the-Loop (HITL)** — Blocked transactions routed to compliance officers with four-eyes badges
@@ -153,8 +183,11 @@ Architecture SVG diagrams are available in [`docs/architecture/`](docs/architect
 - **Sanctions Database** — Maintainable sanctions list with entity screening
 - **Audit Trail** — Immutable audit log of all system actions
 
-### Security
+### Security & Identity
 - **Zero Trust Architecture** — Every request authenticated and authorized via JWT
+- **E-KYC Verification** — 3-phase animated verification flow (document upload, AI processing, identity verified) with confidence scoring
+- **Biometric Controls** — Toggles for Face ID, fingerprint authentication, and biometric payment authorization
+- **Fraud Alert Monitoring** — Real-time fraud alert feed with severity levels and acknowledgment controls
 - **Role-Based Access Control (RBAC)** — 5 distinct roles with granular permissions
 - **GDPR Compliance** — Right to erasure, PII vaulting, data minimization
 - **Hash Anchoring** — Only SHA-256 hashes stored on-chain; raw PII stays off-chain
@@ -163,7 +196,12 @@ Architecture SVG diagrams are available in [`docs/architecture/`](docs/architect
 
 ### Dashboard & UI
 - **Health Monitoring** — /api/health polled every 30 seconds with green/yellow/red status dot
-- **7-Tab Interface** — Dashboard, Payments, AI/ML, Network Graph, Admin, Compliance, Case Management
+- **12-Tab Interface** — Dashboard, Payments, AI/ML, Network Graph, Admin, Compliance, Case Management, Beneficiaries, Spending 360, Cards, Security, Documents
+- **Notification Center** — Real-time notification bell with badge count, dropdown panel, and mark-as-read functionality (SSE-powered)
+- **Support Chat Widget** — Floating AI-powered chat bot with keyword-matching responses for account, payment, and security queries
+- **Multi-Account Dashboard** — Sub-account cards (Checking, Savings, Business) with balances displayed on the Dashboard
+- **Real-Time Ledger** — Live transaction feed on Dashboard showing debit/credit direction, counterparty, and status
+- **Document Center** — Auto-generated monthly statements with download buttons and date filtering
 - **SHAP Visualization** — Inline feature contributions + horizontal bar chart in AI/ML tab
 - **FX Converter** — Standalone currency conversion tool in Compliance tab
 - **Professional Dark Theme** — Fintech-grade UI with Tailwind CSS
@@ -258,7 +296,13 @@ uploaded = files.upload()  # Select ipts_colab_deploy.py and ipts_frontend.html
 |---------|:-----:|:--------:|:-------:|:----------:|:--------------:|
 | Dashboard | Y | Y | Y | Y | Y |
 | Execute Payments | Y | Y | - | - | - |
+| P2P / ACH / Scheduled / QR | Y | Y | - | - | - |
 | View Transactions | Y | Y | Y | Y | Y |
+| Beneficiary Management | Y | Y | - | - | - |
+| Spending 360 | Y | Y | Y | Y | Y |
+| Virtual Cards | Y | Y | - | - | - |
+| E-KYC / Security | Y | Y | Y | Y | Y |
+| Documents | Y | Y | Y | Y | Y |
 | HITL Approve/Reject | Y | - | - | Y | - |
 | Four-Eyes Approval | Y | - | - | Y | - |
 | Case Management | Y | - | Y | Y | - |
@@ -267,6 +311,8 @@ uploaded = files.upload()  # Select ipts_colab_deploy.py and ipts_frontend.html
 | Sanctions Mgmt. | Y | - | - | Y | - |
 | Audit Logs | Y | - | Y | Y | - |
 | FX Converter | Y | Y | Y | Y | Y |
+| Notifications | Y | Y | Y | Y | Y |
+| Support Chat | Y | Y | Y | Y | Y |
 
 ---
 
@@ -274,15 +320,20 @@ uploaded = files.upload()  # Select ipts_colab_deploy.py and ipts_frontend.html
 
 ### Tab 1: Dashboard
 - **KPI Cards** — Total Settlements, Blocked, Flagged, Nostro Liquidity
+- **My Accounts** — Sub-account cards for Checking, Savings, and Business with live balances
+- **Real-Time Ledger** — Latest 10 transactions with direction (debit/credit), counterparty, and status
+- **FX Rates Ticker** — Live rates for all 13 supported currencies
 - **Settlement Volume Chart** — Real-time settlement activity visualization
 - **AML Telemetry Table** — Live ledger with sender, beneficiary, amount, risk score, status
+- **Notification Bell** — Badge count with dropdown panel showing recent notifications
 - **Health Status Dot** — Green/yellow/red indicator polled every 30 seconds
 
-### Tab 2: Payments
-- **Multi-Currency Support** — Select from 13 currencies with FX preview
-- **AML Jurisdiction Warnings** — Automatic alerts for high-risk currencies
-- **SHAP Feature Contributions** — Inline display of 16-feature contribution breakdown after settlement
-- **Risk Score Breakdown** — Visual bars for Rules, ML, NLP, and Graph components
+### Tab 2: Payments (5 Sub-Tabs)
+- **Settlement** — Multi-currency settlement with FX preview, AML warnings, SHAP contributions, and risk breakdown
+- **P2P Transfer** — Send money to other users by username, email, or phone with instant balance updates
+- **ACH/Wire/SEPA** — External bank transfers with transfer type selector, fee calculation, and processing time estimates
+- **Scheduled Payments** — Create recurring payments (daily/weekly/bi-weekly/monthly) with date picker and description
+- **QR Pay** — Generate QR codes for receiving payments and scan/paste QR data for instant payment
 
 ### Tab 3: AI/ML
 - **5 Model Cards** — Isolation Forest, Random Forest, XGBoost, Autoencoder, Sequence Detector
@@ -310,6 +361,41 @@ uploaded = files.upload()  # Select ipts_colab_deploy.py and ipts_frontend.html
 - **Case Actions** — Investigate, Escalate, Resolve, Assign, Add Findings, File SAR
 - **Case Types** — AML, Sanctions, Fraud, Structuring, PEP, Terrorist Financing
 
+### Tab 8: Beneficiaries
+- **Add Beneficiary** — Form with name, nickname, account number, bank name, SWIFT code, country, currency, type (individual/corporate), and risk level
+- **Beneficiary List** — Searchable table with edit and delete actions
+- **Risk Color Coding** — Visual indicators for low, medium, high, and critical risk beneficiaries
+- **Payment Integration** — Added beneficiaries automatically appear in the Settlement payment dropdown
+
+### Tab 9: Spending 360
+- **KPI Summary** — Total Sent, Total Received, Average Risk Score, Highest Transaction, Account Balance
+- **Monthly Spending Trend** — Dual-axis chart (spending amount + transaction count) over time
+- **Risk Distribution** — Bar chart categorizing transactions by risk level
+- **Spending by Currency** — Doughnut chart showing currency distribution
+- **Activity by Hour** — Bar chart revealing transaction patterns by time of day
+- **Top Beneficiaries** — Ranked table with transaction counts, total amounts, avg risk, and risk badges
+- **Recent Transactions** — Complete transaction log with date, beneficiary, amount, risk, and status
+
+### Tab 10: Cards
+- **Generate Card** — Issue Visa or Mastercard virtual cards with custom spending limits
+- **Card Gallery** — Visual card tiles with masked numbers, expiry dates, and gradient styling
+- **Card Actions** — Freeze/Unfreeze toggle, Apple/Google/Samsung wallet provisioning, and permanent cancellation
+- **Spending Controls** — Per-card spending limits and merchant category restrictions
+
+### Tab 11: Security
+- **E-KYC Verification** — 3-phase animated flow: document upload, AI verification spinner, identity confirmed with confidence score
+- **Biometric Settings** — Toggle switches for Face ID, fingerprint, and biometric payment authorization
+- **Fraud Alerts** — Real-time feed of fraud alerts with severity levels (critical/high/medium/low) and acknowledge buttons
+
+### Tab 12: Documents
+- **Statement List** — Auto-generated monthly account statements with document type and date
+- **Download** — One-click download for any statement
+- **Date Filter** — Filter statements by date range
+
+### Floating Widgets
+- **Support Chat** — Expandable chat panel (bottom-right) with AI-powered bot that responds to payment, account, security, and card queries
+- **Notification Center** — Bell icon with unread count badge, dropdown panel with mark-as-read and mark-all-read actions
+
 ---
 
 ## API Reference
@@ -327,15 +413,47 @@ All endpoints (except `/api/login`) require JWT authentication via `Authorizatio
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/accounts/me` | Current user's account info and balance |
-| GET | `/api/accounts/beneficiaries` | List available beneficiaries |
+| GET | `/api/accounts/beneficiaries` | List available beneficiaries (hardcoded + user-added) |
+| GET | `/api/accounts/sub-accounts` | List user's sub-accounts (Checking, Savings, Business) |
+| POST | `/api/accounts/sub-accounts` | Create a new sub-account |
+| POST | `/api/accounts/transfer-internal` | Transfer funds between sub-accounts |
+| GET | `/api/ledger` | Paginated transaction ledger for current user |
 
-### Settlements
+### Beneficiary Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/beneficiaries` | List user's beneficiaries |
+| POST | `/api/beneficiaries` | Add a new beneficiary |
+| PUT | `/api/beneficiaries/<id>` | Update beneficiary details |
+| DELETE | `/api/beneficiaries/<id>` | Deactivate a beneficiary |
+
+### Settlements & Payments
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/settlement` | Execute settlement (returns shap_values) |
 | GET | `/api/transactions` | List transactions (paginated) |
 | GET | `/api/dashboard` | Real-time dashboard metrics |
+| POST | `/api/p2p/send` | Send P2P transfer (by username/email/phone) |
+| GET | `/api/p2p/history` | P2P transfer history |
+| POST | `/api/transfers/external` | ACH/Wire/SEPA external transfer |
+| GET | `/api/payments/scheduled` | List scheduled payments |
+| POST | `/api/payments/scheduled` | Create a scheduled payment |
+| DELETE | `/api/payments/scheduled/<id>` | Cancel a scheduled payment |
+| POST | `/api/qr/generate` | Generate QR code for receiving payment |
+| POST | `/api/qr/pay` | Pay using QR code data |
+
+### Card Services
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/cards` | List user's virtual cards |
+| POST | `/api/cards/generate` | Generate a new virtual card (Visa/MC) |
+| POST | `/api/cards/<id>/freeze` | Toggle freeze/unfreeze on a card |
+| PUT | `/api/cards/<id>/controls` | Update card spending controls |
+| DELETE | `/api/cards/<id>` | Cancel (permanently deactivate) a card |
+| POST | `/api/cards/<id>/provision` | Provision card to digital wallet |
 
 ### HITL Review
 
@@ -358,6 +476,36 @@ All endpoints (except `/api/login`) require JWT authentication via `Authorizatio
 | GET | `/api/compliance/sanctions` | List sanctions |
 | POST | `/api/compliance/sanctions` | Add to sanctions list |
 | GET | `/api/compliance/swift-gpi/<uetr>` | Track SWIFT payment |
+
+### Security & Identity
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/kyc/status` | Get current E-KYC verification status |
+| POST | `/api/kyc/submit` | Submit KYC verification (passport/ID/license) |
+| GET | `/api/fraud/alerts` | List fraud alerts for current user |
+
+### Notifications & Support
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/notifications` | List user's notifications (unread count) |
+| POST | `/api/notifications/read` | Mark notification(s) as read |
+| POST | `/api/support/message` | Send message to support chat bot |
+| GET | `/api/support/history` | Get support chat history |
+
+### Documents
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/documents` | List auto-generated statements |
+| GET | `/api/documents/<id>/download` | Download a specific document |
+
+### Reporting & Analytics
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/reporting/spending-360` | Comprehensive spending analytics |
 
 ### AI/ML & System
 
@@ -493,7 +641,7 @@ Seven Solidity contracts are compiled and deployed to the local Ganache blockcha
 | API | Python Flask, JWT, SSE |
 | Blockchain | Solidity ^0.8.0, Web3.py, Ganache, py-solc-x |
 | AI/ML | scikit-learn, XGBoost, SHAP, imbalanced-learn, NetworkX |
-| Database | SQLite (off-chain vault, 9 tables) |
+| Database | SQLite (off-chain vault, 17 tables) |
 | Security | JWT HS256, RBAC, Four-Eyes, HSTS, Rate Limiting |
 | Infrastructure | Local macOS (run_local.sh) or Google Colab |
 
@@ -522,15 +670,18 @@ IPTS/
 │                                       #   Phase 8: Status reporting
 │
 ├── templates/
-│   └── ipts_frontend.html              # Single-page frontend (1,600+ lines)
+│   └── ipts_frontend.html              # Single-page frontend (2,800+ lines, 12 tabs)
 │
 ├── docs/
 │   ├── generate_report.js              # Technical report DOCX generator
 │   ├── generate_briefing.js            # Executive briefing DOCX generator
+│   ├── generate_presentation.js        # Demo walkthrough PPTX generator
+│   ├── capture_screenshots.js          # Automated screenshot capture (Puppeteer)
 │   ├── IPTS_Technical_Report.docx      # Generated technical report
 │   ├── G9-IPTS_Executive_Briefing.docx # Generated executive briefing
+│   ├── G9-IPTS_Demo_Walkthrough.pptx   # Generated demo walkthrough presentation
 │   ├── architecture/                   # Architecture diagrams (SVG + PNG)
-│   └── screenshots/                    # UI screenshots
+│   └── screenshots/                    # UI screenshots (57 PNGs)
 │
 ├── contracts/                          # Compiled contract artifacts (generated)
 ├── models/                             # Trained ML models (generated)
@@ -563,7 +714,33 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 ## Author
 
-**Mohamad Idriss**
+**Mohamad Idriss** — Lead Architect & Full-Stack Engineer
+
+---
+
+### Screenshots
+
+All feature screenshots are available in [`docs/screenshots/`](docs/screenshots/):
+
+| Screenshot | Feature |
+|------------|---------|
+| `Dashboard_MultiAccount.png` | Dashboard with sub-accounts, KPIs, and notification bell |
+| `Dashboard_Ledger.png` | Real-time ledger panel on Dashboard |
+| `Notifications_Panel.png` | Notification dropdown with unread alerts |
+| `Payment_Settlement.png` | Settlement form with FX preview |
+| `Payment_P2P.png` | P2P Transfer sub-tab |
+| `Payment_ACH_Wire_SEPA.png` | External bank transfer with fee calculation |
+| `Payment_Scheduled.png` | Scheduled payment creation form |
+| `Payment_QR_Pay.png` | QR code generation and scan-to-pay |
+| `Beneficiaries_Tab.png` | Beneficiary management with add/edit |
+| `Spending_360_Overview.png` | Spending 360 KPI cards and trend chart |
+| `Spending_360_Charts.png` | Currency breakdown and activity heatmap |
+| `Spending_360_Transactions.png` | Top beneficiaries and recent transactions |
+| `Cards_Tab.png` | Virtual card gallery with actions |
+| `Security_KYC.png` | E-KYC verification flow |
+| `Security_Fraud_Alerts.png` | Fraud alert monitoring feed |
+| `Documents_Tab.png` | Document center with statement downloads |
+| `Support_Chat.png` | AI-powered support chat widget |
 
 ---
 
