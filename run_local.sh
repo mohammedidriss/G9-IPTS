@@ -89,7 +89,7 @@ sed \
     -e 's|port 5000|port 5001|g' \
     -e 's|:5000|:5001|g' \
     -e 's|"--port", "5000"|"--port", "5001"|g' \
-    "$IPTS_DIR/src/ipts_colab_deploy.py" > "/tmp/ipts_local_deploy.py"
+    "$IPTS_DIR/src/IPTS_deploy.py" > "/tmp/ipts_local_deploy.py"
 
 # Now patch Phase 5 to hardcode the correct frontend HTML path
 # Replace the entire frontend_src line with the absolute path to our HTML

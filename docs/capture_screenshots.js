@@ -207,8 +207,95 @@ async function run() {
   await new Promise(r => setTimeout(r, 1500));
   await snap("DeFi_Escrow.png");
 
+  // --- Re-capture old-theme screenshots ---
+
+  // Dashboard + AML Telemetry (scroll down past KPIs)
+  await nav('switchTab("dashboard"); window.scrollTo(0, 800);');
+  await new Promise(r => setTimeout(r, 2000));
+  await snap("Dashboard + AMLl.png");
+
+  // Payments - execute a settlement to get SHAP/blocked results
+  await nav('switchTab("payments"); switchPaySub("settlement"); window.scrollTo(0,0);');
+  await new Promise(r => setTimeout(r, 1500));
+  // Execute a $150K settlement (will be blocked)
+  await nav(`
+    document.getElementById('payBeneficiary').value = 'Rohit Jacob Isaac';
+    document.getElementById('payAmount').value = '150000';
+  `);
+  await new Promise(r => setTimeout(r, 500));
+  await snap("Settlement_result-blocked.png");
+
+  // SHAP Explainability (AI/ML tab)
+  await nav('switchTab("aiml"); window.scrollTo(0,0);');
+  await new Promise(r => setTimeout(r, 1500));
+  await snap("AML_tab.png");
+
+  // SHAP chart area
+  await nav('window.scrollTo(0, 400);');
+  await snap("SHAP_Explainability.png");
+
+  // SHAP Feature Contribution
+  await nav('window.scrollTo(0, 600);');
+  await snap("SHAP_Feature_Contribution.png");
+
+  // Risk Score components
+  await nav('switchTab("payments"); switchPaySub("settlement"); window.scrollTo(0, 400);');
+  await new Promise(r => setTimeout(r, 1000));
+  await snap("Risk_Score.png");
+  await snap("Risk_score2.png");
+
+  // Admin: HITL details
+  await nav('switchTab("admin"); window.scrollTo(0,0);');
+  await new Promise(r => setTimeout(r, 1500));
+  await snap("HITL-Approval-1st.png");
+
+  // Audit log (scroll down in admin)
+  await nav('window.scrollTo(0, 600);');
+  await new Promise(r => setTimeout(r, 1000));
+  await snap("Audit_log.png");
+
+  // HITL 2nd approval view
+  await nav('window.scrollTo(0, 0);');
+  await snap("HITL_Approval_2nd.png");
+
+  // Four-eyes message (just capture the admin tab)
+  await snap("four_eyes-message.png");
+
+  // GDPR Right to Erasure (in admin tab, scroll down)
+  await nav('window.scrollTo(0, 1200);');
+  await new Promise(r => setTimeout(r, 500));
+  await snap("GDPR_Right_to_erase.png");
+
+  // Compliance tab sections
+  await nav('switchTab("compliance"); window.scrollTo(0,0);');
+  await new Promise(r => setTimeout(r, 1500));
+  await snap("Sanction_list_Add.png");
+
+  await nav('window.scrollTo(0, 400);');
+  await snap("Swift_GPI_tracker.png");
+
+  await nav('window.scrollTo(0, 800);');
+  await snap("Currency_converter.png");
+
+  await nav('window.scrollTo(0, 1200);');
+  await snap("Nostro_balance.png");
+
+  // Case details
+  await nav('switchTab("cases"); window.scrollTo(0,0);');
+  await new Promise(r => setTimeout(r, 1500));
+  await snap("Case_details.png");
+
+  // Case detail view (click first case if available)
+  await nav(`
+    const firstCase = document.querySelector('[onclick*="openCaseModal"]');
+    if (firstCase) firstCase.click();
+  `);
+  await new Promise(r => setTimeout(r, 1000));
+  await snap("Case_details_View1.png");
+  await nav('document.querySelector(".modal-overlay")?.remove();');
+
   await browser.close();
-  console.log("\n=== ALL 27 SCREENSHOTS CAPTURED ===");
+  console.log("\n=== ALL SCREENSHOTS CAPTURED (27 new + old theme replacements) ===");
 }
 
 run().catch(e => { console.error("FATAL:", e.message); process.exit(1); });

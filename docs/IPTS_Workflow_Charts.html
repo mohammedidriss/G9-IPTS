@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPTS — Workflow Charts & Technology Map</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --navy: #003366;
+    --blue: #0D47A1;
+    --light: #F4F4F4;
+    --white: #FFFFFF;
+    --border: #D1D9E0;
+    --text: #1A1A2E;
+    --accent: #1565C0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--light);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  header {
+    background: var(--navy);
+    color: white;
+    padding: 32px 48px;
+    border-bottom: 4px solid var(--blue);
+  }
+  header h1 { font-size: 2rem; font-weight: 700; letter-spacing: 0.5px; }
+  header p { font-size: 1rem; opacity: 0.8; margin-top: 6px; }
+  .badge {
+    display: inline-block;
+    background: var(--blue);
+    color: white;
+    font-size: 0.75rem;
+    padding: 2px 10px;
+    border-radius: 12px;
+    margin-top: 8px;
+    letter-spacing: 0.5px;
+  }
+  .toc {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin: 32px 48px 0;
+    padding: 24px 32px;
+  }
+  .toc h2 { font-size: 1.1rem; color: var(--navy); margin-bottom: 12px; }
+  .toc ol { padding-left: 20px; }
+  .toc li { margin: 6px 0; }
+  .toc a { color: var(--blue); text-decoration: none; font-weight: 500; }
+  .toc a:hover { text-decoration: underline; }
+  .section {
+    margin: 40px 48px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .section-header {
+    background: linear-gradient(90deg, var(--navy), var(--blue));
+    color: white;
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .section-num {
+    background: rgba(255,255,255,0.2);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+  .section-title { font-size: 1.25rem; font-weight: 600; }
+  .section-body { padding: 28px; }
+  .description {
+    background: #EEF2F7;
+    border-left: 4px solid var(--blue);
+    padding: 12px 18px;
+    border-radius: 4px;
+    margin-bottom: 24px;
+    font-size: 0.95rem;
+    color: #2C3E50;
+  }
+  .mermaid {
+    background: #F8FAFC;
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .tech-card {
+    background: var(--light);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    border-top: 3px solid var(--blue);
+  }
+  .tech-card h4 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--navy);
+    margin-bottom: 8px;
+  }
+  .tech-card ul { padding-left: 16px; font-size: 0.88rem; color: #444; }
+  .tech-card li { margin: 3px 0; }
+  .layer-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 20px;
+  }
+  .layer {
+    display: flex;
+    align-items: stretch;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .layer-label {
+    background: var(--navy);
+    color: white;
+    width: 160px;
+    min-width: 160px;
+    padding: 14px 16px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    letter-spacing: 0.3px;
+  }
+  .layer-content {
+    background: white;
+    flex: 1;
+    padding: 14px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .tag {
+    background: #EEF2F7;
+    border: 1px solid #C0CFE0;
+    color: #1A3A5C;
+    font-size: 0.82rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+  .tag.highlight {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: white;
+  }
+  .arrow-down {
+    text-align: center;
+    font-size: 1.5rem;
+    color: var(--blue);
+    margin: 1px 0;
+    line-height: 1;
+  }
+  footer {
+    background: var(--navy);
+    color: rgba(255,255,255,0.7);
+    text-align: center;
+    padding: 24px;
+    margin-top: 48px;
+    font-size: 0.85rem;
+  }
+  @media (max-width: 768px) {
+    header { padding: 20px 24px; }
+    .toc, .section { margin-left: 16px; margin-right: 16px; }
+    .section-body { padding: 16px; }
+    .layer-label { width: 110px; min-width: 110px; font-size: 0.75rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>IPTS — Workflow Charts & Technology Map</h1>
+  <p>Intelligent Payment & Transaction System · Architecture Flows by Domain</p>
+  <span class="badge">Version 6.0 · April 2026</span>
+</header>
+
+<div class="toc">
+  <h2>📋 Contents</h2>
+  <ol>
+    <li><a href="#arch">System Architecture Layers</a></li>
+    <li><a href="#auth">Authentication & Authorization Flow</a></li>
+    <li><a href="#payment">Payment Processing Flow (AML + Blockchain)</a></li>
+    <li><a href="#aml">AI/ML Risk Scoring Pipeline</a></li>
+    <li><a href="#hitl">HITL Four-Eyes Approval Flow</a></li>
+    <li><a href="#defi">DeFi Engine Flows (AMM Swap · Staking · Escrow)</a></li>
+    <li><a href="#compliance">Compliance & Regulatory Flow</a></li>
+    <li><a href="#chat">LLM Support Chat Flow</a></li>
+    <li><a href="#graph">Network Graph & Fraud Detection Flow</a></li>
+    <li><a href="#db">Database Entity Flow</a></li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 1. ARCHITECTURE LAYERS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="arch">
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <div class="section-title">System Architecture Layers</div>
+  </div>
+  <div class="section-body">
+    <div class="description">
+      IPTS is built as a 5-layer stack. Each layer owns a specific responsibility and communicates strictly downward (with JWT-secured API boundaries between Frontend and Backend).
+    </div>
+    <div class="layer-diagram">
+      <div class="layer">
+        <div class="layer-label">🖥️ Presentation Layer</div>
+        <div class="layer-content">
+          <span class="tag highlight">ipts_frontend.html</span>
+          <span class="tag">Tailwind CSS</span>
+          <span class="tag">Chart.js</span>
+          <span class="tag">D3.js</span>
+          <span class="tag">Mermaid.js</span>
+          <span class="tag">13 SPA Tabs</span>
+          <span class="tag">Vanilla JS ES6</span>
+        </div>
+      </div>
+      <div class="arrow-down">↕</div>
+      <div class="layer">
+        <div class="layer-label">🔌 API Gateway Layer</div>
+        <div class="layer-content">
+          <span class="tag highlight">Flask 3.0</span>
+          <span class="tag">JWT (PyJWT)</span>
+          <span class="tag">75+ REST Endpoints</span>
+          <span class="tag">SSE / Streaming</span>
+          <span class="tag">RBAC Middleware</span>
+          <span class="tag">CORS</span>
+        </div>
+      </div>
+      <div class="arrow-down">↕</div>
+      <div class="layer">
+        <div class="layer-label">🧠 Intelligence Layer</div>
+        <div class="layer-content">
+          <span class="tag highlight">XGBoost</span>
+          <span class="tag highlight">scikit-learn</span>
+          <span class="tag">IsolationForest</span>
+          <span class="tag">RandomForest</span>
+          <span class="tag">Autoencoder</span>
+          <span class="tag">SHAP Explainability</span>
+          <span class="tag">Ollama llama3.2</span>
+          <span class="tag">NetworkX</span>
+          <span class="tag">imbalanced-learn</span>
+        </div>
+      </div>
+      <div class="arrow-down">↕</div>
+      <div class="layer">
+        <div class="layer-label">⛓️ Blockchain Layer</div>
+        <div class="layer-content">
+          <span class="tag highlight">Web3.py</span>
+          <span class="tag highlight">Solidity 0.8</span>
+          <span class="tag">Ganache</span>
+          <span class="tag">7 Smart Contracts</span>
+          <span class="tag">py-solc-x</span>
+          <span class="tag">HTLC Contract</span>
+          <span class="tag">LiquidityPool Contract</span>
+        </div>
+      </div>
+      <div class="arrow-down">↕</div>
+      <div class="layer">
+        <div class="layer-label">🗄️ Persistence Layer</div>
+        <div class="layer-content">
+          <span class="tag highlight">SQLite 3</span>
+          <span class="tag">22 DB Tables</span>
+          <span class="tag">joblib (model cache)</span>
+          <span class="tag">Cryptography (Fernet)</span>
+          <span class="tag">Pytesseract</span>
+          <span class="tag">Pillow</span>
+        </div>
+      </div>
+    </div>
+    <div class="tech-grid" style="margin-top:28px;">
+      <div class="tech-card">
+        <h4>Frontend Technologies</h4>
+        <ul>
+          <li>Tailwind CSS (custom theme)</li>
+          <li>Chart.js (bar/doughnut/line)</li>
+          <li>D3.js v7 (network graph, heatmap)</li>
+          <li>Vanilla JS — no framework</li>
+          <li>Server-Sent Events (SSE)</li>
+          <li>QR Code API</li>
+        </ul>
+      </div>
+      <div class="tech-card">
+        <h4>Backend Technologies</h4>
+        <ul>
+          <li>Flask 3.0 (REST API)</li>
+          <li>PyJWT 2.8 (RS256 tokens)</li>
+          <li>SQLite (22 tables)</li>
+          <li>Fernet symmetric encryption</li>
+          <li>Werkzeug (password hashing)</li>
+          <li>Python 3.12</li>
+        </ul>
+      </div>
+      <div class="tech-card">
+        <h4>AI/ML Technologies</h4>
+        <ul>
+          <li>XGBoost 2.0 (boosted trees)</li>
+          <li>scikit-learn 1.4 (RF, IF)</li>
+          <li>SHAP 0.44 (explainability)</li>
+          <li>NumPy / Pandas</li>
+          <li>imbalanced-learn (SMOTE)</li>
+          <li>joblib (model caching)</li>
+        </ul>
+      </div>
+      <div class="tech-card">
+        <h4>Blockchain Technologies</h4>
+        <ul>
+          <li>Ganache (local EVM testnet)</li>
+          <li>Solidity 0.8 smart contracts</li>
+          <li>Web3.py 6.15 (EVM bridge)</li>
+          <li>py-solc-x (compiler)</li>
+          <li>ABI encoding/decoding</li>
+          <li>ERC-20 stablecoin</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 2. AUTHENTICATION -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="auth">
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <div class="section-title">Authentication & Authorization Flow</div>
+  </div>
+  <div class="section-body">
+    <div class="description">
+      All API access requires a JWT bearer token. Roles (admin/supervisor/user) control endpoint access via RBAC middleware. Sessions are stateless — no server-side session storage.
+    </div>
+    <div class="mermaid">
+flowchart TD
+    A([👤 User Opens Browser]) --> B[Login Screen\nipts_frontend.html]
+    B --> C[Enter username + password]
+    C --> D["POST /api/login\nFlask endpoint"]
+    D --> E{Check credentials\nSQLite: user_accounts}
+    E -->|Invalid| F[❌ Return 401\nError message shown]
+    E -->|Valid| G[Generate JWT Token\nPyJWT HS256\nexp: 8 hours]
+    G --> H["Return token + role\n+ full_name + balance"]
+    H --> I[Store in JS globals\nTOKEN, USERNAME,\nROLE, BALANCE]
+    I --> J{Role check}
+    J -->|admin| K[Full access\n13 tabs + admin controls]
+    J -->|supervisor| L[Approval access\nHITL queue visible]
+    J -->|user| M[Standard access\nNo admin/compliance tabs]
+    K & L & M --> N[Every API call sends\nAuthorization: Bearer TOKEN]
+    N --> O["@require_auth decorator\nFlask RBAC middleware"]
+    O -->|Token valid| P[✅ Endpoint executes]
+    O -->|Token expired/invalid| Q[❌ 401 Unauthorized\nFrontend shows login]
+
+    style A fill:#003366,color:#fff
+    style P fill:#1B5E20,color:#fff
+    style Q fill:#B71C1C,color:#fff
+    style F fill:#B71C1C,color:#fff
+    </div>
+    <div class="tech-grid">
+      <div class="tech-card">
+        <h4>Authentication Stack</h4>
+        <ul>
+          <li>PyJWT 2.8 — token generation</li>
+          <li>HS256 algorithm signing</li>
+          <li>8-hour token expiry</li>
+          <li>Werkzeug — password hash</li>
+        </ul>
+      </div>
+      <div class="tech-card">
+        <h4>Authorization Rules</h4>
+        <ul>
+          <li>admin — all 75+ endpoints</li>
+          <li>supervisor — approvals + view</li>
+          <li>user — payments + DeFi</li>
+          <li>RBAC enforced server-side</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 3. PAYMENT PROCESSING -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="payment">
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <div class="section-title">Payment Processing Flow — AML + Blockchain Settlement</div>
+  </div>
+  <div class="section-body">
+    <div class="description">
+      Every settlement payment passes through a 5-stage pipeline: input validation → 16-feature AML scoring → threshold routing → HITL queue or blockchain atomic settlement → SSE notification.
+    </div>
+    <div class="mermaid">
+flowchart TD
+    A([👤 User submits\nSettlement Form]) --> B["POST /api/payments/settle\nFlask — JWT validated"]
+    B --> C[Validate inputs\nbeneficiary, amount,\ncurrency, account]
+    C --> D[Build 16-Feature Vector\nSee AML Pipeline chart]
+    D --> E["AML_Risk_Engine.score()\n5-model ensemble\nXGBoost + RF + IF +\nAutoencoder + Sequence"]
+    E --> F[Compute composite\nrisk_score 0–100\nSHAP values generated]
+    F --> G{Risk Threshold}
+    G -->|score < 30| H[✅ AUTO-APPROVED\nLow risk]
+    G -->|30 ≤ score < 70| I[⚠️ REVIEW QUEUE\nHITL required]
+    G -->|score ≥ 70| J[🚫 AUTO-BLOCKED\nHigh risk]
+
+    H --> K["Submit to Blockchain\nWeb3.py call\nIPTS_Settlement.settle()"]
+    I --> L[Store in pending_approvals\nSQLite — status: pending]
+    J --> M[Log to transactions\nstatus: blocked\nNo blockchain call]
+
+    K --> N{Smart Contract\nGanache EVM}
+    N -->|Success| O[Record tx_hash\nDeduct sender balance\nCredit receiver\nLog to audit_trail]
+    N -->|Revert| P[❌ Blockchain error\nRefund sender\nRollback SQLite]
+
+    L --> Q[Supervisor/Admin\nsees HITL queue]
+    Q --> R{Four-Eyes\nApproval}
+    R -->|1st approval| S[status: partially_approved]
+    S --> T[2nd approval\ndifferent user]
+    T -->|Approved| K
+    T -->|Rejected| U[status: rejected\nNotify sender]
+
+    O --> V[SSE Push Notification\n/api/stream\nclient receives alert]
+    M --> V
+    U --> V
+
+    style A fill:#003366,color:#fff
+    style O fill:#1B5E20,color:#fff
+    style J fill:#B71C1C,color:#fff
+    style P fill:#B71C1C,color:#fff
+    style U fill:#E65100,color:#fff
+    </div>
+    <div class="tech-grid">
+      <div class="tech-card">
+        <h4>Payment Channels</h4>
+        <ul><li>Institutional Settlement</li><li>P2P Transfer</li><li>ACH / Wire / SEPA</li><li>Scheduled Payments</li><li>QR Pay</li><li>DeFi Swap</li><li>HTLC Escrow</li></ul>
+      </div>
+      <div class="tech-card">
+        <h4>Blockchain Stack</h4>
+        <ul><li>IPTS_Settlement.sol</li><li>Ganache local testnet</li><li>Web3.py 6.15 bridge</li><li>Atomic settlement</li><li>tx_hash recorded</li></ul>
+      </div>
+      <div class="tech-card">
+        <h4>Notification Stack</h4>
+        <ul><li>SSE /api/stream endpoint</li><li>Flask streaming response</li><li>EventSource JS API</li><li>Notification bell UI</li><li>SQLite notifications table</li></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 4. AI/ML PIPELINE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="aml">
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <div class="section-title">AI/ML Risk Scoring Pipeline</div>
+  </div>
+  <div class="section-body">
+    <div class="description">
+      The AML engine builds a 16-dimensional feature vector per transaction, runs it through a 5-model ensemble, and produces a composite risk score with SHAP-driven per-feature explanations. Models are persisted to disk after first training.
+    </div>
+    <div class="mermaid">
+flowchart LR
+    subgraph FEATURES["🔢 16-Feature Engineering"]
+      F1[amount_normalized\nhour_of_day\nday_of_week]
+      F2[sender_tx_count_7d\nsender_avg_amount\nrecipient_risk_score]
+      F3[cross_border_flag\nhigh_risk_country\nstructuring_flag]
+      F4[velocity_score\npattern_deviation\nnetwork_centrality]
+      F5[amount_log\nround_amount_flag\nrapid_succession\nbeneficiary_age_days]
+    end
+
+    subgraph MODELS["🤖 5-Model Ensemble"]
+      M1["IsolationForest\nscikit-learn\nUnsupervised anomaly"]
+      M2["RandomForest\nscikit-learn\n100 estimators"]
+      M3["XGBoost\nxgboost 2.0\nBoosted trees"]
+      M4["Autoencoder\nnumpy NN\nReconstruction error"]
+      M5["SequenceDetector\nvelocity window\nPattern matching"]
+    end
+
+    subgraph OUTPUT["📊 Output"]
+      O1["Composite Risk Score\n0 – 100"]
+      O2["SHAP Values\nPer-feature impact\nshap 0.44"]
+      O3["Model Breakdown\nIndividual scores"]
+      O4["Recommendation\nAPPROVE / REVIEW\n/ BLOCK"]
+    end
+
+    FEATURES --> MODELS
+    MODELS --> O1
+    O1 --> O2
+    O1 --> O3
+    O1 --> O4
+
+    style FEATURES fill:#EEF2F7,stroke:#0D47A1
+    style MODELS fill:#EEF2F7,stroke:#0D47A1
+    style OUTPUT fill:#E8F5E9,stroke:#2E7D32
+    </div>
+    <div class="mermaid">
+flowchart TD
+    A["IPTS_deploy.py\nPhase 3 — Model Training"] --> B{8 model files\nalready exist?}
+    B -->|Yes| C["⚡ Skip Training\nLoad from disk\njoblib.load()"]
+    B -->|No| D["Generate synthetic\ntraining data\n10,000 samples\nSMOTE balancing"]
+    D --> E["Train 5 models\nFit on 16 features"]
+    E --> F["Save to disk\nisolation_forest.pkl\nrandom_forest.pkl\nxgboost_model.pkl\nautoencoder_weights.pkl\n+ 4 more"]
+    F --> G["AML_Risk_Engine loaded\nin Flask app"]
+    C --> G
+    G --> H["POST /api/payments/settle\ntriggers score()"]
+    H --> I["score() builds\nfeature vector\nfrom SQLite history"]
+    I --> J["Ensemble predict\nweighted average"]
+    J --> K["GET /api/aml/explain\nreturns SHAP breakdown"]
+
+    style C fill:#1B5E20,color:#fff
+    style F fill:#0D47A1,color:#fff
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 5. HITL APPROVAL -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="hitl">
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <div class="section-title">HITL Four-Eyes Approval Flow</div>
+  </div>
+  <div class="section-body">
+    <div class="description">
+      Transactions scoring 30–70 enter the Human-in-the-Loop queue. Two separate approvers (four-eyes principle) must approve before execution. Neither approver can be the transaction originator.
+    </div>
+    <div class="mermaid">
+sequenceDiagram
+    participant U as 👤 User (Sender)
+    participant API as 🔌 Flask API
+    participant DB as 🗄️ SQLite
+    participant S1 as 👔 Supervisor 1
+    participant S2 as 👔 Supervisor 2
+    participant BC as ⛓️ Ganache
+
+    U->>API: POST /api/payments/settle\n{amount: $850K, beneficiary: ...}
+    API->>API: AML Score = 55 (REVIEW)
+    API->>DB: INSERT pending_approvals\nstatus = 'pending'
+    API-->>U: {status: "pending", msg: "Under review"}
+
+    Note over S1,S2: SSE notification pushed to supervisors
+
+    S1->>API: GET /api/admin/pending-approvals\n(Bearer: supervisor1_token)
+    API-->>S1: [{id:42, amount:850000, risk:55...}]
+    S1->>API: POST /api/admin/approve/42\n{action: "approve"}
+    API->>DB: UPDATE status = 'partially_approved'\napprover1 = 'supervisor1'
+    API-->>S1: {status: "partially_approved"}
+
+    Note over S2: Four-eyes: different user required
+
+    S2->>API: POST /api/admin/approve/42\n{action: "approve"}
+    API->>DB: UPDATE status = 'approved'\napprover2 = 'supervisor2'
+    API->>BC: Web3.py → IPTS_Settlement.settle()
+    BC-->>API: tx_hash = 0xabc...
+    API->>DB: INSERT transactions (settled)\nDEDUCT sender balance\nCREDIT receiver balance
+    API-->>S2: {status: "approved", tx_hash: "0xabc..."}
+
+    Note over U: SSE push: "Payment settled ✓"
+    </div>
+    <div class="tech-grid">
+      <div class="tech-card">
+        <h4>HITL Technologies</h4>
+        <ul><li>Flask REST API</li><li>SQLite pending_approvals</li><li>JWT RBAC (role check)</li><li>SSE real-time push</li><li>Web3.py (on approval)</li><li>Audit trail logging</li></ul>
+      </div>
+      <div class="tech-card">
+        <h4>Four-Eyes Rules</h4>
+        <ul><li>Min. 2 distinct approvers</li><li>Approver ≠ Sender</li><li>Supervisor or Admin role</li><li>Partial → Full approval</li><li>Rejection notifies sender</li></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 6. DeFi FLOWS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="defi">
+  <div class="section-header">
+    <div class="section-num">6</div>
+    <div class="section-title">DeFi Engine Flows — AMM Swap · Staking · HTLC Escrow</div>
+  </div>
+  <div class="section-body">
+    <div class="description">
+      The DeFi Hub implements three protocols: constant-product AMM for FX swaps, a tiered yield farming staking system, and hash time-locked contracts (HTLC) for trustless escrow.
+    </div>
+
+    <h3 style="color:var(--navy);margin:0 0 12px;font-size:1rem;">6a · AMM Swap (Constant-Product x·y = k)</h3>
+    <div class="mermaid">
+flowchart TD
+    A([User enters swap:\nFrom: USD 1000\nTo: EUR]) --> B["GET /api/defi/pools\nFetch pool reserves\nreserve_a, reserve_b"]
+    B --> C["Calculate output:\nout = reserve_b × in\n÷ reserve_a + in × 0.997\nConstant-product AMM"]
+    C --> D["Compute price impact:\nimpact = in ÷ reserve_a × 100"]
+    D --> E{Price impact\n> 5%?}
+    E -->|Yes| F[⚠️ High impact warning\nshown to user]
+    E -->|No| G[Show preview:\nYou get: 921 EUR\nFee: 0.3%\nImpact: 1.2%]
+    F --> G
+    G --> H{User confirms\nswap}
+    H -->|Cancel| I[Abort]
+    H -->|Confirm| J["POST /api/defi/swap\nFlask endpoint"]
+    J --> K[Deduct USD from\nuser balance]
+    J --> L["UPDATE amm_pools\nnew_reserve_a += in\nnew_reserve_b -= out\nSQLite atomic tx"]
+    J --> M["INSERT swap_history\namount_in, amount_out,\nfee, timestamp"]
+    L --> N["Web3.py → LiquidityPool\n.swap() on-chain record"]
+    K & M & N --> O[Credit EUR to\nuser balance]
+    O --> P[✅ Swap complete\nBalance updated in UI]
+
+    style A fill:#003366,color:#fff
+    style P fill:#1B5E20,color:#fff
+    style I fill:#B71C1C,color:#fff
+    </div>
+
+    <h3 style="color:var(--navy);margin:24px 0 12px;font-size:1rem;">6b · Yield Staking Flow</h3>
+    <div class="mermaid">
+flowchart LR
+    A([User selects\nstaking tier]) --> B{Tier selection}
+    B -->|Flexible| C["APY: 3.5%\nUnlock anytime"]
+    B -->|30-day Lock| D["APY: 5.2%\nFixed 30 days"]
+    B -->|90-day Lock| E["APY: 8.1%\nFixed 90 days"]
+    C & D & E --> F["POST /api/defi/stake\n{amount, pool_type}"]
+    F --> G["Deduct balance\nINSERT staking_positions\nstatus: active\nstaked_at: now()"]
+    G --> H["GET /api/defi/staking\nPolled every 30s"]
+    H --> I["Calculate yield:\nearned = amount × apy\n÷ 365 × days_elapsed"]
+    I --> J{User unstakes?}
+    J -->|Flexible — anytime| K["POST /api/defi/unstake/id"]
+    J -->|Locked — after expiry| K
+    K --> L["Credit principal\n+ accrued yield\nINSERT transaction\nDELETE staking position"]
+    L --> M[✅ Balance updated]
+
+    style A fill:#003366,color:#fff
+    style M fill:#1B5E20,color:#fff
+    </div>
+
+    <h3 style="color:var(--navy);margin:24px 0 12px;font-size:1rem;">6c · HTLC Escrow Flow (Hash Time-Lock Contract)</h3>
+    <div class="mermaid">
+sequenceDiagram
+    participant S as 👤 Sender
+    participant API as 🔌 Flask API
+    participant DB as 🗄️ SQLite
+    participant BC as ⛓️ HTLC Contract
+    participant R as 👤 Receiver
+
+    S->>API: POST /api/defi/escrow/create\n{receiver, amount, timelock: 24h}
+    API->>API: Generate secret (random)\nCompute hashlock = SHA-256(secret)
+    API->>DB: INSERT escrow_contracts\n{sender, receiver, amount,\nhashlock, timelock, status:locked}
+    API->>BC: Web3.py → HTLC.create()\nhashlock, timelock on-chain
+    API-->>S: {escrow_id, hashlock, secret}
+    Note over S: Sender shares secret with receiver\nout-of-band
+
+    R->>API: POST /api/defi/escrow/{id}/claim\n{secret: "abc123"}
+    API->>API: Verify SHA-256(secret) == hashlock
+    API->>DB: UPDATE status = 'claimed'\nCredit receiver balance
+    API->>BC: HTLC.claim(secret) on-chain
+    API-->>R: {status: "claimed", amount: X}
+
+    Note over S,R: Alternative: Timelock expiry → Refund
+    S->>API: POST /api/defi/escrow/{id}/refund
+    API->>API: Check timelock expired
+    API->>DB: UPDATE status = 'refunded'\nCredit sender balance
+    API->>BC: HTLC.refund() on-chain
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 7. COMPLIANCE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="compliance">
+  <div class="section-header">
+    <div class="section-num">7</div>
+    <div class="section-title">Compliance & Regulatory Flow</div>
+  </div>
+  <div class="section-body">
+    <div class="description">
+      The Compliance module integrates sanctions screening, case management, SAR auto-generation, GDPR erasure, and regulatory reporting into a single workflow.
+    </div>
+    <div class="mermaid">
+flowchart TD
+    A[Transaction submitted] --> B["Sanctions Screening\n/api/compliance/sanctions\nSDN List lookup"]
+    B --> C{On sanctions list?}
+    C -->|Yes| D[🚫 BLOCKED\nCase auto-created\nAlert compliance officer]
+    C -->|No| E[AML Risk Score\ncomputed]
+    E --> F{Score threshold}
+    F -->|≥ 70| G["Case auto-created\n/api/cases\nstatus: open\npriority: high"]
+    F -->|< 70| H[Normal processing\ncontinues]
+    D --> G
+    G --> I[Case assigned to\ncompliance officer]
+    I --> J{Investigation}
+    J -->|Cleared| K["Case closed\nstatus: closed\nNo SAR filed"]
+    J -->|Suspicious| L["File SAR Report\nGET /api/compliance/cases/id/sar-report\nFinCEN format JSON"]
+    L --> M["regulatory_report_filed = 1\nDownloadable report\nstructured fields"]
+    M --> N[Case status: reported]
+
+    subgraph GDPR["GDPR Compliance"]
+      P["POST /api/admin/gdpr/erasure\n{username}"] --> Q[Anonymize PII\nin all tables]
+      Q --> R[Log to audit_trail\nIrreversible — Admin only]
+    end
+
+    subgraph SWIFT["SWIFT GPI Tracker"]
+      S["GET /api/compliance/swift-gpi"] --> T[Track cross-border\ntransactions in transit]
+    end
+
+    style D fill:#B71C1C,color:#fff
+    style K fill:#1B5E20,color:#fff
+    style N fill:#0D47A1,color:#fff
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 8. LLM CHAT -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="chat">
+  <div class="section-header">
+    <div class="section-num">8</div>
+    <div class="section-title">LLM Support Chat Flow (Ollama / llama3.2)</div>
+  </div>
+  <div class="section-body">
+    <div class="description">
+      The support chat widget connects to a locally-running Ollama LLM (llama3.2:3b). The backend injects user context (balance, role, recent transactions) into the system prompt before each query.
+    </div>
+    <div class="mermaid">
+flowchart TD
+    A([User types message\nin chat widget]) --> B["POST /api/support/chat\n{message, history[]}"]
+    B --> C[Build System Prompt\nwith user context injection]
+    C --> D["System Prompt =\n'You are IPTS assistant.'\n'User: {name}, Balance: {bal}'\n'Role: {role}'\n'Recent tx: {last_3_txns}'"]
+    D --> E["POST http://localhost:11434\n/api/chat\nOllama API\nmodel: llama3.2:3b"]
+    E --> F{Ollama available?}
+    F -->|Yes| G["LLM generates response\nContext-aware reply\nStreamed tokens"]
+    F -->|No| H["Fallback response:\n'I cannot connect to\nthe AI assistant.'"]
+    G --> I["Store in chat_history\nSQLite table"]
+    I --> J[Return response\nto frontend]
+    H --> J
+    J --> K[Display in\nchat bubble UI]
+
+    subgraph OLLAMA["Ollama Local Stack"]
+      L["llama3.2:3b model\n3B parameters\nRuns on CPU/GPU"]
+      M["REST API\nport 11434"]
+      N["No data leaves\nlocal machine\nPrivacy-first"]
+    end
+
+    style A fill:#003366,color:#fff
+    style G fill:#1B5E20,color:#fff
+    style H fill:#E65100,color:#fff
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 9. NETWORK GRAPH -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="graph">
+  <div class="section-header">
+    <div class="section-num">9</div>
+    <div class="section-title">Network Graph & Fraud Detection Flow</div>
+  </div>
+  <div class="section-body">
+    <div class="description">
+      NetworkX builds a transaction graph where nodes are entities and edges are transfers. Betweenness centrality, clustering coefficients, and community detection identify money laundering rings and high-risk hubs.
+    </div>
+    <div class="mermaid">
+flowchart TD
+    A["GET /api/graph/data\nFull network view"] --> B["NetworkX DiGraph\nfrom all transactions\nSQLite query"]
+    B --> C["Compute graph metrics:\nbetweenness_centrality()\nclustering_coefficient()\ndegree_centrality()"]
+    C --> D["Identify high-risk nodes:\ncentrality > 0.5\n→ flagged as hubs"]
+    D --> E["Return nodes + edges\nJSON with risk metadata"]
+    E --> F["D3.js force-directed\ngraph rendering\nFrontend visualization"]
+    F --> G{View mode}
+    G -->|Full Network| H["All entities + transactions\nColor by risk score\nRed = high risk"]
+    G -->|Connected Only| I["Show only entities with\n≥ 2 connections\nHighlights rings"]
+
+    subgraph HEATMAP["Fraud Heatmap"]
+      J["GET /api/analytics/fraud-heatmap\nrisk_score ≥ 60"] --> K["Group by beneficiary\ncountry\nCount + avg_risk"]
+      K --> L["D3.js world SVG\nCircle markers\nSize = count\nColor = risk"]
+    end
+
+    style A fill:#003366,color:#fff
+    style H fill:#1B5E20,color:#fff
+    style I fill:#0D47A1,color:#fff
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 10. DATABASE ENTITY FLOW -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="db">
+  <div class="section-header">
+    <div class="section-num">10</div>
+    <div class="section-title">Database Entity Relationship — 22 Tables</div>
+  </div>
+  <div class="section-body">
+    <div class="description">
+      All data is stored in a single SQLite file (ipts.db). The 22 tables span core banking, AI/ML results, DeFi positions, compliance, and audit. All writes go through the Flask API layer.
+    </div>
+    <div class="mermaid">
+erDiagram
+    user_accounts {
+      string username PK
+      string full_name
+      string password_hash
+      float balance
+      string role
+      string kyc_status
+    }
+    transactions {
+      int id PK
+      string sender FK
+      string receiver
+      float amount
+      string currency
+      int risk_score
+      string tx_hash
+      string status
+      datetime created_at
+    }
+    pending_approvals {
+      int id PK
+      string sender FK
+      float amount
+      string status
+      string approver1
+      string approver2
+      int risk_score
+    }
+    staking_positions {
+      int id PK
+      string username FK
+      float amount
+      string pool_type
+      float apy
+      datetime staked_at
+      string status
+    }
+    escrow_contracts {
+      int id PK
+      string sender FK
+      string receiver FK
+      float amount
+      string hashlock
+      datetime timelock
+      string status
+      string secret
+    }
+    amm_pools {
+      int id PK
+      string pair_name
+      float reserve_a
+      float reserve_b
+      float fee_rate
+      float volume_24h
+    }
+    compliance_cases {
+      int id PK
+      string related_tx FK
+      string assigned_to
+      string status
+      int regulatory_report_filed
+    }
+    beneficiaries {
+      int id PK
+      string owner FK
+      string name
+      string account
+      string country
+      float risk_score
+    }
+    audit_trail {
+      int id PK
+      string actor FK
+      string action
+      string details
+      datetime timestamp
+    }
+    notifications {
+      int id PK
+      string username FK
+      string message
+      string type
+      boolean read
+    }
+
+    user_accounts ||--o{ transactions : "sends"
+    user_accounts ||--o{ pending_approvals : "initiates"
+    user_accounts ||--o{ staking_positions : "stakes"
+    user_accounts ||--o{ escrow_contracts : "creates"
+    user_accounts ||--o{ beneficiaries : "manages"
+    user_accounts ||--o{ audit_trail : "logged in"
+    user_accounts ||--o{ notifications : "receives"
+    transactions ||--o| compliance_cases : "triggers"
+    pending_approvals ||--|| transactions : "resolves to"
+    </div>
+    <div class="tech-grid">
+      <div class="tech-card">
+        <h4>Core Banking Tables</h4>
+        <ul><li>user_accounts</li><li>transactions</li><li>beneficiaries</li><li>virtual_cards</li><li>scheduled_payments</li><li>sub_accounts</li></ul>
+      </div>
+      <div class="tech-card">
+        <h4>AI/ML Tables</h4>
+        <ul><li>aml_scores</li><li>shap_explanations</li><li>model_performance</li><li>fraud_alerts</li></ul>
+      </div>
+      <div class="tech-card">
+        <h4>DeFi Tables</h4>
+        <ul><li>amm_pools</li><li>swap_history</li><li>staking_positions</li><li>escrow_contracts</li></ul>
+      </div>
+      <div class="tech-card">
+        <h4>Compliance Tables</h4>
+        <ul><li>compliance_cases</li><li>pending_approvals</li><li>sanctions_list</li><li>audit_trail</li><li>notifications</li><li>chat_history</li></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  IPTS — Intelligent Payment & Transaction System &nbsp;·&nbsp; Version 6.0 &nbsp;·&nbsp; April 2026
+  <br>Workflow Charts generated for technical documentation purposes
+</footer>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#003366',
+      primaryTextColor: '#ffffff',
+      primaryBorderColor: '#0D47A1',
+      lineColor: '#0D47A1',
+      secondaryColor: '#EEF2F7',
+      tertiaryColor: '#F4F4F4',
+      background: '#F8FAFC',
+      mainBkg: '#EEF2F7',
+      nodeBorder: '#0D47A1',
+      clusterBkg: '#EEF2F7',
+      titleColor: '#003366',
+      edgeLabelBackground: '#ffffff',
+      actorBkg: '#003366',
+      actorTextColor: '#ffffff',
+      actorBorder: '#0D47A1',
+    },
+    flowchart: { curve: 'basis', padding: 20 },
+    sequence: { diagramMarginX: 20, diagramMarginY: 20, boxMargin: 10 },
+    er: { diagramPadding: 20 }
+  });
+</script>
+</body>
+</html>

@@ -252,14 +252,14 @@ The script automatically:
 ```python
 # Cell 1: Upload files
 from google.colab import files
-uploaded = files.upload()  # Select ipts_colab_deploy.py and ipts_frontend.html
+uploaded = files.upload()  # Select IPTS_deploy.py and ipts_frontend.html
 
 # Cell 2: Install Node.js
 !curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 !sudo apt-get install -y nodejs
 
 # Cell 3: Launch IPTS
-!python ipts_colab_deploy.py
+!python IPTS_deploy.py
 ```
 
 ### Total Boot Time: ~90-120 seconds
@@ -673,7 +673,7 @@ IPTS/
 ├── .gitignore                          # Git ignore rules
 │
 ├── src/
-│   └── ipts_colab_deploy.py           # Main deployment script (3,100+ lines)
+│   └── IPTS_deploy.py           # Main deployment script (3,100+ lines)
 │                                       #   Phase 0: Environment cleanup
 │                                       #   Phase 1: Dependency installation
 │                                       #   Phase 2: Directory structure
