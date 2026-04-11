@@ -63,6 +63,7 @@ The system integrates:
 ## Table of Contents
 
 - [Architecture](#-architecture)
+- [Workflow Diagrams](#-workflow-diagrams)
 - [Features](#-features)
 - [Quick Start](#-quick-start)
 - [Installation](#-installation)
