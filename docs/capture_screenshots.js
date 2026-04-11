@@ -28,13 +28,14 @@ async function run() {
   console.log("Got JWT token");
 
   const browser = await puppeteer.launch({
-    headless: "new",
+    headless: true,
+    protocolTimeout: 120000,
     args: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
   });
 
   const page = await browser.newPage();
-  // Use 1440x900 — same as first working run
-  await page.setViewport({ width: 1440, height: 900 });
+  // 1920×1080 — full HD, 78% more pixels than 1440×900, sharp in Word/PowerPoint
+  await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
 
   // Block SSE
   await page.setRequestInterception(true);
@@ -67,9 +68,9 @@ async function run() {
   console.log("App ready");
 
   async function snap(name) {
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 2000));
     try {
-      await page.screenshot({ path: path.join(SS, name) });
+      await page.screenshot({ path: path.join(SS, name), type: "png", captureBeyondViewport: false, timeout: 90000 });
       const sz = fs.statSync(path.join(SS, name)).size;
       console.log(`  [OK] ${name}  (${(sz / 1024).toFixed(0)} KB)`);
     } catch (e) {
@@ -150,7 +151,7 @@ async function run() {
   await nav('switchTab("dashboard"); window.scrollTo(0,0);');
   await nav('toggleChat();');
   await nav('document.getElementById("chatInput").value="What is my balance?"; sendChat();');
-  await new Promise(r => setTimeout(r, 8000));
+  await new Promise(r => setTimeout(r, 12000));
   await snap("Support_Chat.png");
   await nav('toggleChat();');
 
