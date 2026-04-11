@@ -289,7 +289,7 @@ sequenceDiagram
     BC-->>API: tx_hash = 0xabc...
     API->>DB: INSERT transactions(settled), deduct/credit balances
     API-->>S2: {status: "approved", tx_hash: "0xabc..."}
-    Note over U: SSE push: "Payment settled ✓"
+    Note over U: SSE push: "Payment settled ✓" 
 ```
 
 ---
