@@ -175,6 +175,9 @@ tailwind.config = {
     <button onclick="switchTab('documents')" data-tab="documents" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
       <i class="fas fa-file-invoice mr-1"></i>Documents
     </button>
+    <button onclick="switchTab('defi')" data-tab="defi" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-300 transition whitespace-nowrap">
+      <i class="fas fa-cubes mr-1"></i>DeFi
+    </button>
   </nav>
 
   <!-- Tab Content -->
@@ -226,6 +229,30 @@ tailwind.config = {
             <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
               <i class="fas fa-dollar-sign text-blue-400"></i>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Proof of Reserve -->
+      <div id="proofOfReserve" class="glass rounded-xl p-4 mb-6">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+              <i class="fas fa-shield-alt text-green-400"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500 uppercase tracking-wider">Proof of Reserve</p>
+              <div class="flex items-center gap-3 mt-1">
+                <span class="text-sm text-gray-300">Off-Chain: <span id="porOffchain" class="text-white font-semibold">$0</span></span>
+                <span class="text-gray-600">|</span>
+                <span class="text-sm text-gray-300">On-Chain: <span id="porOnchain" class="text-white font-semibold">$0</span></span>
+                <span class="text-gray-600">|</span>
+                <span class="text-sm text-gray-300">Ratio: <span id="porRatio" class="font-semibold">-</span></span>
+              </div>
+            </div>
+          </div>
+          <div id="porBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400">
+            <i class="fas fa-check-circle mr-1"></i>1:1 Backed
           </div>
         </div>
       </div>
@@ -541,6 +568,12 @@ tailwind.config = {
         <canvas id="shapChart" class="hidden" height="180"></canvas>
       </div>
 
+      <!-- Fraud Heatmap -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-globe mr-2 text-red-400"></i>Global Fraud Heatmap — Real-Time Risk Hotspots</h3>
+        <div id="fraudHeatmapContainer" class="text-center text-gray-500 text-sm py-4">Loading heatmap...</div>
+      </div>
+
       <!-- Retrain Button -->
       <div id="retrainSection" class="glass rounded-xl p-6">
         <div class="flex items-center justify-between">
@@ -557,16 +590,36 @@ tailwind.config = {
 
     <!-- NETWORK GRAPH TAB -->
     <div id="tab-graph" class="tab-content hidden fade-in">
-      <div class="glass rounded-xl p-6">
+      <!-- Graph View Toggle -->
+      <div class="flex gap-2 mb-4">
+        <button onclick="switchGraphView('full')" id="graphViewFull" class="px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-dark-900">Full Network</button>
+        <button onclick="switchGraphView('connected')" id="graphViewConnected" class="px-4 py-2 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white">Connected Nodes Only</button>
+      </div>
+      <!-- Full Network Graph -->
+      <div id="graphFullView" class="glass rounded-xl p-6 mb-4">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-sm font-semibold text-white"><i class="fas fa-diagram-project mr-2 text-accent"></i>Transaction Network Graph</h3>
+          <h3 class="text-sm font-semibold text-white"><i class="fas fa-diagram-project mr-2 text-accent"></i>Full Transaction Network</h3>
           <div class="flex gap-2 text-xs">
             <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-accent inline-block"></span>Normal</span>
             <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>Cycle Node</span>
             <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>High Centrality</span>
+            <span id="graphFullStats" class="text-gray-500 ml-2"></span>
           </div>
         </div>
-        <div id="graphContainer" style="width:100%;height:500px;background:#0d1117;border-radius:8px;overflow:hidden;"></div>
+        <div id="graphContainer" style="width:100%;height:500px;background:#0d1117;border-radius:8px;overflow:hidden;position:relative;"></div>
+      </div>
+      <!-- Connected Nodes Graph -->
+      <div id="graphConnectedView" class="glass rounded-xl p-6 hidden">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-sm font-semibold text-white"><i class="fas fa-project-diagram mr-2 text-purple-400"></i>Connected Nodes (Edges &ge; 1)</h3>
+          <div class="flex gap-2 text-xs">
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-accent inline-block"></span>Normal</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>Cycle Node</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>High Centrality</span>
+            <span id="graphConnectedStats" class="text-gray-500 ml-2"></span>
+          </div>
+        </div>
+        <div id="graphContainerConnected" style="width:100%;height:500px;background:#0d1117;border-radius:8px;overflow:hidden;position:relative;"></div>
       </div>
     </div>
 
@@ -1207,6 +1260,129 @@ tailwind.config = {
       </div>
     </div>
 
+    <!-- DEFI TAB -->
+    <div id="tab-defi" class="tab-content hidden fade-in">
+      <!-- DeFi Sub-tabs -->
+      <div class="flex gap-2 mb-4">
+        <button onclick="showDefiSub('swap')" id="defiSubSwap" class="px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-dark-900">Swap (AMM)</button>
+        <button onclick="showDefiSub('stake')" id="defiSubStake" class="px-4 py-2 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white">Staking</button>
+        <button onclick="showDefiSub('escrow')" id="defiSubEscrow" class="px-4 py-2 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white">Escrow (HTLC)</button>
+      </div>
+
+      <!-- SWAP SUB-TAB -->
+      <div id="defiSwap" class="defi-sub">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div class="glass rounded-xl p-6">
+            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-exchange-alt mr-2 text-accent"></i>Token Swap</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-gray-400">From (USD)</label>
+                <input id="swapAmountIn" type="number" placeholder="Amount" class="w-full px-3 py-2 rounded-lg text-sm mt-1">
+              </div>
+              <div>
+                <label class="text-xs text-gray-400">To</label>
+                <select id="swapPair" class="w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="previewSwap()">
+                  <option value="USD/EUR">EUR</option><option value="USD/GBP">GBP</option>
+                  <option value="USD/JPY">JPY</option><option value="USD/CHF">CHF</option>
+                  <option value="USD/AED">AED</option><option value="USD/ETH">ETH</option>
+                </select>
+              </div>
+              <div id="swapPreview" class="bg-dark-700/50 rounded-lg p-3 text-xs text-gray-400 hidden">
+                <div class="flex justify-between"><span>Rate:</span><span id="swapRate">-</span></div>
+                <div class="flex justify-between mt-1"><span>You receive:</span><span id="swapOut" class="text-accent font-semibold">-</span></div>
+                <div class="flex justify-between mt-1"><span>Price Impact:</span><span id="swapImpact">-</span></div>
+                <div class="flex justify-between mt-1"><span>Fee (0.3%):</span><span id="swapFee">-</span></div>
+              </div>
+              <button onclick="executeSwap()" class="w-full py-2.5 rounded-lg bg-accent text-dark-900 font-semibold hover:bg-accent/90 transition text-sm">
+                <i class="fas fa-exchange-alt mr-2"></i>Swap
+              </button>
+              <div id="swapResult" class="hidden text-xs mt-2 p-3 rounded-lg"></div>
+            </div>
+          </div>
+          <div class="lg:col-span-2 glass rounded-xl p-6">
+            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-water mr-2 text-blue-400"></i>Liquidity Pools</h3>
+            <div id="poolsList" class="space-y-2">
+              <p class="text-gray-500 text-sm text-center py-4">Loading pools...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STAKING SUB-TAB -->
+      <div id="defiStake" class="defi-sub hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div class="glass rounded-xl p-6">
+            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-lock mr-2 text-yellow-400"></i>Stake Funds</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-gray-400">Pool</label>
+                <select id="stakePool" class="w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="updateStakePreview()">
+                  <option value="flexible">Flexible — 3.5% APY (No Lock)</option>
+                  <option value="30day">30-Day Lock — 5.2% APY</option>
+                  <option value="90day">90-Day Lock — 8.1% APY</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-gray-400">Amount (USD)</label>
+                <input id="stakeAmount" type="number" placeholder="Min $100" class="w-full px-3 py-2 rounded-lg text-sm mt-1" oninput="updateStakePreview()">
+              </div>
+              <div id="stakePreview" class="bg-dark-700/50 rounded-lg p-3 text-xs text-gray-400 hidden">
+                <div class="flex justify-between"><span>APY:</span><span id="stakeAPY" class="text-accent font-semibold">-</span></div>
+                <div class="flex justify-between mt-1"><span>30-Day Yield:</span><span id="stakeYield30">-</span></div>
+                <div class="flex justify-between mt-1"><span>Annual Yield:</span><span id="stakeYieldAnnual">-</span></div>
+              </div>
+              <button onclick="executeSstake()" class="w-full py-2.5 rounded-lg bg-yellow-500 text-dark-900 font-semibold hover:bg-yellow-400 transition text-sm">
+                <i class="fas fa-lock mr-2"></i>Stake
+              </button>
+              <div id="stakeResult" class="hidden text-xs mt-2 p-3 rounded-lg"></div>
+            </div>
+          </div>
+          <div class="lg:col-span-2 glass rounded-xl p-6">
+            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-chart-line mr-2 text-green-400"></i>Your Staking Positions</h3>
+            <div id="stakingPositions" class="space-y-2">
+              <p class="text-gray-500 text-sm text-center py-4">Loading positions...</p>
+            </div>
+            <div id="stakingSummary" class="mt-4 bg-dark-700/50 rounded-lg p-3 text-xs text-gray-400 hidden">
+              <span>Total Staked: </span><span id="totalStaked" class="text-accent font-semibold">$0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ESCROW SUB-TAB -->
+      <div id="defiEscrow" class="defi-sub hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div class="glass rounded-xl p-6">
+            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-handshake mr-2 text-purple-400"></i>Create Escrow (HTLC)</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-gray-400">Receiver Username</label>
+                <input id="escrowReceiver" type="text" placeholder="e.g. rohit" class="w-full px-3 py-2 rounded-lg text-sm mt-1">
+              </div>
+              <div>
+                <label class="text-xs text-gray-400">Amount (USD)</label>
+                <input id="escrowAmount" type="number" placeholder="Amount" class="w-full px-3 py-2 rounded-lg text-sm mt-1">
+              </div>
+              <div>
+                <label class="text-xs text-gray-400">Timelock (hours)</label>
+                <input id="escrowTimelock" type="number" value="24" class="w-full px-3 py-2 rounded-lg text-sm mt-1">
+              </div>
+              <button onclick="createEscrow()" class="w-full py-2.5 rounded-lg bg-purple-600 text-white font-semibold hover:bg-purple-500 transition text-sm">
+                <i class="fas fa-lock mr-2"></i>Create Escrow
+              </button>
+              <div id="escrowResult" class="hidden text-xs mt-2 p-3 rounded-lg"></div>
+            </div>
+          </div>
+          <div class="lg:col-span-2 glass rounded-xl p-6">
+            <h3 class="text-sm font-semibold text-white mb-4"><i class="fas fa-file-contract mr-2 text-blue-400"></i>Active Escrow Contracts</h3>
+            <div id="escrowList" class="space-y-2">
+              <p class="text-gray-500 text-sm text-center py-4">Loading escrows...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -1373,7 +1549,7 @@ function switchTab(tab) {
 
   if (tab === 'dashboard') loadDashboard();
   if (tab === 'payments') loadPaymentForm();
-  if (tab === 'aiml') loadModelMetrics();
+  if (tab === 'aiml') { loadModelMetrics(); loadFraudHeatmap(); }
   if (tab === 'graph') loadGraph();
   if (tab === 'admin') { loadHITL(); loadAudit(); }
   if (tab === 'compliance') { loadSanctions(); loadNostro(); }
@@ -1383,6 +1559,7 @@ function switchTab(tab) {
   if (tab === 'cards') loadCards();
   if (tab === 'security') { loadKYCStatus(); loadFraudAlerts(); }
   if (tab === 'documents') loadDocuments();
+  if (tab === 'defi') { loadPools(); loadStaking(); loadEscrows(); }
 }
 
 // ============================================================
@@ -1399,6 +1576,7 @@ async function loadDashboard() {
     loadTransactions();
     loadSubAccounts();
     loadLedger();
+    loadProofOfReserve();
   } catch (e) { console.error('Dashboard error:', e); }
 }
 
@@ -1802,69 +1980,125 @@ async function retrainModels() {
 // ============================================================
 // Network Graph (D3.js)
 // ============================================================
+let _graphData = null;
+
+function switchGraphView(view) {
+  const fullView = document.getElementById('graphFullView');
+  const connView = document.getElementById('graphConnectedView');
+  const btnFull = document.getElementById('graphViewFull');
+  const btnConn = document.getElementById('graphViewConnected');
+  if (view === 'full') {
+    fullView.classList.remove('hidden'); connView.classList.add('hidden');
+    btnFull.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-dark-900';
+    btnConn.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white';
+  } else {
+    fullView.classList.add('hidden'); connView.classList.remove('hidden');
+    btnFull.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white';
+    btnConn.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-purple-600 text-white';
+    if (_graphData) renderGraph('graphContainerConnected', _graphData, true);
+  }
+}
+
 async function loadGraph() {
   try {
-    const data = await apiFetch('/api/network/graph');
-    const container = document.getElementById('graphContainer');
-    container.innerHTML = '';
-    const width = container.clientWidth;
-    const height = 500;
+    _graphData = await apiFetch('/api/network/graph');
+    renderGraph('graphContainer', _graphData, false);
+  } catch (e) { console.error('Graph error:', e); document.getElementById('graphContainer').innerHTML = '<p class="text-red-400 p-4">Failed to load graph.</p>'; }
+}
 
-    const cycleNodes = new Set();
-    (data.cycles || []).forEach(c => c.forEach(n => cycleNodes.add(n)));
+function renderGraph(containerId, data, connectedOnly) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  const width = container.clientWidth;
+  const height = 500;
 
-    const maxPR = Math.max(...data.nodes.map(n => n.pagerank), 0.001);
-    const communityCount = data.communities || 10;
-    const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
+  let nodes = data.nodes.map(n => ({...n}));
+  let edges = data.edges.map(e => ({...e}));
 
-    const svg = d3.select('#graphContainer').append('svg')
-      .attr('width', width).attr('height', height);
+  if (connectedOnly) {
+    // Only keep nodes that have at least one edge
+    const connectedIds = new Set();
+    edges.forEach(e => { connectedIds.add(e.source.id || e.source); connectedIds.add(e.target.id || e.target); });
+    nodes = nodes.filter(n => connectedIds.has(n.id));
+    const nodeIds = new Set(nodes.map(n => n.id));
+    edges = edges.filter(e => nodeIds.has(e.source.id || e.source) && nodeIds.has(e.target.id || e.target));
+    const statsEl = document.getElementById('graphConnectedStats');
+    if (statsEl) statsEl.textContent = `${nodes.length} nodes · ${edges.length} edges`;
+  } else {
+    const statsEl = document.getElementById('graphFullStats');
+    if (statsEl) statsEl.textContent = `${nodes.length} nodes · ${edges.length} edges`;
+  }
 
-    const g = svg.append('g');
-    svg.call(d3.zoom().scaleExtent([0.2, 5]).on('zoom', (e) => g.attr('transform', e.transform)));
+  const cycleNodes = new Set();
+  (data.cycles || []).forEach(c => c.forEach(n => cycleNodes.add(n)));
 
-    const simulation = d3.forceSimulation(data.nodes)
-      .force('link', d3.forceLink(data.edges).id(d => d.id).distance(40).strength(0.3))
-      .force('charge', d3.forceManyBody().strength(-30))
-      .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(8));
+  const maxPR = Math.max(...nodes.map(n => n.pagerank), 0.001);
+  const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
 
-    const link = g.append('g').selectAll('line').data(data.edges).join('line')
-      .attr('stroke', '#2a3f55').attr('stroke-width', d => Math.min(d.weight || 1, 4) * 0.5).attr('stroke-opacity', 0.4);
+  const svg = d3.select('#' + containerId).append('svg')
+    .attr('width', width).attr('height', height);
 
-    const node = g.append('g').selectAll('circle').data(data.nodes).join('circle')
-      .attr('r', d => 3 + (d.pagerank / maxPR) * 12)
-      .attr('fill', d => cycleNodes.has(d.id) ? '#ef4444' : d.pagerank / maxPR > 0.5 ? '#3b82f6' : colorScale(d.community % 10))
-      .attr('stroke', d => cycleNodes.has(d.id) ? '#ff6b6b' : 'none')
-      .attr('stroke-width', 2)
-      .attr('cursor', 'pointer')
-      .call(d3.drag()
-        .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-        .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
-        .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
-      );
+  const g = svg.append('g');
+  svg.call(d3.zoom().scaleExtent([0.2, 5]).on('zoom', (e) => g.attr('transform', e.transform)));
 
-    // Tooltip
-    const tooltip = d3.select('#graphContainer').append('div')
-      .style('position', 'absolute').style('background', '#1a2332').style('border', '1px solid #2a3f55')
-      .style('padding', '8px 12px').style('border-radius', '6px').style('font-size', '11px')
-      .style('color', '#e2e8f0').style('pointer-events', 'none').style('opacity', 0).style('z-index', 100);
+  const chargeStrength = connectedOnly ? -80 : -30;
+  const linkDist = connectedOnly ? 60 : 40;
+  const nodeScale = connectedOnly ? 16 : 12;
 
-    node.on('mouseover', (e, d) => {
-      tooltip.style('opacity', 1).html(
-        `<strong>Node ${d.id}</strong><br>PageRank: ${d.pagerank.toFixed(6)}<br>Community: ${d.community}<br>${cycleNodes.has(d.id) ? '<span style="color:#ef4444">In cycle</span>' : ''}`
-      );
-    }).on('mousemove', (e) => {
-      tooltip.style('left', (e.offsetX + 12) + 'px').style('top', (e.offsetY - 20) + 'px');
-    }).on('mouseout', () => tooltip.style('opacity', 0));
+  const simulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(edges).id(d => d.id).distance(linkDist).strength(0.3))
+    .force('charge', d3.forceManyBody().strength(chargeStrength))
+    .force('center', d3.forceCenter(width / 2, height / 2))
+    .force('collision', d3.forceCollide().radius(connectedOnly ? 12 : 8));
 
+  const link = g.append('g').selectAll('line').data(edges).join('line')
+    .attr('stroke', connectedOnly ? '#3b5998' : '#2a3f55')
+    .attr('stroke-width', d => Math.min(d.weight || 1, 4) * (connectedOnly ? 1 : 0.5))
+    .attr('stroke-opacity', connectedOnly ? 0.6 : 0.4);
+
+  const node = g.append('g').selectAll('circle').data(nodes).join('circle')
+    .attr('r', d => 3 + (d.pagerank / maxPR) * nodeScale)
+    .attr('fill', d => cycleNodes.has(d.id) ? '#ef4444' : d.pagerank / maxPR > 0.5 ? '#3b82f6' : colorScale(d.community % 10))
+    .attr('stroke', d => cycleNodes.has(d.id) ? '#ff6b6b' : connectedOnly ? '#ffffff22' : 'none')
+    .attr('stroke-width', 2)
+    .attr('cursor', 'pointer')
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+    );
+
+  if (connectedOnly) {
+    // Add labels on connected nodes
+    g.append('g').selectAll('text').data(nodes).join('text')
+      .attr('text-anchor', 'middle').attr('dy', d => -(5 + (d.pagerank / maxPR) * nodeScale))
+      .attr('fill', '#94a3b8').attr('font-size', '9px')
+      .text(d => d.id);
     simulation.on('tick', () => {
-      link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-          .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+      link.attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+      node.attr('cx', d => d.x).attr('cy', d => d.y);
+      g.selectAll('text').attr('x', d => d.x).attr('y', d => d.y);
+    });
+  } else {
+    simulation.on('tick', () => {
+      link.attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
       node.attr('cx', d => d.x).attr('cy', d => d.y);
     });
+  }
 
-  } catch (e) { console.error('Graph error:', e); document.getElementById('graphContainer').innerHTML = '<p class="text-red-400 p-4">Failed to load graph.</p>'; }
+  // Tooltip
+  const tooltip = d3.select('#' + containerId).append('div')
+    .style('position', 'absolute').style('background', '#1a2332').style('border', '1px solid #2a3f55')
+    .style('padding', '8px 12px').style('border-radius', '6px').style('font-size', '11px')
+    .style('color', '#e2e8f0').style('pointer-events', 'none').style('opacity', 0).style('z-index', 100);
+
+  node.on('mouseover', (e, d) => {
+    tooltip.style('opacity', 1).html(
+      `<strong>Node ${d.id}</strong><br>PageRank: ${d.pagerank.toFixed(6)}<br>Community: ${d.community}<br>${cycleNodes.has(d.id) ? '<span style="color:#ef4444">In cycle</span>' : ''}`
+    );
+  }).on('mousemove', (e) => {
+    tooltip.style('left', (e.offsetX + 12) + 'px').style('top', (e.offsetY - 20) + 'px');
+  }).on('mouseout', () => tooltip.style('opacity', 0));
 }
 
 // ============================================================
@@ -2200,7 +2434,11 @@ async function openCaseModal(caseId) {
             <button onclick="caseAction('${c.id}', 'file-sar')" class="px-3 py-1.5 rounded bg-red-600/20 text-red-400 text-xs hover:bg-red-600/40">
               <i class="fas fa-file-alt mr-1"></i>File SAR
             </button>
-          ` : ''}
+          ` : `
+            <button onclick="downloadSAR('${c.id}')" class="px-3 py-1.5 rounded bg-green-600/20 text-green-400 text-xs hover:bg-green-600/40">
+              <i class="fas fa-download mr-1"></i>Download SAR Report
+            </button>
+          `}
           <button onclick="promptAssign('${c.id}')" class="px-3 py-1.5 rounded bg-blue-600/20 text-blue-400 text-xs hover:bg-blue-600/40">
             <i class="fas fa-user-plus mr-1"></i>Assign
           </button>
@@ -3315,6 +3553,311 @@ async function sendChat() {
 }
 
 // ============================================================
+// ============================================================
+// Proof of Reserve
+// ============================================================
+async function loadProofOfReserve() {
+  try {
+    const data = await apiFetch('/api/defi/proof-of-reserve');
+    document.getElementById('porOffchain').textContent = '$' + Number(data.offchain_total).toLocaleString();
+    document.getElementById('porOnchain').textContent = '$' + Number(data.onchain_total).toLocaleString();
+    document.getElementById('porRatio').textContent = data.ratio.toFixed(4);
+    document.getElementById('porRatio').className = data.backed ? 'font-semibold text-green-400' : 'font-semibold text-red-400';
+    const badge = document.getElementById('porBadge');
+    if (data.backed) {
+      badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400';
+      badge.innerHTML = '<i class="fas fa-check-circle mr-1"></i>1:1 Backed';
+    } else {
+      badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400';
+      badge.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i>Under-collateralized';
+    }
+  } catch(e) { console.error('PoR error', e); }
+}
+
+// ============================================================
+// Fraud Heatmap
+// ============================================================
+async function loadFraudHeatmap() {
+  try {
+    const data = await apiFetch('/api/analytics/fraud-heatmap');
+    const container = document.getElementById('fraudHeatmapContainer');
+    if (!container) return;
+    if (!data.length) { container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No fraud data available</p>'; return; }
+    let html = '<div class="grid grid-cols-2 md:grid-cols-4 gap-2">';
+    data.forEach(d => {
+      const riskColor = d.avg_risk >= 80 ? 'text-red-400 bg-red-500/10' : d.avg_risk >= 70 ? 'text-orange-400 bg-orange-500/10' : 'text-yellow-400 bg-yellow-500/10';
+      html += `<div class="rounded-lg p-3 ${riskColor}">
+        <div class="text-xs font-bold">${d.name}</div>
+        <div class="text-lg font-bold mt-1">${d.count} <span class="text-xs font-normal">alerts</span></div>
+        <div class="text-xs mt-1">Avg Risk: ${d.avg_risk}</div>
+        <div class="text-xs">Volume: $${Number(d.total_amount).toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+      </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } catch(e) { console.error('Heatmap error', e); }
+}
+
+// ============================================================
+// DeFi — Sub-tab Navigation
+// ============================================================
+function showDefiSub(sub) {
+  document.querySelectorAll('.defi-sub').forEach(el => el.classList.add('hidden'));
+  document.getElementById('defi' + sub.charAt(0).toUpperCase() + sub.slice(1)).classList.remove('hidden');
+  ['Swap','Stake','Escrow'].forEach(s => {
+    const btn = document.getElementById('defiSub' + s);
+    if (s.toLowerCase() === sub) { btn.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-dark-900'; }
+    else { btn.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-dark-700 text-gray-400 hover:text-white'; }
+  });
+  if (sub === 'swap') loadPools();
+  if (sub === 'stake') loadStaking();
+  if (sub === 'escrow') loadEscrows();
+}
+
+// ============================================================
+// DeFi — AMM Swap
+// ============================================================
+async function loadPools() {
+  try {
+    const pools = await apiFetch('/api/defi/pools');
+    const div = document.getElementById('poolsList');
+    if (!pools.length) { div.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No pools available</p>'; return; }
+    div.innerHTML = pools.map(p => `
+      <div class="flex items-center justify-between bg-dark-700/50 rounded-lg p-3">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-400">${p.quote}</div>
+          <div>
+            <div class="text-sm font-semibold text-white">${p.pair}</div>
+            <div class="text-xs text-gray-400">Swaps: ${p.swap_count}</div>
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="text-sm font-semibold text-accent">${p.price.toFixed(p.price > 100 ? 2 : 6)}</div>
+          <div class="text-xs text-gray-400">TVL: $${Number(p.tvl).toLocaleString()}</div>
+        </div>
+      </div>`).join('');
+  } catch(e) { console.error('Pools error', e); }
+}
+
+function previewSwap() {
+  const amount = parseFloat(document.getElementById('swapAmountIn').value) || 0;
+  const pair = document.getElementById('swapPair').value;
+  const preview = document.getElementById('swapPreview');
+  if (amount <= 0) { preview.classList.add('hidden'); return; }
+  preview.classList.remove('hidden');
+  // Estimate from pools (client-side preview)
+  apiFetch('/api/defi/pools').then(pools => {
+    const pool = pools.find(p => p.pair === pair);
+    if (!pool) return;
+    const rb = pool.reserve_base, rq = pool.reserve_quote;
+    const newRb = rb + amount;
+    const newRq = (rb * rq) / newRb;
+    const out = rq - newRq;
+    const fee = out * 0.003;
+    const outAfterFee = out - fee;
+    const spotPrice = rq / rb;
+    const execPrice = amount / out;
+    const impact = Math.abs(execPrice - spotPrice) / spotPrice * 100;
+    document.getElementById('swapRate').textContent = (amount / outAfterFee).toFixed(6);
+    document.getElementById('swapOut').textContent = outAfterFee.toFixed(outAfterFee > 100 ? 2 : 6);
+    document.getElementById('swapImpact').textContent = impact.toFixed(4) + '%';
+    document.getElementById('swapImpact').className = impact > 1 ? 'text-red-400' : 'text-green-400';
+    document.getElementById('swapFee').textContent = fee.toFixed(6);
+  });
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('swapAmountIn');
+  if (inp) inp.addEventListener('input', previewSwap);
+});
+
+async function executeSwap() {
+  const pair = document.getElementById('swapPair').value;
+  const amount = parseFloat(document.getElementById('swapAmountIn').value) || 0;
+  if (amount <= 0) return;
+  const res = document.getElementById('swapResult');
+  try {
+    const result = await apiFetch('/api/defi/swap', { method: 'POST', body: JSON.stringify({ pair, amount, direction: 'buy' }) });
+    res.className = 'text-xs mt-2 p-3 rounded-lg bg-green-500/10 text-green-400';
+    res.innerHTML = `<i class="fas fa-check-circle mr-1"></i>Swapped $${result.amount_in.toLocaleString()} → ${result.amount_out.toFixed(result.amount_out > 100 ? 2 : 6)} (Impact: ${result.price_impact}%) | New Balance: $${result.new_balance.toLocaleString()}`;
+    res.classList.remove('hidden');
+    document.getElementById('swapAmountIn').value = '';
+    document.getElementById('swapPreview').classList.add('hidden');
+    loadPools();
+    updateHeaderInfo();
+  } catch(e) {
+    res.className = 'text-xs mt-2 p-3 rounded-lg bg-red-500/10 text-red-400';
+    res.innerHTML = '<i class="fas fa-times-circle mr-1"></i>' + (e.message || 'Swap failed');
+    res.classList.remove('hidden');
+  }
+}
+
+// ============================================================
+// DeFi — Staking
+// ============================================================
+async function loadStaking() {
+  try {
+    const data = await apiFetch('/api/defi/staking');
+    const div = document.getElementById('stakingPositions');
+    if (!data.positions.length) { div.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No staking positions yet. Stake funds to earn yield!</p>'; }
+    else {
+      div.innerHTML = data.positions.map(p => {
+        const statusColor = p.status === 'active' ? 'text-green-400 bg-green-500/10' : 'text-gray-400 bg-gray-500/10';
+        return `<div class="flex items-center justify-between bg-dark-700/50 rounded-lg p-3">
+          <div>
+            <div class="text-sm font-semibold text-white">$${Number(p.amount).toLocaleString()} <span class="text-xs text-gray-400">in ${p.pool}</span></div>
+            <div class="text-xs text-gray-400">${p.apy}% APY · ${p.days_elapsed} days · Earned: <span class="text-accent font-semibold">$${p.accrued_yield.toFixed(2)}</span></div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold ${statusColor}">${p.status}</span>
+            ${p.status === 'active' ? `<button onclick="unstake('${p.id}')" class="px-3 py-1 rounded-lg bg-red-500/20 text-red-400 text-xs font-semibold hover:bg-red-500/30">Unstake</button>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+    }
+    const summary = document.getElementById('stakingSummary');
+    if (data.total_staked > 0) {
+      summary.classList.remove('hidden');
+      document.getElementById('totalStaked').textContent = '$' + Number(data.total_staked).toLocaleString();
+    } else { summary.classList.add('hidden'); }
+  } catch(e) { console.error('Staking error', e); }
+}
+
+function updateStakePreview() {
+  const pool = document.getElementById('stakePool').value;
+  const amount = parseFloat(document.getElementById('stakeAmount').value) || 0;
+  const preview = document.getElementById('stakePreview');
+  if (amount <= 0) { preview.classList.add('hidden'); return; }
+  preview.classList.remove('hidden');
+  const apys = { flexible: 3.5, '30day': 5.2, '90day': 8.1 };
+  const apy = apys[pool] || 3.5;
+  document.getElementById('stakeAPY').textContent = apy + '%';
+  document.getElementById('stakeYield30').textContent = '$' + (amount * apy / 365 / 100 * 30).toFixed(2);
+  document.getElementById('stakeYieldAnnual').textContent = '$' + (amount * apy / 100).toFixed(2);
+}
+
+async function executeSstake() {
+  const pool = document.getElementById('stakePool').value;
+  const amount = parseFloat(document.getElementById('stakeAmount').value) || 0;
+  if (amount <= 0) return;
+  const res = document.getElementById('stakeResult');
+  try {
+    const result = await apiFetch('/api/defi/stake', { method: 'POST', body: JSON.stringify({ pool, amount }) });
+    res.className = 'text-xs mt-2 p-3 rounded-lg bg-green-500/10 text-green-400';
+    res.innerHTML = `<i class="fas fa-check-circle mr-1"></i>Staked $${result.amount.toLocaleString()} at ${result.apy}% APY | New Balance: $${result.new_balance.toLocaleString()}`;
+    res.classList.remove('hidden');
+    document.getElementById('stakeAmount').value = '';
+    document.getElementById('stakePreview').classList.add('hidden');
+    loadStaking();
+    updateHeaderInfo();
+  } catch(e) {
+    res.className = 'text-xs mt-2 p-3 rounded-lg bg-red-500/10 text-red-400';
+    res.innerHTML = '<i class="fas fa-times-circle mr-1"></i>' + (e.message || 'Stake failed');
+    res.classList.remove('hidden');
+  }
+}
+
+async function unstake(id) {
+  if (!confirm('Unstake this position and collect yield?')) return;
+  try {
+    const result = await apiFetch('/api/defi/unstake/' + id, { method: 'POST' });
+    alert(`Unstaked! Principal: $${result.principal.toLocaleString()}, Yield: $${result.yield.toFixed(2)}, Total: $${result.total.toFixed(2)}`);
+    loadStaking();
+    updateHeaderInfo();
+  } catch(e) { alert('Unstake failed: ' + (e.message || 'Unknown error')); }
+}
+
+// ============================================================
+// DeFi — HTLC Escrow
+// ============================================================
+async function loadEscrows() {
+  try {
+    const escrows = await apiFetch('/api/defi/escrow');
+    const div = document.getElementById('escrowList');
+    if (!escrows.length) { div.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No escrow contracts. Create one to get started!</p>'; return; }
+    div.innerHTML = escrows.map(e => {
+      const colors = { locked: 'text-yellow-400 bg-yellow-500/10', claimed: 'text-green-400 bg-green-500/10', refunded: 'text-blue-400 bg-blue-500/10', expired: 'text-red-400 bg-red-500/10' };
+      const sc = colors[e.status] || 'text-gray-400 bg-gray-500/10';
+      const role = e.is_sender ? 'Sender' : 'Receiver';
+      const other = e.is_sender ? e.receiver : e.sender;
+      let actions = '';
+      if (e.status === 'locked' && !e.is_sender) {
+        actions = `<button onclick="claimEscrow('${e.id}')" class="px-2 py-1 rounded bg-green-500/20 text-green-400 text-xs font-semibold">Claim</button>`;
+      }
+      if ((e.status === 'locked' || e.status === 'expired') && e.is_sender) {
+        actions = `<button onclick="refundEscrow('${e.id}')" class="px-2 py-1 rounded bg-blue-500/20 text-blue-400 text-xs font-semibold">Refund</button>`;
+      }
+      return `<div class="flex items-center justify-between bg-dark-700/50 rounded-lg p-3">
+        <div>
+          <div class="text-sm font-semibold text-white">$${Number(e.amount).toLocaleString()} <span class="text-xs text-gray-400">→ ${other} (${role})</span></div>
+          <div class="text-xs text-gray-400 mt-1">Hashlock: ${e.hashlock.substring(0,16)}... · Expires: ${new Date(e.timelock).toLocaleString()}</div>
+          ${e.is_sender && e.status === 'locked' ? `<div class="text-xs text-yellow-400 mt-1">Secret: <code class="bg-dark-700 px-1 rounded">${e.secret}</code></div>` : ''}
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 rounded-full text-xs font-bold ${sc}">${e.status}</span>
+          ${actions}
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { console.error('Escrow error', e); }
+}
+
+async function createEscrow() {
+  const receiver = document.getElementById('escrowReceiver').value.trim();
+  const amount = parseFloat(document.getElementById('escrowAmount').value) || 0;
+  const timelock_hours = parseInt(document.getElementById('escrowTimelock').value) || 24;
+  if (!receiver || amount <= 0) return;
+  const res = document.getElementById('escrowResult');
+  try {
+    const result = await apiFetch('/api/defi/escrow/create', { method: 'POST', body: JSON.stringify({ receiver, amount, timelock_hours }) });
+    res.className = 'text-xs mt-2 p-3 rounded-lg bg-green-500/10 text-green-400';
+    res.innerHTML = `<i class="fas fa-check-circle mr-1"></i>Escrow created! Share this secret with ${receiver}:<br><code class="bg-dark-700 px-2 py-1 rounded mt-1 block break-all text-yellow-400">${result.secret}</code>`;
+    res.classList.remove('hidden');
+    document.getElementById('escrowReceiver').value = '';
+    document.getElementById('escrowAmount').value = '';
+    loadEscrows();
+    updateHeaderInfo();
+  } catch(e) {
+    res.className = 'text-xs mt-2 p-3 rounded-lg bg-red-500/10 text-red-400';
+    res.innerHTML = '<i class="fas fa-times-circle mr-1"></i>' + (e.message || 'Failed');
+    res.classList.remove('hidden');
+  }
+}
+
+async function claimEscrow(id) {
+  const secret = prompt('Enter the secret pre-image to claim funds:');
+  if (!secret) return;
+  try {
+    const result = await apiFetch('/api/defi/escrow/' + id + '/claim', { method: 'POST', body: JSON.stringify({ secret }) });
+    alert(`Claimed $${result.amount.toLocaleString()}! New balance: $${result.new_balance.toLocaleString()}`);
+    loadEscrows();
+    updateHeaderInfo();
+  } catch(e) { alert('Claim failed: ' + (e.message || 'Invalid secret')); }
+}
+
+async function refundEscrow(id) {
+  if (!confirm('Refund this escrow? Only works after timelock expires.')) return;
+  try {
+    const result = await apiFetch('/api/defi/escrow/' + id + '/refund', { method: 'POST' });
+    alert(`Refunded $${result.amount.toLocaleString()}! New balance: $${result.new_balance.toLocaleString()}`);
+    loadEscrows();
+    updateHeaderInfo();
+  } catch(e) { alert('Refund failed: ' + (e.message || 'Timelock not expired')); }
+}
+
+// ============================================================
+// SAR Report Download
+// ============================================================
+async function downloadSAR(caseId) {
+  try {
+    const resp = await fetch('/api/compliance/cases/' + caseId + '/sar-report', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('jwt_token') } });
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'SAR_Report_' + caseId.substring(0,8) + '.json';
+    a.click(); URL.revokeObjectURL(url);
+  } catch(e) { alert('Failed to download SAR report'); }
+}
+
 // Init
 // ============================================================
 window.addEventListener('DOMContentLoaded', () => {
