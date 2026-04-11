@@ -132,6 +132,356 @@ Architecture SVG diagrams are available in [`docs/architecture/`](docs/architect
 | `ipts_layer6_data_architecture.svg` | Data sovereignty & privacy layer |
 | `ipts_layer7_infrastructure_architecture.svg` | Infrastructure orchestration |
 
+> 📊 **Interactive workflow charts** (with full technology annotations per step) are available as a standalone HTML file: [`docs/IPTS_Workflow_Charts.html`](docs/IPTS_Workflow_Charts.html)
+
+---
+
+## Workflow Diagrams
+
+> These diagrams are rendered natively on GitHub. Each chart maps processes to the specific technology responsible at that step.
+
+### 1 · System Architecture — 5-Layer Technology Stack
+
+```mermaid
+flowchart TD
+    L1["🖥️ PRESENTATION LAYER\nTailwind CSS · Chart.js · D3.js · Vanilla JS ES6 · SSE EventSource"]
+    L2["🔌 API GATEWAY LAYER\nFlask 3.0 · PyJWT HS256 · RBAC Middleware · 75+ REST Endpoints · CORS"]
+    L3["🧠 INTELLIGENCE LAYER\nXGBoost · scikit-learn · IsolationForest · SHAP · NetworkX · Ollama llama3.2"]
+    L4["⛓️ BLOCKCHAIN LAYER\nSolidity 0.8 · Ganache · Web3.py 6.15 · py-solc-x · 7 Smart Contracts"]
+    L5["🗄️ PERSISTENCE LAYER\nSQLite 3 · 22 Tables · joblib model cache · Fernet encryption · Pillow"]
+
+    L1 <-->|"JWT Bearer Token\nHTTP/SSE"| L2
+    L2 <-->|"Python calls"| L3
+    L2 <-->|"Python calls"| L4
+    L2 <-->|"SQL queries"| L5
+    L3 <-->|"Feature vectors\nSHAP scores"| L5
+    L4 <-->|"tx_hash anchoring"| L5
+
+    style L1 fill:#003366,color:#fff,stroke:#0D47A1
+    style L2 fill:#0D47A1,color:#fff,stroke:#1565C0
+    style L3 fill:#1565C0,color:#fff,stroke:#1976D2
+    style L4 fill:#1976D2,color:#fff,stroke:#1E88E5
+    style L5 fill:#1E88E5,color:#fff,stroke:#2196F3
+```
+
+---
+
+### 2 · Authentication & Authorization Flow
+
+```mermaid
+flowchart TD
+    A([👤 User Opens Browser]) --> B[Login Screen\nipts_frontend.html]
+    B --> C[Enter username + password]
+    C --> D["POST /api/login\nFlask endpoint"]
+    D --> E{Verify credentials\nSQLite: user_accounts\nWerkzeug hash check}
+    E -->|Invalid| F[❌ 401 Unauthorized\nError shown]
+    E -->|Valid| G["Generate JWT Token\nPyJWT HS256 · 8h expiry\npayload: username, role"]
+    G --> H[Return token + role\n+ balance + full_name]
+    H --> I["Store in JS globals\nTOKEN, ROLE, USERNAME"]
+    I --> J{Role check}
+    J -->|admin| K[13 tabs + admin controls\nAll 75+ endpoints]
+    J -->|supervisor| L[HITL queue visible\nApproval endpoints]
+    J -->|user| M[Standard 11 tabs\nPayments + DeFi]
+    K & L & M --> N["Every request:\nAuthorization: Bearer TOKEN"]
+    N --> O["@require_auth decorator\nFlask RBAC middleware"]
+    O -->|Valid token| P[✅ Endpoint executes]
+    O -->|Expired / tampered| Q[❌ 401 → Force logout]
+
+    style A fill:#003366,color:#fff
+    style P fill:#1B5E20,color:#fff
+    style Q fill:#B71C1C,color:#fff
+    style F fill:#B71C1C,color:#fff
+```
+
+---
+
+### 3 · Payment Processing — AML + Blockchain Settlement
+
+```mermaid
+flowchart TD
+    A([User submits\nSettlement Form]) --> B["POST /api/payments/settle\nFlask — JWT validated"]
+    B --> C[Input validation\nbeneficiary · amount · currency]
+    C --> D["Build 16-Feature Vector\namount · velocity_1h/24h/7d\ncountry_risk · is_round · freq_7d\namount_zscore · unique_receivers"]
+    D --> E["AML_Risk_Engine.score()\n5-model ensemble\nXGBoost + RF + IF +\nAutoencoder + Sequence"]
+    E --> F["Composite risk_score 0–100\nSHAP values computed\nper-feature contributions"]
+    F --> G{Risk Threshold}
+    G -->|score < 30| H[✅ AUTO-APPROVED]
+    G -->|30–70| I[⚠️ HITL REVIEW QUEUE]
+    G -->|score ≥ 70| J[🚫 AUTO-BLOCKED]
+    H --> K["Web3.py → Ganache\nIPTS_Settlement.settle()\nAtomic on-chain tx"]
+    I --> L["SQLite: pending_approvals\nstatus = pending\nSSE → supervisors"]
+    J --> M["SQLite: transactions\nstatus = blocked\nCompliance case created"]
+    K -->|tx_hash returned| N["Deduct sender balance\nCredit receiver balance\nInsert audit_trail"]
+    N --> O["SSE push notification\n/api/stream\nReal-time UI update"]
+    L --> O
+    M --> O
+
+    style A fill:#003366,color:#fff
+    style H fill:#1B5E20,color:#fff
+    style J fill:#B71C1C,color:#fff
+    style N fill:#1B5E20,color:#fff
+```
+
+---
+
+### 4 · AI/ML Risk Scoring Pipeline
+
+```mermaid
+flowchart LR
+    subgraph FE["🔢 16-Feature Vector"]
+        direction TB
+        F1["Static: amount · hour · day_of_week\nfreq_7d · is_round · country_risk"]
+        F2["Real-time: velocity_1h/24h/7d\navg_amount · std_amount · z-score\nunique_receivers · is_new_receiver"]
+    end
+
+    subgraph EN["🤖 5-Model Ensemble"]
+        direction TB
+        M1["IsolationForest\nunsupervised anomaly\n100 estimators"]
+        M2["RandomForest\n200 estimators\nSMOTE-balanced"]
+        M3["XGBoost\n300 estimators\nprimary classifier"]
+        M4["Autoencoder\n64-32-16-32-64 MLP\nreconstruction error"]
+        M5["SequenceDetector\nvelocity window\ntemporal patterns"]
+    end
+
+    subgraph OUT["📊 Output"]
+        direction TB
+        O1["Composite Score 0–100\nweighted average"]
+        O2["SHAP Values\nper-feature impact\nTreeExplainer / RF fallback"]
+        O3["Decision\nAPPROVE / REVIEW / BLOCK"]
+    end
+
+    FE --> EN
+    EN --> OUT
+
+    style FE fill:#EEF2F7,stroke:#0D47A1
+    style EN fill:#EEF2F7,stroke:#0D47A1
+    style OUT fill:#E8F5E9,stroke:#2E7D32
+```
+
+**Model persistence:** On startup, `IPTS_deploy.py` checks for 8 saved model files (`*.pkl`). If all exist, training is skipped and models are loaded via `joblib.load()` — cutting startup time from ~90s to ~5s.
+
+---
+
+### 5 · HITL Four-Eyes Approval Flow
+
+```mermaid
+sequenceDiagram
+    participant U as 👤 Sender
+    participant API as 🔌 Flask API
+    participant DB as 🗄️ SQLite
+    participant S1 as 👔 Supervisor 1
+    participant S2 as 👔 Supervisor 2
+    participant BC as ⛓️ Ganache EVM
+
+    U->>API: POST /api/payments/settle {amount: $850K}
+    API->>API: AML Score = 55 → REVIEW
+    API->>DB: INSERT pending_approvals status=pending
+    API-->>U: {status: "pending", message: "Under review"}
+    Note over S1,S2: SSE event pushed to all supervisors
+
+    S1->>API: POST /api/admin/approve/42 {action: approve}
+    API->>DB: UPDATE status=partially_approved, approver1=S1
+    API-->>S1: {status: "partially_approved"}
+
+    S2->>API: POST /api/admin/approve/42 {action: approve}
+    Note over API: Four-eyes: S2 ≠ S1 ≠ Sender ✓
+    API->>BC: Web3.py → IPTS_Settlement.settle()
+    BC-->>API: tx_hash = 0xabc...
+    API->>DB: INSERT transactions(settled), deduct/credit balances
+    API-->>S2: {status: "approved", tx_hash: "0xabc..."}
+    Note over U: SSE push: "Payment settled ✓"
+```
+
+---
+
+### 6 · DeFi Engine — AMM Swap, Staking & HTLC Escrow
+
+```mermaid
+flowchart TD
+    subgraph SWAP["6a · AMM Swap  x·y = k"]
+        A1([User: swap USD→EUR]) --> A2["GET /api/defi/pools\nfetch reserve_a, reserve_b"]
+        A2 --> A3["out = reserve_b × in ÷ reserve_a+in × 0.997\nConstant-product formula\nPrice impact = in ÷ reserve_a × 100"]
+        A3 --> A4{impact > 5%?}
+        A4 -->|Yes| A5[⚠️ High impact warning]
+        A4 -->|No| A6[Show preview & confirm]
+        A5 --> A6
+        A6 --> A7["POST /api/defi/swap\nDeduct USD · Credit EUR\nUPDATE amm_pools atomic\nINSERT swap_history\nWeb3.py → LiquidityPool.swap()"]
+    end
+
+    subgraph STAKE["6b · Yield Staking"]
+        B1([User selects tier]) --> B2{Pool type}
+        B2 -->|Flexible| B3["3.5% APY\nunlock anytime"]
+        B2 -->|30-day| B4["5.2% APY\nfixed lock"]
+        B2 -->|90-day| B5["8.1% APY\nfixed lock"]
+        B3 & B4 & B5 --> B6["POST /api/defi/stake\nDeduct balance\nINSERT staking_positions"]
+        B6 --> B7["earned = principal × APY ÷ 365 × days\nPOST /api/defi/unstake/id\nCredit principal + yield"]
+    end
+
+    subgraph ESCROW["6c · HTLC Escrow"]
+        C1([Sender creates escrow]) --> C2["POST /api/defi/escrow/create\nGenerate secret\nhashlock = SHA-256(secret)"]
+        C2 --> C3["INSERT escrow_contracts\nWeb3.py → HTLC.create()"]
+        C3 --> C4{Receiver claims\nor timelock expires}
+        C4 -->|Claim with secret| C5["Verify SHA-256(secret)==hashlock\nCredit receiver\nHTLC.claim() on-chain"]
+        C4 -->|Timelock expired| C6["Refund sender\nHTLC.refund() on-chain"]
+    end
+
+    style SWAP fill:#EEF2F7,stroke:#003366
+    style STAKE fill:#EEF2F7,stroke:#003366
+    style ESCROW fill:#EEF2F7,stroke:#003366
+```
+
+---
+
+### 7 · Compliance & SAR Auto-Generation Flow
+
+```mermaid
+flowchart TD
+    A[Every transaction] --> B["Sanctions Screening\n/api/compliance/sanctions\nSDN list fuzzy match\nNLP watchlist"]
+    B --> C{On sanctions list?}
+    C -->|Yes| D["🚫 BLOCKED\nauto-create compliance case\nalert compliance officer via SSE"]
+    C -->|No| E[AML risk score computed]
+    E --> F{Score ≥ 70?}
+    F -->|Yes| G["compliance_cases INSERT\nstatus: open · priority: high\nassigned to compliance officer"]
+    F -->|No| H[Normal processing]
+    D --> G
+    G --> I{Investigation outcome}
+    I -->|Cleared| J["Case closed\nno SAR filed\nstatus: closed"]
+    I -->|Suspicious confirmed| K["GET /api/compliance/cases/id/sar-report\nGenerate FinCEN-format JSON\nregulatory_report_filed = 1"]
+    K --> L["Download JSON attachment\nContent-Disposition: attachment\nCase status: reported"]
+
+    subgraph GDPR["GDPR Right to Erasure"]
+        M["POST /api/admin/gdpr/erasure"] --> N["Anonymize PII across\nall 22 SQLite tables\nAdmin role only"]
+        N --> O["INSERT audit_trail\nirreversible log entry"]
+    end
+
+    style D fill:#B71C1C,color:#fff
+    style J fill:#1B5E20,color:#fff
+    style L fill:#0D47A1,color:#fff
+```
+
+---
+
+### 8 · LLM Support Chat — Ollama / llama3.2
+
+```mermaid
+flowchart TD
+    A([User types in\nchat widget]) --> B["POST /api/support/chat\n{message, history[]}"]
+    B --> C["Inject user context\ninto system prompt:\nname · balance · role\nlast 3 transactions"]
+    C --> D["POST localhost:11434/api/chat\nOllama REST API\nmodel: llama3.2:3b\n3B-parameter local LLM"]
+    D --> E{Ollama\nrunning?}
+    E -->|Yes| F["LLM generates response\nContext-aware reply\nStreamed tokens"]
+    E -->|No| G["Fallback message:\nAI assistant unavailable"]
+    F --> H["INSERT chat_history\nSQLite — per user"]
+    H --> I[Return to frontend\nchat bubble UI]
+    G --> I
+
+    style A fill:#003366,color:#fff
+    style F fill:#1B5E20,color:#fff
+    style G fill:#E65100,color:#fff
+```
+
+> **Privacy note:** The LLM runs entirely on-device via Ollama. No data is sent to external APIs.
+
+---
+
+### 9 · Network Graph & Fraud Heatmap
+
+```mermaid
+flowchart TD
+    subgraph GRAPH["Transaction Network Graph"]
+        A["GET /api/graph/data"] --> B["NetworkX DiGraph\nNodes = entities\nEdges = transactions"]
+        B --> C["Graph metrics:\nbetweenness_centrality()\nclustering_coefficient()\ndegree_centrality()"]
+        C --> D["Flag high-risk nodes:\ncentrality > 0.5\n→ potential hubs / rings"]
+        D --> E["D3.js force-directed render\nnode size ∝ centrality\nred = high risk"]
+        E --> F{View mode}
+        F -->|Full Network| G["All entities + edges\ncolor by risk score"]
+        F -->|Connected Only| H["≥2 connections\nhighlights rings"]
+    end
+
+    subgraph HEATMAP["Fraud Heatmap"]
+        I["GET /api/analytics/fraud-heatmap\nrisk_score ≥ 60"] --> J["GROUP BY beneficiary_country\ncount + avg_risk_score"]
+        J --> K["D3.js world SVG\ncircle size = tx count\ncolor intensity = risk level\ntooltip on hover"]
+    end
+
+    style GRAPH fill:#EEF2F7,stroke:#003366
+    style HEATMAP fill:#EEF2F7,stroke:#003366
+```
+
+---
+
+### 10 · Database Entity Map — 22 Tables
+
+```mermaid
+erDiagram
+    user_accounts {
+        string username PK
+        string full_name
+        float balance
+        string role
+        string kyc_status
+    }
+    transactions {
+        int id PK
+        string sender FK
+        string receiver
+        float amount
+        int risk_score
+        string tx_hash
+        string status
+    }
+    pending_approvals {
+        int id PK
+        string sender FK
+        float amount
+        string status
+        string approver1
+        string approver2
+    }
+    staking_positions {
+        int id PK
+        string username FK
+        float amount
+        string pool_type
+        float apy
+        string status
+    }
+    escrow_contracts {
+        int id PK
+        string sender FK
+        string receiver FK
+        float amount
+        string hashlock
+        string status
+    }
+    amm_pools {
+        int id PK
+        string pair_name
+        float reserve_a
+        float reserve_b
+        float fee_rate
+    }
+    compliance_cases {
+        int id PK
+        string related_tx FK
+        string status
+        int regulatory_report_filed
+    }
+    audit_trail {
+        int id PK
+        string actor FK
+        string action
+        datetime timestamp
+    }
+
+    user_accounts ||--o{ transactions : "sends"
+    user_accounts ||--o{ pending_approvals : "initiates"
+    user_accounts ||--o{ staking_positions : "stakes"
+    user_accounts ||--o{ escrow_contracts : "creates"
+    user_accounts ||--o{ audit_trail : "logged"
+    transactions ||--o| compliance_cases : "triggers"
+    pending_approvals ||--|| transactions : "resolves to"
+```
+
 ---
 
 ## Features
