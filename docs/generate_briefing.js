@@ -567,7 +567,23 @@ const section4 = [
   imageCaption("Figure 20: DeFi Hub — HTLC Escrow"),
   emptyLine(),
 
-  heading2("4.10 Global Fraud Heatmap"),
+  heading2("4.10 Payment Journey Visualisation"),
+  para("The Payment Journey panel provides a real-time animated visualisation of every cross-border payment as it moves through the six architectural layers — from sender bank through AML screening, ISO 20022 messaging, blockchain settlement, SWIFT GPI routing, and final beneficiary credit."),
+  tryImageParagraph(ss("Payment_Journey_InProgress.png"), 380, 190,
+    "Payment Journey In-Progress", "Animated flow showing payment progressing through all six nodes"
+  ),
+  imageCaption("Figure 21: Payment Journey — In-Progress"),
+  tryImageParagraph(ss("Payment_Journey_Pending.png"), 380, 190,
+    "Payment Journey Pending", "Journey paused at AML node awaiting HITL compliance approval"
+  ),
+  imageCaption("Figure 22: Payment Journey — Awaiting HITL Approval"),
+  tryImageParagraph(ss("Payment_Journey_Completed.png"), 380, 190,
+    "Payment Journey Completed", "All six nodes green — funds successfully credited to beneficiary"
+  ),
+  imageCaption("Figure 23: Payment Journey — Successfully Completed"),
+  emptyLine(),
+
+  heading2("4.11 Global Fraud Heatmap"),
   para("The Global Fraud Heatmap provides a geographic visualization of fraud activity across all monitored jurisdictions. Risk hotspots are color-coded by severity, enabling compliance teams to identify emerging threat corridors and adjust AML policies in real time."),
   tryImageParagraph(ss("Fraud_Heatmap.png"), 280, 180,
     "Fraud Heatmap", "Global fraud heatmap visualization"

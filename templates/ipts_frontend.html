@@ -357,6 +357,111 @@ tailwind.config = {
 
       <!-- Settlement Sub-panel (existing) -->
       <div id="paysub-settlement" class="paysub-content">
+
+      <!-- Payment Journey Flow Visualization Panel -->
+      <div id="paymentFlowPanel" class="hidden mb-6 rounded-xl p-6 border border-blue-500/30" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);">
+        <div class="flex items-center justify-between mb-5">
+          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+            <span id="flowPanelIcon" class="text-lg">💸</span>
+            <span>Payment Journey</span>
+          </h3>
+          <span id="flowStatusBadge" class="text-xs px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40">Initiating...</span>
+        </div>
+
+        <!-- Node flow diagram -->
+        <div class="relative overflow-x-auto pb-2">
+          <div id="flowNodesRow" class="flex items-start justify-between min-w-max mx-auto gap-0" style="min-width:700px;">
+
+            <!-- Node 1: Sender Bank -->
+            <div class="flow-node flex flex-col items-center w-24" id="flowNode1">
+              <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle1">🏦</div>
+              <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel1">Sender Bank</p>
+              <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail1">Initiating transfer</p>
+            </div>
+
+            <!-- Connector 1→2 -->
+            <div class="flow-connector flex-1 relative flex items-center mt-7" id="flowConn1" style="min-width:60px;">
+              <div class="w-full h-0.5 bg-gray-700 relative overflow-visible">
+                <div class="flow-line-fill absolute left-0 top-0 h-0.5 bg-blue-400 transition-all duration-500 w-0" id="flowLine1"></div>
+              </div>
+              <div class="flow-dot absolute w-3 h-3 rounded-full bg-blue-400 shadow-lg hidden opacity-0 transition-opacity duration-300" id="flowDot1" style="left:0; top:-5px; box-shadow:0 0 8px #60a5fa;"></div>
+            </div>
+
+            <!-- Node 2: AML -->
+            <div class="flow-node flex flex-col items-center w-24" id="flowNode2">
+              <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle2">🔐</div>
+              <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel2">AML Engine</p>
+              <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail2">Awaiting...</p>
+            </div>
+
+            <!-- Connector 2→3 -->
+            <div class="flow-connector flex-1 relative flex items-center mt-7" id="flowConn2" style="min-width:60px;">
+              <div class="w-full h-0.5 bg-gray-700 relative overflow-visible">
+                <div class="flow-line-fill absolute left-0 top-0 h-0.5 bg-blue-400 transition-all duration-500 w-0" id="flowLine2"></div>
+              </div>
+              <div class="flow-dot absolute w-3 h-3 rounded-full bg-blue-400 shadow-lg hidden opacity-0 transition-opacity duration-300" id="flowDot2" style="left:0; top:-5px; box-shadow:0 0 8px #60a5fa;"></div>
+            </div>
+
+            <!-- Node 3: ISO 20022 -->
+            <div class="flow-node flex flex-col items-center w-24" id="flowNode3">
+              <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle3">📋</div>
+              <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel3">ISO 20022</p>
+              <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail3">Awaiting...</p>
+            </div>
+
+            <!-- Connector 3→4 -->
+            <div class="flow-connector flex-1 relative flex items-center mt-7" id="flowConn3" style="min-width:60px;">
+              <div class="w-full h-0.5 bg-gray-700 relative overflow-visible">
+                <div class="flow-line-fill absolute left-0 top-0 h-0.5 bg-blue-400 transition-all duration-500 w-0" id="flowLine3"></div>
+              </div>
+              <div class="flow-dot absolute w-3 h-3 rounded-full bg-blue-400 shadow-lg hidden opacity-0 transition-opacity duration-300" id="flowDot3" style="left:0; top:-5px; box-shadow:0 0 8px #60a5fa;"></div>
+            </div>
+
+            <!-- Node 4: Blockchain -->
+            <div class="flow-node flex flex-col items-center w-24" id="flowNode4">
+              <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle4">⛓️</div>
+              <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel4">Blockchain</p>
+              <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail4">Awaiting...</p>
+            </div>
+
+            <!-- Connector 4→5 -->
+            <div class="flow-connector flex-1 relative flex items-center mt-7" id="flowConn4" style="min-width:60px;">
+              <div class="w-full h-0.5 bg-gray-700 relative overflow-visible">
+                <div class="flow-line-fill absolute left-0 top-0 h-0.5 bg-blue-400 transition-all duration-500 w-0" id="flowLine4"></div>
+              </div>
+              <div class="flow-dot absolute w-3 h-3 rounded-full bg-blue-400 shadow-lg hidden opacity-0 transition-opacity duration-300" id="flowDot4" style="left:0; top:-5px; box-shadow:0 0 8px #60a5fa;"></div>
+            </div>
+
+            <!-- Node 5: SWIFT GPI -->
+            <div class="flow-node flex flex-col items-center w-24" id="flowNode5">
+              <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle5">🌐</div>
+              <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel5">SWIFT GPI</p>
+              <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail5">Awaiting...</p>
+            </div>
+
+            <!-- Connector 5→6 -->
+            <div class="flow-connector flex-1 relative flex items-center mt-7" id="flowConn5" style="min-width:60px;">
+              <div class="w-full h-0.5 bg-gray-700 relative overflow-visible">
+                <div class="flow-line-fill absolute left-0 top-0 h-0.5 bg-blue-400 transition-all duration-500 w-0" id="flowLine5"></div>
+              </div>
+              <div class="flow-dot absolute w-3 h-3 rounded-full bg-blue-400 shadow-lg hidden opacity-0 transition-opacity duration-300" id="flowDot5" style="left:0; top:-5px; box-shadow:0 0 8px #60a5fa;"></div>
+            </div>
+
+            <!-- Node 6: Beneficiary Bank -->
+            <div class="flow-node flex flex-col items-center w-24" id="flowNode6">
+              <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle6">✅</div>
+              <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel6">Beneficiary</p>
+              <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail6">Awaiting...</p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Progress message -->
+        <p id="flowProgressMsg" class="text-center text-xs text-blue-300 mt-4 italic">Connecting to banking network...</p>
+      </div>
+      <!-- End Payment Journey Panel -->
+
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Settlement Form -->
         <div class="glass rounded-xl p-6">
@@ -1724,6 +1829,11 @@ function connectSSE() {
         pushChartData(event.data.status);
       } else if (event.type === 'hitl') {
         loadHITL();
+        // Resume payment journey if this approval matches the pending hitl_id
+        if (event.data && event.data.action === 'approved' && window._pendingFlowHitlId && event.data.id === window._pendingFlowHitlId) {
+          window._pendingFlowHitlId = null;
+          showPaymentFlow('hitl_approved', { tx_hash: event.data.tx_hash });
+        }
       } else if (event.type === 'retrain') {
         loadModelMetrics();
       }
@@ -1756,6 +1866,274 @@ async function loadPaymentForm() {
   } catch (e) { console.error('Beneficiary load error:', e); }
   updateFXPreview();
 }
+
+// ============================================================
+// Payment Flow Visualization
+// ============================================================
+(function() {
+  // Timers so we can clear them on re-run
+  const _pfTimers = [];
+  function pfTimeout(fn, ms) { const t = setTimeout(fn, ms); _pfTimers.push(t); return t; }
+
+  // Node configuration
+  const PF_NODES = [
+    { id: 1, icon: '🏦', label: 'Sender Bank',      activeMsg: 'Initiating transfer',                dimMsg: 'Pending...' },
+    { id: 2, icon: '🔐', label: 'AML Engine',        activeMsg: 'Risk scoring & compliance',           dimMsg: 'Awaiting...' },
+    { id: 3, icon: '📋', label: 'ISO 20022',          activeMsg: 'Generating pacs.008 message',         dimMsg: 'Awaiting...' },
+    { id: 4, icon: '⛓️', label: 'Blockchain',         activeMsg: 'Smart contract execution (Solidity)', dimMsg: 'Awaiting...' },
+    { id: 5, icon: '🌐', label: 'SWIFT GPI',          activeMsg: 'Cross-network routing',               dimMsg: 'Awaiting...' },
+    { id: 6, icon: '✅', label: 'Beneficiary',        activeMsg: 'Funds credited',                      dimMsg: 'Awaiting...' },
+  ];
+
+  function pfReset() {
+    _pfTimers.forEach(clearTimeout);
+    _pfTimers.length = 0;
+    PF_NODES.forEach(n => {
+      const circle = document.getElementById('flowCircle' + n.id);
+      const detail = document.getElementById('flowDetail' + n.id);
+      const label  = document.getElementById('flowLabel' + n.id);
+      if (circle) { circle.style.borderColor=''; circle.style.backgroundColor=''; circle.style.boxShadow=''; circle.style.opacity='1'; circle.textContent = n.icon; }
+      if (detail) { detail.textContent = n.dimMsg; detail.style.color = ''; }
+      if (label)  { label.style.color = ''; }
+      const line = document.getElementById('flowLine' + n.id);
+      const dot  = document.getElementById('flowDot' + n.id);
+      if (line) { line.style.width='0'; line.style.backgroundColor='#60a5fa'; }
+      if (dot)  { dot.classList.add('hidden'); dot.style.opacity='0'; dot.style.backgroundColor='#60a5fa'; }
+    });
+    const badge = document.getElementById('flowStatusBadge');
+    const icon  = document.getElementById('flowPanelIcon');
+    const msg   = document.getElementById('flowProgressMsg');
+    if (badge) { badge.textContent='Initiating...'; badge.className='text-xs px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40'; }
+    if (icon)  icon.textContent = '💸';
+    if (msg)   { msg.textContent='Connecting to banking network...'; msg.style.color='#93c5fd'; }
+  }
+
+  function pfActivateNode(nodeId, detailText, colorClass) {
+    const circle = document.getElementById('flowCircle' + nodeId);
+    const detail = document.getElementById('flowDetail' + nodeId);
+    const label  = document.getElementById('flowLabel' + nodeId);
+    if (!circle) return;
+    const colors = {
+      blue:   { border:'#60a5fa', bg:'rgba(59,130,246,0.25)', shadow:'0 0 14px #3b82f6, 0 0 4px #60a5fa', text:'#93c5fd' },
+      green:  { border:'#22c55e', bg:'rgba(34,197,94,0.20)',  shadow:'0 0 14px #16a34a, 0 0 4px #22c55e', text:'#86efac' },
+      red:    { border:'#ef4444', bg:'rgba(239,68,68,0.20)',  shadow:'0 0 14px #dc2626, 0 0 4px #ef4444', text:'#fca5a5' },
+      yellow: { border:'#f59e0b', bg:'rgba(245,158,11,0.20)', shadow:'0 0 14px #d97706, 0 0 4px #f59e0b', text:'#fde68a' },
+    };
+    const c = colors[colorClass] || colors.blue;
+    circle.style.borderColor     = c.border;
+    circle.style.backgroundColor = c.bg;
+    circle.style.boxShadow       = c.shadow;
+    if (detail) { detail.textContent = detailText || ''; detail.style.color = c.text; }
+    if (label)  { label.style.color  = c.text; }
+  }
+
+  function pfDimNode(nodeId) {
+    const circle = document.getElementById('flowCircle' + nodeId);
+    const detail = document.getElementById('flowDetail' + nodeId);
+    const label  = document.getElementById('flowLabel' + nodeId);
+    if (circle) { circle.style.opacity='0.35'; circle.style.boxShadow='none'; }
+    if (detail) { detail.style.color='#4b5563'; }
+    if (label)  { label.style.color='#4b5563'; }
+  }
+
+  function pfAnimateConnector(lineId, dotId, color, cb) {
+    const line = document.getElementById(lineId);
+    const dot  = document.getElementById(dotId);
+    if (!line) { if (cb) cb(); return; }
+    line.style.backgroundColor = color || '#60a5fa';
+    line.style.width = '0';
+    dot.style.backgroundColor = color || '#60a5fa';
+    dot.style.boxShadow = '0 0 8px ' + (color || '#60a5fa');
+    dot.classList.remove('hidden');
+    dot.style.opacity = '1';
+    dot.style.left = '0px';
+
+    const totalWidth = line.parentElement.offsetWidth || 80;
+    const duration = 400;
+    const steps = 30;
+    let step = 0;
+    const interval = setInterval(() => {
+      step++;
+      const pct = step / steps;
+      line.style.width = (pct * 100) + '%';
+      dot.style.left = (pct * totalWidth - 6) + 'px';
+      if (step >= steps) {
+        clearInterval(interval);
+        setTimeout(() => { dot.style.opacity='0'; }, 200);
+        if (cb) cb();
+      }
+    }, duration / steps);
+  }
+
+  window.showPaymentFlow = function(phase, data) {
+    const panel = document.getElementById('paymentFlowPanel');
+    if (!panel) return;
+
+    if (phase === 'start') {
+      pfReset();
+      panel.classList.remove('hidden');
+
+      // Step 1 immediately
+      pfActivateNode(1, 'Initiating transfer', 'blue');
+      document.getElementById('flowProgressMsg').textContent = 'Step 1/6 — Connecting to Sender Bank...';
+
+      // Step 2 after 0.4s
+      pfTimeout(() => {
+        pfAnimateConnector('flowLine1', 'flowDot1', '#60a5fa', () => {
+          pfActivateNode(2, 'Risk scoring & compliance check', 'blue');
+          document.getElementById('flowProgressMsg').textContent = 'Step 2/6 — AML engine analysing transaction...';
+        });
+      }, 400);
+
+      // Step 3 after 0.8s
+      pfTimeout(() => {
+        pfAnimateConnector('flowLine2', 'flowDot2', '#60a5fa', () => {
+          pfActivateNode(3, 'Generating pacs.008 message', 'blue');
+          document.getElementById('flowProgressMsg').textContent = 'Step 3/6 — Building ISO 20022 message...';
+        });
+      }, 800);
+
+      // Step 4 after 1.2s (waits for real API, will be completed by 'complete'/'blocked')
+      pfTimeout(() => {
+        pfAnimateConnector('flowLine3', 'flowDot3', '#60a5fa', () => {
+          pfActivateNode(4, 'Smart contract execution (Solidity)', 'blue');
+          document.getElementById('flowProgressMsg').textContent = 'Step 4/6 — Awaiting blockchain confirmation...';
+        });
+      }, 1200);
+
+      return;
+    }
+
+    if (phase === 'hitl_pending') {
+      // Blocked but sent to HITL — pause at AML with amber "awaiting approval" state
+      const riskScore = data && data.risk_score !== undefined ? data.risk_score.toFixed(1) : '—';
+      pfActivateNode(2, '⏳ Pending HITL  score: ' + riskScore, 'yellow');
+      const badge = document.getElementById('flowStatusBadge');
+      const icon  = document.getElementById('flowPanelIcon');
+      const msg   = document.getElementById('flowProgressMsg');
+      if (badge) { badge.textContent='AWAITING APPROVAL'; badge.className='text-xs px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/40'; }
+      if (icon)  icon.textContent = '⏳';
+      if (msg)   { msg.textContent='Payment held for compliance review — journey will resume once approved.'; msg.style.color='#fde68a'; }
+      // Dim nodes 3-6 but not permanently — they will light up on approval
+      [3, 4, 5, 6].forEach(pfDimNode);
+      return;
+    }
+
+    if (phase === 'hitl_approved') {
+      // Resume journey from step 3 after HITL approval
+      const txHash = data && data.tx_hash ? data.tx_hash.slice(0,14) + '...' : 'confirmed';
+      const uetr   = data && data.uetr    ? data.uetr.slice(0,13) + '...' : 'routed';
+      panel.classList.remove('hidden');
+      // Switch to Payments tab and scroll to panel so user sees the animation
+      const payTab = document.querySelector('[data-tab="payments"]');
+      if (payTab) payTab.click();
+      pfTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 150);
+
+      const badge = document.getElementById('flowStatusBadge');
+      const icon  = document.getElementById('flowPanelIcon');
+      const msg   = document.getElementById('flowProgressMsg');
+      if (badge) { badge.textContent='APPROVED'; badge.className='text-xs px-3 py-1 rounded-full bg-green-500/20 text-green-300 border border-green-500/40'; }
+      if (icon)  icon.textContent = '✅';
+
+      // Mark nodes 1 & 2 green (already done)
+      pfActivateNode(1, 'Transfer initiated ✓', 'green');
+      pfActivateNode(2, '✅ Approved by compliance', 'green');
+      ['flowLine1','flowLine2'].forEach(id => { const el=document.getElementById(id); if(el) el.style.backgroundColor='#22c55e'; });
+
+      if (msg) { msg.textContent = 'HITL approval received — resuming payment journey...'; msg.style.color='#86efac'; }
+
+      pfTimeout(() => {
+        pfActivateNode(3, 'pacs.008 generated ✓', 'green');
+        pfAnimateConnector('flowLine2', 'flowDot2', '#22c55e', () => {});
+      }, 200);
+
+      pfTimeout(() => {
+        pfAnimateConnector('flowLine3', 'flowDot3', '#22c55e', () => {
+          pfActivateNode(4, 'tx: ' + txHash, 'green');
+          if (msg) msg.textContent = 'Step 4/6 — Blockchain transaction confirmed...';
+        });
+      }, 600);
+
+      pfTimeout(() => {
+        pfAnimateConnector('flowLine4', 'flowDot4', '#22c55e', () => {
+          pfActivateNode(5, 'UETR: ' + uetr, 'green');
+          if (msg) msg.textContent = 'Step 5/6 — SWIFT GPI routing payment...';
+        });
+      }, 1100);
+
+      pfTimeout(() => {
+        pfAnimateConnector('flowLine5', 'flowDot5', '#22c55e', () => {
+          pfActivateNode(6, '🎉 Funds credited!', 'green');
+          if (badge) { badge.textContent='COMPLETED'; badge.className='text-xs px-3 py-1 rounded-full bg-green-500/20 text-green-300 border border-green-500/40'; }
+          if (msg)   { msg.textContent='Payment journey complete — funds successfully transferred after compliance approval.'; msg.style.color='#86efac'; }
+        });
+      }, 1600);
+
+      return;
+    }
+
+    if (phase === 'blocked') {
+      // Fully blocked (rejected or no HITL path) — mark node 2 red, dim 3-6
+      const riskScore = data && data.risk_score !== undefined ? data.risk_score.toFixed(1) : '—';
+      pfActivateNode(2, '❌ BLOCKED  score: ' + riskScore, 'red');
+      const badge = document.getElementById('flowStatusBadge');
+      const icon  = document.getElementById('flowPanelIcon');
+      const msg   = document.getElementById('flowProgressMsg');
+      if (badge) { badge.textContent='BLOCKED'; badge.className='text-xs px-3 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-500/40'; }
+      if (icon)  icon.textContent = '🚫';
+      if (msg)   { msg.textContent='Transaction blocked by AML Engine — funds not transferred.'; msg.style.color='#fca5a5'; }
+      // Dim remaining nodes
+      [3, 4, 5, 6].forEach(pfDimNode);
+      return;
+    }
+
+    if (phase === 'complete') {
+      const riskScore = data && data.risk_score !== undefined ? data.risk_score.toFixed(1) : '—';
+      const txHash    = data && data.tx_hash ? data.tx_hash.slice(0,14) + '...' : 'confirmed';
+      const uetr      = data && data.uetr    ? data.uetr.slice(0,13) + '...' : 'routed';
+
+      // Update AML node with risk score
+      pfActivateNode(2, 'Score: ' + riskScore + ' ✓', 'green');
+      pfActivateNode(3, 'pacs.008 generated ✓', 'green');
+
+      pfTimeout(() => {
+        pfActivateNode(4, 'tx: ' + txHash, 'green');
+        pfAnimateConnector('flowLine3', 'flowDot3', '#22c55e', () => {});
+      }, 50);
+
+      pfTimeout(() => {
+        pfAnimateConnector('flowLine4', 'flowDot4', '#22c55e', () => {
+          pfActivateNode(5, 'UETR: ' + uetr, 'green');
+          document.getElementById('flowProgressMsg').textContent = 'Step 5/6 — SWIFT GPI routing payment...';
+        });
+      }, 350);
+
+      pfTimeout(() => {
+        pfAnimateConnector('flowLine5', 'flowDot5', '#22c55e', () => {
+          pfActivateNode(6, '🎉 Funds credited!', 'green');
+          const badge = document.getElementById('flowStatusBadge');
+          const icon  = document.getElementById('flowPanelIcon');
+          const msg   = document.getElementById('flowProgressMsg');
+          if (badge) { badge.textContent='COMPLETED'; badge.className='text-xs px-3 py-1 rounded-full bg-green-500/20 text-green-300 border border-green-500/40'; }
+          if (icon)  icon.textContent = '✅';
+          if (msg)   { msg.textContent='Payment journey complete — funds successfully transferred.'; msg.style.color='#86efac'; }
+          // Retroactively fill early connectors green
+          ['flowLine1','flowLine2'].forEach(id => { const el=document.getElementById(id); if(el) el.style.backgroundColor='#22c55e'; });
+        });
+      }, 750);
+
+      return;
+    }
+
+    if (phase === 'error') {
+      const msg = document.getElementById('flowProgressMsg');
+      const badge = document.getElementById('flowStatusBadge');
+      if (badge) { badge.textContent='ERROR'; badge.className='text-xs px-3 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-500/40'; }
+      if (msg)   { msg.textContent='Network error — could not complete settlement.'; msg.style.color='#fca5a5'; }
+      return;
+    }
+  };
+})();
 
 async function executeSettlement() {
   const btn = document.getElementById('payBtn');
@@ -1801,6 +2179,9 @@ async function executeSettlement() {
     return;
   }
 
+  // Start payment journey animation immediately after confirmation
+  showPaymentFlow('start');
+
   try {
     const currency = document.getElementById('payCurrency').value || 'USD';
     const result = await apiFetch('/api/settlement', {
@@ -1820,6 +2201,19 @@ async function executeSettlement() {
       localStorage.setItem('ipts_balance', BALANCE.toString());
       updateHeaderInfo();
       document.getElementById('paySenderBalance').textContent = '$' + Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
+    // Trigger payment journey completion animation
+    if (result.status === 'blocked' || result.risk_decision === 'blocked') {
+      if (result.hitl_id) {
+        // Sent to HITL queue — pause journey, don't fully block
+        window._pendingFlowHitlId = result.hitl_id;
+        showPaymentFlow('hitl_pending', result);
+      } else {
+        showPaymentFlow('blocked', result);
+      }
+    } else {
+      showPaymentFlow('complete', result);
     }
 
     const statusColor = result.status === 'blocked' ? 'red' : result.status === 'flagged' ? 'yellow' : 'green';
@@ -1888,6 +2282,7 @@ async function executeSettlement() {
     pushChartData(result.status);
     loadDashboard();
   } catch (e) {
+    showPaymentFlow('error');
     if (e.data && e.data.error === 'Insufficient funds') {
       errDiv.textContent = `Insufficient funds. Your balance is $${Number(e.data.current_balance).toLocaleString('en-US', {minimumFractionDigits: 2})}.`;
       errDiv.classList.remove('hidden');
@@ -2162,6 +2557,16 @@ async function hitlAction(action, id) {
       updateHeaderInfo();
       const balEl = document.getElementById('paySenderBalance');
       if (balEl) balEl.textContent = '$' + Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+    // Resume payment journey if this is the final approval for the pending transaction
+    if (action === 'approve' && result.status === 'approved') {
+      if (window._pendingFlowHitlId && window._pendingFlowHitlId === id) {
+        window._pendingFlowHitlId = null;
+        showPaymentFlow('hitl_approved', { tx_hash: result.tx_hash });
+      } else {
+        // Even if a different session initiated the payment, show the journey for this approval
+        showPaymentFlow('hitl_approved', { tx_hash: result.tx_hash });
+      }
     }
     // Always re-fetch account info to get latest balance (covers all users)
     await fetchAccountInfo();

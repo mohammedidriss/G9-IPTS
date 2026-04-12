@@ -328,6 +328,25 @@ slide = pptx.addSlide({ masterName: "DARK" });
 slide.addText("DeFi — Escrow HTLC (Hash Time-Locked Contracts)", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
 addImageSafe(slide, ss("DeFi_Escrow.png"), { x: 0.5, y: 0.9, w: 12.3, h: 5.8 });
 
+// ═══════════════════════════════════════════════════════════════
+// PAYMENT JOURNEY VISUALISATION
+// ═══════════════════════════════════════════════════════════════
+slide = pptx.addSlide({ masterName: "SECTION" });
+slide.addText("Payment Journey", { x: 0.5, y: 1.5, w: 12, h: 1.2, fontSize: 44, bold: true, color: WHITE });
+slide.addText("Real-Time Animated Cross-Border Payment Flow", { x: 0.5, y: 3.5, w: 12, h: 0.7, fontSize: 24, color: GREEN });
+
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("Payment Journey — In-Progress", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Payment_Journey_InProgress.png"), { x: 0.5, y: 0.8, w: 12.3, h: 5.6 });
+
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("Payment Journey — Awaiting HITL Approval", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Payment_Journey_Pending.png"), { x: 0.5, y: 0.8, w: 12.3, h: 5.6 });
+
+slide = pptx.addSlide({ masterName: "DARK" });
+slide.addText("Payment Journey — Successfully Completed", { x: 0.3, y: 0.1, w: 12, h: 0.6, fontSize: 22, bold: true, color: WHITE });
+addImageSafe(slide, ss("Payment_Journey_Completed.png"), { x: 0.5, y: 0.8, w: 12.3, h: 5.6 });
+
 
 // ═══════════════════════════════════════════════════════════════
 // SLIDE 8 — SHAP EXPLAINABILITY
