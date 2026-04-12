@@ -219,7 +219,7 @@ const coverPage = [
   new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { after: 40 },
-    children: [new TextRun({ text: "Mohamad Idriss  |  Rohit Jacob Isaac  |  Sriram Acharya Mudumbai", font: FONT, size: 22, bold: true, color: COLOR_DARK })]
+    children: [new TextRun({ text: "Authors: Mohamad Idriss  |  Rohit Jacob Isaac  |  Sriram Acharya Mudumbai", font: FONT, size: 22, bold: true, color: COLOR_DARK })]
   }),
   new Paragraph({
     alignment: AlignmentType.CENTER,
@@ -1192,7 +1192,7 @@ const doc = new Document({
           children: [
             new TextRun({ text: "Page ", font: FONT, size: 16, color: "999999" }),
             new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: "999999" }),
-            new TextRun({ text: "  |  G9-IPTS  |  April 2026  |  Version 6.0", font: FONT, size: 16, color: "999999" }),
+            new TextRun({ text: "  |  Idriss · Isaac · Mudumbai · Elmahdy · Chandrabose  |  April 2026  |  v6.0", font: FONT, size: 16, color: "999999" }),
           ]
         })]
       })

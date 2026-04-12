@@ -33,8 +33,8 @@ function addImageSafe(slide, filePath, opts) {
 
 // ── Create Presentation ───────────────────────────────────────
 const pptx = new PptxGenJS();
-pptx.author = "Mohamad Idriss";
-pptx.company = "Group 9";
+pptx.author = "Mohamad Idriss, Rohit Jacob Isaac, Sriram Acharya Mudumbai, Walid Elmahdy, Vibin Chandrabose";
+pptx.company = "Group 9 — IPTS";
 pptx.subject = "IPTS Demo Walkthrough";
 pptx.title = "G9-IPTS Demo Walkthrough";
 pptx.layout = "LAYOUT_WIDE"; // 13.33 x 7.5
