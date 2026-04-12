@@ -91,6 +91,8 @@ slide.addText([
   { text: "Walid Elmahdy  |  Vibin Chandrabose", options: { fontSize: 14, color: WHITE, bold: true } },
 ], { x: 0.5, y: 4.5, w: 12, h: 0.8, fontFace: "Calibri" });
 slide.addText("Version 6.0  |  April 2026", { x: 0.5, y: 5.6, w: 12, h: 0.4, fontSize: 16, color: GRAY, fontFace: "Calibri" });
+slide.addText("Golden Gate University & Upgrad DBA Program  |  Emerging Digital Technologies  |  Assignment 2", { x: 0.5, y: 6.1, w: 12, h: 0.35, fontSize: 13, color: GRAY, fontFace: "Calibri" });
+slide.addText("Instructor: Dr. Sumitra Padmanabhan", { x: 0.5, y: 6.45, w: 12, h: 0.3, fontSize: 13, color: GRAY, fontFace: "Calibri" });
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -139,7 +141,7 @@ const problems = [
   { icon: "\u26A0\uFE0F", title: "$10.2M Compliance Cost", desc: "Annual AML/KYC compliance with 15-25% false positive rates" },
   { icon: "\uD83D\uDD12", title: "Black Box AI", desc: "Legacy ML systems cannot explain why transactions are blocked" },
   { icon: "\uD83C\uDF10", title: "Fragmented Infrastructure", desc: "$25-$65 per transaction across multiple intermediaries" },
-  { icon: "\uD83D\uDCCA", title: "$190T Market", desc: "The cross-border payments market is at an inflection point" },
+  { icon: "\uD83D\uDCCA", title: "$194T Market → $320T by 2032", desc: "The cross-border payments market is at an inflection point (FXC Intelligence, 2025)" },
 ];
 problems.forEach((p, idx) => {
   const col = idx % 2;
@@ -194,7 +196,7 @@ const techStack = [
   { cat: "AI/ML", items: "5-Model Ensemble\n16-Feature Vector  |  SHAP\nVelocityTracker  |  SMOTE", color: GREEN },
   { cat: "Security", items: "Zero Trust JWT\nRBAC (5 roles)  |  Four-Eyes\nRate Limiting  |  HSTS", color: RED },
   { cat: "Backend", items: "Flask 3.0  |  SQLite\n22 Database Tables  |  75+ APIs\nSSE Streaming  |  REST API", color: BLUE },
-  { cat: "Frontend", items: "Tailwind CSS  |  Chart.js\nD3.js Network Graph\n12 Tabs  |  Dark Theme", color: YELLOW },
+  { cat: "Frontend", items: "Tailwind CSS  |  Chart.js\nD3.js Network Graph\n13 Tabs  |  Dark Theme", color: YELLOW },
   { cat: "Compliance", items: "HITL + SLA Tracking  |  E-KYC\nSAR Filing  |  SWIFT GPI\n13-Currency FX  |  Fraud Alerts", color: "F97316" },
   { cat: "DeFi", items: "AMM Swap  |  Liquidity Pools\nStaking Rewards  |  Escrow HTLC\nProof of Reserve", color: "06B6D4" },
 ];
@@ -686,7 +688,7 @@ const kpis = [
   ["Currency Support", "USD only", "13 currencies"],
   ["Card Services", "Physical only", "Virtual Visa/MC + digital wallet"],
   ["Identity (KYC)", "Manual paper", "E-KYC with AI scoring"],
-  ["Tabs / Features", "3-5 screens", "12 tabs, 75+ API endpoints"],
+  ["Tabs / Features", "3-5 screens", "13 tabs, 75+ API endpoints"],
   ["DeFi Liquidity Pools", "None", "AMM swap + pool management"],
   ["Staking", "None", "On-chain staking with rewards"],
   ["Escrow", "None", "HTLC smart contract escrow"],
@@ -702,7 +704,80 @@ kpis.forEach((row, idx) => {
 
 
 // ═══════════════════════════════════════════════════════════════
-// SLIDE 15 — THANK YOU / Q&A
+// SLIDE 15 — ROI & FINANCIAL PROJECTIONS
+// ═══════════════════════════════════════════════════════════════
+slide = pptx.addSlide({ masterName: "CONTENT" });
+slide.addText("ROI & Financial Projections", { x: 0.3, y: 0.1, w: 12, h: 0.7, fontSize: 26, bold: true, color: WHITE, fontFace: "Calibri" });
+
+// Market size headline
+slide.addShape(pptx.ShapeType.rect, { x: 0.3, y: 0.95, w: 12.7, h: 0.55, fill: { color: NAVY }, rectRadius: 0.05 });
+slide.addText("$194T current market  →  $320T by 2032  |  IPTS targets 180–220% ROI  |  5-month payback", { x: 0.5, y: 0.95, w: 12.3, h: 0.55, fontSize: 14, bold: true, color: GREEN, align: "center", valign: "middle", fontFace: "Calibri" });
+
+const roiCards = [
+  { label: "Year 1 Investment", value: "$3.2M", sub: "Full deployment cost", color: BLUE },
+  { label: "Payback Period", value: "5 months", sub: "Fastest in class", color: GREEN },
+  { label: "5-Year ROI", value: "180–220%", sub: "Conservative estimate", color: "8B5CF6" },
+  { label: "5-Year TCO", value: "$45–65M", sub: "Mid-sized bank", color: YELLOW },
+  { label: "AML Detection", value: "94.7%", sub: "5-model ensemble", color: GREEN },
+  { label: "Annual Savings", value: "$15–25M", sub: "Operational cost reduction", color: "F97316" },
+];
+roiCards.forEach((c, idx) => {
+  const col = idx % 3;
+  const row = Math.floor(idx / 3);
+  const x = 0.3 + col * 4.25;
+  const y = 1.7 + row * 2.3;
+  slide.addShape(pptx.ShapeType.rect, { x: x, y: y, w: 4.0, h: 2.0, fill: { color: WHITE }, shadow: { type: "outer", blur: 4, offset: 2, color: "CCCCCC" }, rectRadius: 0.1 });
+  slide.addShape(pptx.ShapeType.rect, { x: x, y: y, w: 4.0, h: 0.06, fill: { color: c.color }, rectRadius: 0.05 });
+  slide.addText(c.label, { x: x + 0.2, y: y + 0.15, w: 3.6, h: 0.4, fontSize: 13, bold: true, color: NAVY, fontFace: "Calibri" });
+  slide.addText(c.value, { x: x + 0.2, y: y + 0.6, w: 3.6, h: 0.75, fontSize: 26, bold: true, color: c.color, fontFace: "Calibri" });
+  slide.addText(c.sub, { x: x + 0.2, y: y + 1.35, w: 3.6, h: 0.4, fontSize: 11, color: "666666", fontFace: "Calibri" });
+});
+slide.addText("TCO Breakdown: Infrastructure $15–25M  |  AI Training $8–12M  |  Change Management $5–8M  |  Ongoing Ops $17–20M (5yr)", { x: 0.3, y: 6.3, w: 12.7, h: 0.45, fontSize: 11, color: "555555", align: "center", fontFace: "Calibri" });
+
+
+// ═══════════════════════════════════════════════════════════════
+// SLIDE 16 — GOVERNANCE FRAMEWORK
+// ═══════════════════════════════════════════════════════════════
+slide = pptx.addSlide({ masterName: "CONTENT" });
+slide.addText("Governance Framework", { x: 0.3, y: 0.1, w: 12, h: 0.7, fontSize: 26, bold: true, color: WHITE, fontFace: "Calibri" });
+
+const govLevels = [
+  {
+    level: "Strategic Level",
+    body: "Technology Steering Committee",
+    members: "C-Suite: COO, CDO, CRO from participating institutions",
+    duties: "Quarterly strategic reviews  |  Budget approval  |  Stage-gate decisions  |  Escalation resolution",
+    color: NAVY
+  },
+  {
+    level: "Operational Level",
+    body: "Operations Committee",
+    members: "Head of Payments, Compliance, Technology leads",
+    duties: "Bi-weekly performance reviews  |  Incident escalation  |  SLA oversight  |  Network agreements",
+    color: BLUE
+  },
+  {
+    level: "Technical Level",
+    body: "AI & Ethics Governance Board",
+    members: "Data Science, Security, Legal, Compliance officers",
+    duties: "Responsible AI  |  SHAP explainability reviews  |  Human-in-the-loop oversight  |  Model validation",
+    color: "8B5CF6"
+  },
+];
+govLevels.forEach((g, idx) => {
+  const y = 1.1 + idx * 1.95;
+  slide.addShape(pptx.ShapeType.rect, { x: 0.3, y: y, w: 12.7, h: 1.75, fill: { color: WHITE }, shadow: { type: "outer", blur: 3, offset: 1, color: "CCCCCC" }, rectRadius: 0.1 });
+  slide.addShape(pptx.ShapeType.rect, { x: 0.3, y: y, w: 0.12, h: 1.75, fill: { color: g.color }, rectRadius: 0.05 });
+  slide.addText(g.level, { x: 0.6, y: y + 0.1, w: 3.2, h: 0.4, fontSize: 13, bold: true, color: g.color, fontFace: "Calibri" });
+  slide.addText(g.body, { x: 0.6, y: y + 0.5, w: 4.5, h: 0.35, fontSize: 14, bold: true, color: NAVY, fontFace: "Calibri" });
+  slide.addText(g.members, { x: 0.6, y: y + 0.85, w: 12.0, h: 0.35, fontSize: 11, color: "555555", fontFace: "Calibri" });
+  slide.addText(g.duties, { x: 0.6, y: y + 1.2, w: 12.0, h: 0.4, fontSize: 11, color: "777777", fontFace: "Calibri" });
+});
+slide.addText("Regulatory Compliance: FATF  |  EU MiCA  |  ISO 20022  |  NIST SP 800-207 Zero Trust  |  GDPR", { x: 0.3, y: 6.9, w: 12.7, h: 0.4, fontSize: 12, bold: true, color: GREEN, align: "center", fontFace: "Calibri" });
+
+
+// ═══════════════════════════════════════════════════════════════
+// SLIDE 17 — THANK YOU / Q&A
 // ═══════════════════════════════════════════════════════════════
 slide = pptx.addSlide({ masterName: "TITLE_SLIDE" });
 slide.addText("Thank You", { x: 0.5, y: 1.5, w: 12, h: 1.2, fontSize: 54, bold: true, color: WHITE, fontFace: "Calibri" });
@@ -712,13 +787,13 @@ slide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 3.7, w: 3.5, h: 0.04, fill: { c
 slide.addText([
   { text: "G9-IPTS v6.0\n", options: { fontSize: 16, bold: true, color: WHITE } },
   { text: "7-Layer Architecture  |  5 AI Models  |  SHAP Explainability\n", options: { fontSize: 14, color: GRAY } },
-  { text: "12 Tabs  |  5 Payment Channels  |  DeFi Suite  |  Virtual Cards  |  E-KYC\n", options: { fontSize: 14, color: GRAY } },
+  { text: "13 Tabs  |  5 Payment Channels  |  DeFi Suite  |  Virtual Cards  |  E-KYC\n", options: { fontSize: 14, color: GRAY } },
   { text: "AMM Swap  |  Staking  |  Escrow HTLC  |  Support Chat  |  75+ APIs", options: { fontSize: 14, color: GRAY } },
 ], { x: 0.5, y: 4.2, w: 12, h: 1.8, fontFace: "Calibri", lineSpacingMultiple: 1.5 });
 
 slide.addText([
-  { text: "Mohamad Idriss  |  Rohit Jacob Isaac  |  Sriram Acharya Mudumbai\n", options: { fontSize: 12, color: GRAY } },
-  { text: "Walid Elmahdy  |  Vibin Chandrabose", options: { fontSize: 12, color: GRAY } },
+  { text: "Mohamad Idriss  |  Rohit Jacob Isaac  |  Sriram Acharya Mudumbai  |  Walid Elmahdy  |  Vibin Chandrabose\n", options: { fontSize: 12, color: GRAY } },
+  { text: "GitHub: https://github.com/mohammedidriss/G9-IPTS", options: { fontSize: 12, color: GREEN, bold: true } },
 ], { x: 0.5, y: 6.0, w: 12, h: 0.6, fontFace: "Calibri" });
 
 

@@ -223,8 +223,29 @@ const coverPage = [
   }),
   new Paragraph({
     alignment: AlignmentType.CENTER,
-    spacing: { after: 200 },
+    spacing: { after: 120 },
     children: [new TextRun({ text: "Walid Elmahdy  |  Vibin Chandrabose", font: FONT, size: 22, bold: true, color: COLOR_DARK })]
+  }),
+  new Paragraph({ spacing: { before: 200 }, children: [] }),
+  new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 60 },
+    children: [new TextRun({ text: "Golden Gate University & Upgrad DBA Program", font: FONT, size: 22, color: COLOR_DARK })]
+  }),
+  new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 60 },
+    children: [new TextRun({ text: "Emerging Digital Technologies", font: FONT, size: 22, color: COLOR_DARK })]
+  }),
+  new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 60 },
+    children: [new TextRun({ text: "Assignment 2", font: FONT, size: 22, color: COLOR_DARK })]
+  }),
+  new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 120 },
+    children: [new TextRun({ text: "Instructor: Dr. Sumitra Padmanabhan", font: FONT, size: 22, color: COLOR_DARK })]
   }),
   new Paragraph({ spacing: { before: 400 }, children: [] }),
   new Paragraph({
@@ -287,7 +308,7 @@ const section1 = [
   heading1("1. Executive Summary"),
   para("The Integrated Payment Transformation System (IPTS) is an enterprise-grade financial settlement platform that collapses cross-border payment cycles from the traditional T+2 to T+5 window to near-real-time settlement in under 10 seconds. Built on a 7-layer convergent architecture, IPTS integrates blockchain-based atomic settlement, a 5-model AI/ML fraud detection ensemble with SHAP explainability, four-eyes dual approval for high-value transactions, multi-currency FX conversion, Zero Trust security, and GDPR-compliant data sovereignty into a unified platform."),
   emptyLine(),
-  para("This briefing provides senior leadership with a comprehensive overview of IPTS capabilities, including the significant enhancements delivered in Version 6.0: 17 new features spanning P2P transfers, ACH/Wire/SEPA payments, scheduled and QR code payments, multi-account management, beneficiary management, real-time ledger, virtual card generation, card controls, digital wallet provisioning, Spending 360 analytics, e-KYC verification, biometric controls, fraud alert monitoring, notification center, AI-powered support chat, and a fully redesigned 12-tab dashboard."),
+  para("This briefing provides senior leadership with a comprehensive overview of IPTS capabilities, including the significant enhancements delivered in Version 6.0: 17 new features spanning P2P transfers, ACH/Wire/SEPA payments, scheduled and QR code payments, multi-account management, beneficiary management, real-time ledger, virtual card generation, card controls, digital wallet provisioning, Spending 360 analytics, e-KYC verification, biometric controls, fraud alert monitoring, notification center, AI-powered support chat, and a fully redesigned 13-tab dashboard."),
   emptyLine(),
 
   heading2("1.1 Key Performance Indicators"),
@@ -298,7 +319,7 @@ const section1 = [
       new TableRow({ children: [
         makeHeaderCell("KPI Metric", 3200),
         makeHeaderCell("Before IPTS", 3080),
-        makeHeaderCell("After IPTS v4.0", 3080),
+        makeHeaderCell("After IPTS v6.0", 3080),
       ]}),
       ...[
         ["Settlement Time", "T+2 to T+5 (2-5 business days)", "< 10 seconds (T+0)"],
@@ -309,7 +330,7 @@ const section1 = [
         ["Annual Net Savings", "Baseline", "$7.65M per year"],
         ["Currency Support", "USD only", "13 currencies with FX"],
         ["Approval Controls", "Single approver", "Four-eyes dual approval"],
-        ["3-Year ROI", "N/A", "287%"],
+        ["5-Year ROI", "N/A", "180–220%"],
       ].map((row, idx) => {
         const shading = idx % 2 === 0 ? COLOR_TABLE_ALT : undefined;
         return new TableRow({ children: [
@@ -321,7 +342,7 @@ const section1 = [
     ]
   }),
   emptyLine(),
-  para("The platform addresses a $190 trillion cross-border payments market with a projected payback period of 5 months and cumulative 3-year net benefit of $18.15 million."),
+  para("The platform addresses a $194 trillion cross-border payments market (projected to reach $320 trillion by 2032) with a 94.7% AML detection accuracy, 5-year TCO of $45–65 million, 180–220% ROI, and a projected 5-month payback period on a $3.2 million Year 1 investment."),
   pageBreak(),
 ];
 
@@ -330,7 +351,7 @@ const section1 = [
 // ═══════════════════════════════════════════════════════════════
 const section2 = [
   heading1("2. The Problem: Cross-Border Settlement Today"),
-  para("The global cross-border payments market processes approximately $190 trillion annually, yet relies on infrastructure designed decades ago. Financial institutions face compounding challenges that erode margins, increase regulatory exposure, and degrade customer experience."),
+  para("The global cross-border payments market is currently valued at $194 trillion and is projected to reach $320 trillion by 2032 (FXC Intelligence, 2025), yet relies on infrastructure designed decades ago. Financial institutions face compounding challenges that erode margins, increase regulatory exposure, and degrade customer experience."),
   emptyLine(),
 
   heading2("2.1 Settlement Latency"),
@@ -354,7 +375,7 @@ const section2 = [
   emptyLine(),
 
   heading2("2.6 Market Opportunity"),
-  para("The $190 trillion cross-border payments market is at an inflection point. Institutions that modernize their settlement infrastructure will capture market share, reduce operational costs by 60-75%, and position themselves for the next decade of financial services innovation. IPTS directly addresses each of these pain points."),
+  para("The $194 trillion cross-border payments market (growing to $320 trillion by 2032) is at an inflection point. Institutions that modernize their settlement infrastructure will capture market share, reduce operational costs by 60-75%, and position themselves for the next decade of financial services innovation. IPTS directly addresses each of these pain points."),
   pageBreak(),
 ];
 
@@ -381,7 +402,7 @@ const section3 = [
       new TableRow({ children: [
         makeHeaderCell("Layer", 1400),
         makeHeaderCell("Name", 2200),
-        makeHeaderCell("Key Capabilities (v4.0)", 5760),
+        makeHeaderCell("Key Capabilities (v6.0)", 5760),
       ]}),
       ...[
         ["Layer 1", "Interaction", "Digital portals, multi-currency payment forms, SHAP charts, SLA tracking, health monitoring"],
@@ -751,7 +772,7 @@ const section6 = [
 // ═══════════════════════════════════════════════════════════════
 const section7fx = [
   heading1("7. Multi-Currency FX Engine"),
-  para("IPTS v4.0 supports real-time foreign exchange conversion across 13 currencies, enabling true multi-currency cross-border settlements."),
+  para("IPTS v6.0 supports real-time foreign exchange conversion across 13 currencies, enabling true multi-currency cross-border settlements."),
   emptyLine(),
 
   heading2("7.1 Capabilities"),
@@ -875,7 +896,7 @@ const section9 = [
         ["Cumulative Investment", "$3.20M", "$4.00M", "$4.80M"],
         ["Cumulative Savings", "$7.65M", "$15.30M", "$22.95M"],
         ["Cumulative Net Benefit", "$4.45M", "$11.30M", "$18.15M"],
-        ["ROI", "+139%", "+238%", "+287%"],
+        ["ROI (5-Year: 180–220%)", "+139%", "+238%", "+287% (3-Year cumulative)"],
       ].map((row, idx) => {
         const shading = idx % 2 === 0 ? COLOR_TABLE_ALT : undefined;
         return new TableRow({ children: [
@@ -1053,37 +1074,86 @@ const section12 = [
 // ═══════════════════════════════════════════════════════════════
 const section13 = [
   heading1("13. Implementation Roadmap"),
-  para("6-phase, 12-month roadmap with defined gate criteria at each phase boundary."),
+  para("The roadmap follows a three-phase process spanning 24 months. This iterative approach manages technical, operational, and regulatory risks while delivering tangible outcomes at each stage."),
   emptyLine(),
   new Table({
     width: { size: CONTENT_WIDTH, type: WidthType.DXA },
-    columnWidths: [1600, 1300, 1300, 2800, 2360],
+    columnWidths: [1800, 1400, 3000, 3160],
     rows: [
       new TableRow({ children: [
-        makeHeaderCell("Phase", 1600),
-        makeHeaderCell("Duration", 1300),
-        makeHeaderCell("Timeline", 1300),
-        makeHeaderCell("Deliverables", 2800),
-        makeHeaderCell("Gate Criteria", 2360),
+        makeHeaderCell("Phase", 1800),
+        makeHeaderCell("Timeline", 1400),
+        makeHeaderCell("Key Milestones", 3000),
+        makeHeaderCell("Dependencies & Readiness", 3160),
       ]}),
       ...[
-        ["1. Foundation", "2 months", "M1-M2", "Core platform, 7 smart contracts, database schema, API framework", "Contracts deployed, APIs functional"],
-        ["2. Intelligence", "2 months", "M3-M4", "5-model ML ensemble, 16-feature vector, SHAP, VelocityTracker, graph analytics", "F1 > 95%, SHAP validated, velocity working"],
-        ["3. Integration", "2 months", "M5-M6", "ISO 20022, SWIFT GPI, case management, HITL, four-eyes, FX engine", "E2E settlement tested, four-eyes validated"],
-        ["4. Security", "2 months", "M7-M8", "Zero Trust, GDPR vault, RBAC, SLA tracking, health monitoring, pen testing", "Security audit passed, GDPR compliant"],
-        ["5. Pilot", "2 months", "M9-M10", "Controlled production pilot, multi-currency corridors, performance tuning", "Pilot KPIs met, UAT > 90%"],
-        ["6. Scale", "2 months", "M11-M12", "Full production rollout, all 13 currencies, monitoring, training", "Production SLA met, all corridors live"],
+        [
+          "Phase 1: Foundation & Pilot",
+          "Months 1–8",
+          "Single corridor, core blockchain network, basic compliance rules, security baseline, 100 tx/day",
+          "Executive sponsorship, regulatory pre-approval, partner bank agreement, cloud infrastructure"
+        ],
+        [
+          "Phase 2: Scale & AI Integration",
+          "Months 9–16",
+          "5+ corridors, full AI/ML deployment (BeFL), advanced fraud detection, liquidity optimization, 5,000 tx/day",
+          "Phase 1 success metrics, additional partnerships, ML training data, expanded compliance team"
+        ],
+        [
+          "Phase 3: Full Production & Ecosystem",
+          "Months 17–24",
+          "Global deployment, DeFi integration, ecosystem partnerships, regulatory approvals, 50,000+ tx/day",
+          "Phase 2 validation, full regulatory approval, change management plan, legacy decommission"
+        ],
       ].map((row, idx) => {
         const shading = idx % 2 === 0 ? COLOR_TABLE_ALT : undefined;
-        return new TableRow({ children: row.map((cell, ci) => {
-          const w = [1600, 1300, 1300, 2800, 2360][ci];
-          return ci === 0 ? makeBoldCell(cell, w, { shading }) : makeCell(cell, w, { shading });
-        })});
+        return new TableRow({ children: [
+          makeBoldCell(row[0], 1800, { shading }),
+          makeCell(row[1], 1400, { shading }),
+          makeCell(row[2], 3000, { shading }),
+          makeCell(row[3], 3160, { shading }),
+        ]});
       })
     ]
   }),
   emptyLine(),
-  boldPara("Total Timeline: ", "12 months. Team Size: 8-12 engineers."),
+  boldPara("Total Timeline: ", "24 months. Post-Quantum Cryptography (PQC) planned for Year 3."),
+  pageBreak(),
+
+  heading1("13A. Governance Framework"),
+  para("IPTS proposes a three-level governance structure for managing complexity and compliance across multiple institutions and jurisdictions."),
+  emptyLine(),
+  bulletBold("Strategic Level — Technology Steering Committee: ", "C-suite executives (COO, CDO, CRO) conducting quarterly strategic reviews, budget approvals, and escalation resolution."),
+  bulletBold("Operational Level — Operations Committee: ", "Bi-weekly performance reviews, incident escalation management, SLA oversight, and network participation agreement management."),
+  bulletBold("Technical Level — AI & Ethics Governance Board: ", "Responsible AI principles, SHAP explainability reviews, human-in-the-loop oversight, model validation, and performance monitoring. Immutable AI audit trails maintained on blockchain."),
+  emptyLine(),
+
+  heading2("Regulatory Compliance"),
+  para("IPTS proactively aligns with: FATF (AML/CTF for virtual assets), EU MiCA regulation (legal clarity and consumer protection), ISO 20022 messaging standards, NIST SP 800-207 Zero Trust architecture, and GDPR (ZKP-based PII protection)."),
+  emptyLine(),
+
+  heading1("13B. Trade-offs & Residual Risks"),
+  bulletBold("Blockchain scalability vs. throughput: ", "PBFT consensus requires careful calibration at high volumes. Managed through phased growth."),
+  bulletBold("AI accuracy vs. false positive rate: ", "94.7% AML detection must be balanced against false positives; ongoing SHAP reviews required."),
+  bulletBold("Regulatory uncertainty (MiCA timelines): ", "Ongoing architecture adjustments required as MiCA implementation evolves across jurisdictions."),
+  bulletBold("Cybersecurity residual risk (quantum threat): ", "Post-Quantum Cryptography (PQC) planned for Year 3 as proactive mitigation."),
+  bulletBold("Vendor lock-in: ", "Mitigated through multi-cloud architecture and open standards (ISO 20022, Hyperledger Fabric)."),
+  emptyLine(),
+
+  heading1("13C. Leadership Playbook"),
+  heading2("Key Leadership Decisions"),
+  bulletBold("Executive sponsorship: ", "C-suite (COO or CDO) must sponsor the initiative with multi-year investment commitment."),
+  bulletBold("Phased implementation commitment: ", "Commit to the 24-month roadmap and resist scope expansion before pilot completion."),
+  bulletBold("Technology partner selection: ", "Adopt permissioned Hyperledger Fabric; define robust data anchoring policy."),
+  bulletBold("Regulatory pre-approval strategy: ", "Proactive engagement via regulatory sandbox or innovation hub frameworks."),
+  emptyLine(),
+
+  heading2("Common Pitfalls to Avoid"),
+  bulletBold("Overambitious scope: ", "Expand only after successful pilot completion."),
+  bulletBold("Regulatory gap trap: ", "Engage regulators early via sandbox frameworks before full deployment."),
+  bulletBold("Underinvestment in change management: ", "Staff training is a core deliverable, not an afterthought."),
+  bulletBold("Data debt trap: ", "Clean legacy data before implementing AI to avoid skewed risk scores."),
+  bulletBold("Silo pitfall: ", "Blockchain without AI creates compliance silos; convergence is essential."),
   pageBreak(),
 ];
 
@@ -1115,7 +1185,7 @@ const section14 = [
   checkPara("Proof of Reserve dashboard delivers cryptographic solvency attestation for digital asset holdings."),
   checkPara("LLM-powered AI Support Chat enables natural language queries across account, payment, and compliance domains."),
   checkPara("Network Graph Analysis with dual-view visualization strengthens fraud investigation and pattern detection."),
-  checkPara("3-year ROI of 287% with 5-month payback period, delivering $18.15M cumulative net benefit."),
+  checkPara("5-year ROI of 180–220% with 5-month payback period on $3.2M Year 1 investment; 5-year TCO: $45–65M for mid-sized bank."),
   emptyLine(),
 
   heading2("14.2 Recommendations"),
@@ -1137,6 +1207,48 @@ const section14 = [
     spacing: { before: 400 },
     children: [new TextRun({ text: "End of Executive Briefing", font: FONT, size: 20, italics: true, color: "888888" })]
   }),
+];
+
+// ═══════════════════════════════════════════════════════════════
+// ===== REFERENCES =====
+// ═══════════════════════════════════════════════════════════════
+const referencesSection = [
+  pageBreak(),
+  heading1("References"),
+  para("Ajagbe, S. A., Majola, S., & Mudali, P. (2025). Comparative analysis of machine learning algorithms for money laundering detection. Discover Artificial Intelligence, 5(1), 144. https://doi.org/10.1007/s44163-025-00397-4"),
+  para("Akhtar, Z. B. (2025). Artificial Intelligence (AI) Meets Blockchain: Transforming Industries for the Next Digital Era. Interdisciplinary Systems for Global Management. https://doi.org/10.55578/isgm.2508.005"),
+  para("Ali, G., Emmanuel, O., Mijwil, M. M., Buruga, B. A., Eslahi, A. V., & Adamopoulos, I. (2026). A Survey on Securing Smart Finance using Artificial Intelligence and Blockchain. SHIFRA, 2026, 1–61. https://doi.org/10.70470/SHIFRA/2026/001"),
+  para("Aljunaid, S. K., Almheiri, S. J., Dawood, H., & Khan, M. A. (2025). Secure and Transparent Banking: Explainable AI-Driven Federated Learning Model for Financial Fraud Detection. Journal of Risk and Financial Management, 18(4), 179. https://doi.org/10.3390/jrfm18040179"),
+  para("Bank for International Settlements (BIS). (2020). BIS Quarterly Review. http://www.bis.org/publ/qtrpdf/r_qt2003.htm"),
+  para("Buchanan, B. G. (2019). Artificial intelligence in finance. Alan Turing Institute. https://doi.org/10.5281/zenodo.2569582"),
+  para("Budisteanu, T.-G. (2025). Blockchain and the Banking Sector: Benefits, Challenges and Perspectives. Open Journal of Social Sciences, 13(03), 288–300. https://doi.org/10.4236/jss.2025.133019"),
+  para("Catalini, C., & Gans, J. S. (2020). Some simple economics of the blockchain. Communications of the ACM, 63(7), 80–90. https://doi.org/10.1145/3359552"),
+  para("Chatterjee, P. (2023). AI-Powered Payment Gateways: Accelerating Transactions and Fortifying Security in Real-Time Financial Systems. International Journal of Scientific Research in Science and Technology, 1270–1283. https://doi.org/10.32628/IJSRST23113268"),
+  para("Chatterjee, P. (2025). AI-Powered Real-Time Analytics for Cross-Border Payment Systems. SSRN Electronic Journal. https://doi.org/10.2139/ssrn.5251235"),
+  para("Cong, L. W., & He, Z. (2019). Blockchain Disruption and Smart Contracts. The Review of Financial Studies, 32(5), 1754–1797. https://doi.org/10.1093/rfs/hhz007"),
+  para("Conway, S., Shuttlewood, P., & Wozniak, L. (2017). Blockchain Technology Could Reduce Investment Banks' Infrastructure Costs by 30 Percent. Accenture. https://newsroom.accenture.com/news/2017/blockchain-technology-could-reduce-investment-banks-infrastructure-costs-by-30-percent-according-to-accenture-report"),
+  para("Dong, C., Yao, A., Xu, Z., Lu, M., Jiang, F., Chen, S., & Liu, X. (2024). A Blockchain-Based Self-Sovereign Identity System for KYC Processes. Proceedings of the 6th ACM International Symposium on Blockchain and Secure Critical Infrastructure, 1–11. https://doi.org/10.1145/3659463.3660026"),
+  para("Farayola, O. A. (2024). Revolutionizing banking security: Integrating artificial intelligence, blockchain, and business intelligence for enhanced cybersecurity. Finance & Accounting Research Journal, 6(4), 501–514. https://doi.org/10.51594/farj.v6i4.990"),
+  para("Fetaji, B., Fetaji, M., Hasan, A., Rexhepi, S., & Armenski, G. (2025). FRAUD-X: An Integrated AI, Blockchain, and Cybersecurity Framework. IEEE Access, 13, 48068–48082. https://doi.org/10.1109/ACCESS.2025.3547285"),
+  para("FSB. (2021). Targets for Addressing the Four Challenges of Cross-Border Payments. Financial Stability Board. https://www.fsb.org/uploads/P131021-2.pdf"),
+  para("FXC Intelligence. (2025). Cross-border payments market now worth over $194tn and is forecast to reach $320tn by 2032."),
+  para("Han, L. (2025). Integrating Blockchain and AI in Financial Systems. Open Science Framework. https://doi.org/10.31219/osf.io/2mn3f_v1"),
+  para("Hussain, A. A., & Al-Turjman, F. (2021). Artificial intelligence and blockchain: A review. Transactions on Emerging Telecommunications Technologies, 32(9), e4268. https://doi.org/10.1002/ett.4268"),
+  para("J.P. Morgan. (2023). THE RACE TO REWIRE CROSS-BORDER PAYMENTS."),
+  para("Lucas, D., & Daniel, T. (2024). The Intersection of Blockchain Technology and Cybersecurity in Online Banking Systems. https://doi.org/10.13140/RG.2.2.19440.26884"),
+  para("Mamun, M., Arifuzzaman, B. M., & Mahmud, S. M. N. (2022). Banking Management System Architecture Using AI & Blockchain. Proceedings of the 2nd International Conference on Computing Advancements, 75–82. https://doi.org/10.1145/3542954.3542966"),
+  para("McKinsey. (2023). On the cusp of the next payments era: Future opportunities for banks."),
+  para("Morgan, T. (2021). Financial fraud in the United States: Trends, victims, and policy responses. Bureau of Justice Statistics Special Report. U.S. Department of Justice."),
+  para("Olumuyiwa Adesuyi, M., et al. (2024). AI-Driven Risk Scoring Model for Global Cross-Border Trade Payment Transactions. International Journal of Advanced Multidisciplinary Research and Studies, 4(1), 1569–1581. https://doi.org/10.62225/2583049X.2024.4.1.5281"),
+  para("Pramudito, D., Na'am, J., & Ernawan, F. (2025). Exploring Blockchain and AI in Digital Banking. SISTEMASI, 14(3), 1448. https://doi.org/10.32520/stmsi.v14i3.5231"),
+  para("Richards, K. (2025). Use cases and considerations for rapidly and responsibly adopting AI, digital assets, and blockchain in financial services. Deloitte."),
+  para("Rose, S., Borchert, O., Mitchell, S., & Connelly, S. (2020). Zero Trust Architecture. NIST. https://doi.org/10.6028/NIST.SP.800-207"),
+  para("Shamsan Saleh, A. M. (2024). Blockchain for secure and decentralized artificial intelligence in cybersecurity. Blockchain: Research and Applications, 5(3), 100193. https://doi.org/10.1016/j.bcra.2024.100193"),
+  para("Shi, J., & Wang, Y. (2025). Academic exploration of blockchain and AI in financial services. Journal of Electronic Business & Digital Economics, 4(2), 270–282. https://doi.org/10.1108/JEBDE-08-2024-0023"),
+  para("Tambi, V. K. (2026). Blockchain-Integrated Payment Gateways for Secure Digital Banking."),
+  para("Temchenko, E. (2025). Artificial Intelligence in Banking. Socio-Economic Relations in the Digital Society, 3(57), 5–18. https://doi.org/10.55643/ser.3.57.2025.622"),
+  para("Wider, W., et al. (2025). Adoption of blockchain technology in banking sector. Social Sciences & Humanities Open, 12, 102299. https://doi.org/10.1016/j.ssaho.2025.102299"),
+  para("World Bank. (2025). World Bank Remittance Prices Worldwide. https://remittanceprices.worldbank.org/sites/default/files/rpw_main_report_and_annex_q125_1_0.pdf"),
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -1230,6 +1342,7 @@ const doc = new Document({
       ...section12,
       ...section13,
       ...section14,
+      ...referencesSection,
     ]
   }]
 });
