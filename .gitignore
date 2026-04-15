@@ -50,7 +50,7 @@ package-lock.json
 
 # Colab
 .ipynb_checkpoints/
-
+.claude/
 # Secrets
 *.pem
 *.key
