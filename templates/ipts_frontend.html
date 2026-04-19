@@ -143,17 +143,17 @@ tailwind.config = {
     <button onclick="switchTab('dashboard')" data-tab="dashboard" class="tab-btn tab-active px-4 py-2 text-sm font-medium transition whitespace-nowrap">
       <i class="fas fa-chart-line mr-1"></i>Dashboard
     </button>
+    <button onclick="switchTab('beneficiaries')" data-tab="beneficiaries" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
+      <i class="fas fa-users mr-1"></i>Beneficiary
+    </button>
     <button onclick="switchTab('payments')" data-tab="payments" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-money-bill-transfer mr-1"></i>Payments
     </button>
+    <button onclick="switchTab('approvals')" data-tab="approvals" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
+      <i class="fas fa-check-circle mr-1"></i>Approvals
+    </button>
     <button onclick="switchTab('aiml')" data-tab="aiml" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-brain mr-1"></i>AI/ML
-    </button>
-    <button onclick="switchTab('graph')" data-tab="graph" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
-      <i class="fas fa-diagram-project mr-1"></i>Network Graph
-    </button>
-    <button onclick="switchTab('admin')" data-tab="admin" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
-      <i class="fas fa-user-shield mr-1"></i>Admin
     </button>
     <button onclick="switchTab('compliance')" data-tab="compliance" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-scale-balanced mr-1"></i>Compliance
@@ -161,23 +161,26 @@ tailwind.config = {
     <button onclick="switchTab('cases')" data-tab="cases" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-folder-open mr-1"></i>Case Management
     </button>
-    <button onclick="switchTab('beneficiaries')" data-tab="beneficiaries" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
-      <i class="fas fa-users mr-1"></i>Beneficiaries
-    </button>
-    <button onclick="switchTab('reporting')" data-tab="reporting" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
-      <i class="fas fa-chart-pie mr-1"></i>Spending 360
+    <button onclick="switchTab('security')" data-tab="security" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
+      <i class="fas fa-fingerprint mr-1"></i>Security
     </button>
     <button onclick="switchTab('cards')" data-tab="cards" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-credit-card mr-1"></i>Cards
     </button>
-    <button onclick="switchTab('security')" data-tab="security" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
-      <i class="fas fa-fingerprint mr-1"></i>Security
+    <button onclick="switchTab('defi')" data-tab="defi" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
+      <i class="fas fa-cubes mr-1"></i>DeFi
+    </button>
+    <button onclick="switchTab('admin')" data-tab="admin" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
+      <i class="fas fa-user-shield mr-1"></i>Admin
     </button>
     <button onclick="switchTab('documents')" data-tab="documents" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-file-invoice mr-1"></i>Documents
     </button>
-    <button onclick="switchTab('defi')" data-tab="defi" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
-      <i class="fas fa-cubes mr-1"></i>DeFi
+    <button onclick="switchTab('spending360')" data-tab="spending360" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
+      <i class="fas fa-chart-pie mr-1"></i>360 Spending
+    </button>
+    <button onclick="switchTab('graph')" data-tab="graph" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
+      <i class="fas fa-diagram-project mr-1"></i>Network
     </button>
   </nav>
 
@@ -341,6 +344,17 @@ tailwind.config = {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- APPROVALS TAB -->
+    <div id="tab-approvals" class="tab-content hidden fade-in">
+      <div class="mb-6">
+        <h2 class="text-xl font-bold text-navy mb-1">Pending Approvals</h2>
+        <p class="text-sm text-gray-500">Payments awaiting Human-in-the-Loop (HITL) review and authorisation.</p>
+      </div>
+      <div id="approvals-list" class="space-y-3">
+        <div class="text-sm text-gray-400 italic">Loading pending approvals...</div>
       </div>
     </div>
 
@@ -1120,7 +1134,7 @@ tailwind.config = {
     </div>
 
     <!-- SPENDING 360 REPORTING TAB -->
-    <div id="tab-reporting" class="tab-content hidden fade-in">
+    <div id="tab-spending360" class="tab-content hidden fade-in">
       <!-- Summary KPI Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <div class="glass rounded-xl p-5 glow-green">
@@ -1661,7 +1675,8 @@ function switchTab(tab) {
   if (tab === 'compliance') { loadSanctions(); loadNostro(); }
   if (tab === 'cases') loadCases();
   if (tab === 'beneficiaries') loadBeneficiaries();
-  if (tab === 'reporting') loadSpending360();
+  if (tab === 'spending360') loadSpending360();
+  if (tab === 'approvals') loadApprovals();
   if (tab === 'cards') loadCards();
   if (tab === 'security') { loadKYCStatus(); loadFraudAlerts(); }
   if (tab === 'documents') loadDocuments();
@@ -2500,6 +2515,43 @@ function renderGraph(containerId, data, connectedOnly) {
 // ============================================================
 // Admin - HITL
 // ============================================================
+async function loadApprovals() {
+  const container = document.getElementById('approvals-list');
+  try {
+    const data = await apiFetch('/api/hitl/queue');
+    if (!data.queue || data.queue.length === 0) {
+      container.innerHTML = '<div class="text-sm text-gray-400 italic">No pending approvals.</div>';
+      return;
+    }
+    container.innerHTML = data.queue.map(item => {
+      const needsFourEyes = item.amount >= 100000;
+      const statusColor = item.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : item.status === 'awaiting_second_approval' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700';
+      return `
+      <div class="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between shadow-sm">
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <span class="font-mono text-xs text-gray-400">#${item.id.substring(0,8)}...</span>
+            <span class="text-xs px-2 py-0.5 rounded-full font-medium ${statusColor}">${item.status.replace('_',' ').toUpperCase()}</span>
+            ${needsFourEyes ? '<span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">4-EYES</span>' : ''}
+          </div>
+          <div class="text-sm font-semibold text-gray-800">${item.beneficiary_name || 'Unknown Beneficiary'}</div>
+          <div class="text-xs text-gray-500 mt-0.5">${item.reason || 'Flagged for review'} &nbsp;·&nbsp; Risk Score: <span class="text-red-500 font-medium">${(item.risk_score||0).toFixed(1)}</span></div>
+        </div>
+        <div class="text-right ml-6">
+          <div class="text-lg font-bold text-gray-800">$${Number(item.amount).toLocaleString()}</div>
+          ${item.status === 'pending' || item.status === 'awaiting_second_approval' ? `
+          <div class="flex gap-2 mt-2">
+            <button onclick="hitlAction('approve','${item.id}');loadApprovals();" class="px-3 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-500">${item.status === 'awaiting_second_approval' ? '2nd Approve' : 'Approve'}</button>
+            <button onclick="hitlAction('reject','${item.id}');loadApprovals();" class="px-3 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-500">Reject</button>
+          </div>` : `<div class="text-xs text-gray-400 mt-1">${item.reviewed_by || 'Reviewed'}</div>`}
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = '<div class="text-sm text-red-400">Failed to load approvals.</div>';
+  }
+}
+
 async function loadHITL() {
   try {
     const data = await apiFetch('/api/hitl/queue');

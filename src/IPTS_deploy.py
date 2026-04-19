@@ -1097,7 +1097,6 @@ BENEFICIARIES = [
     {"name": "Vibin Chandrabose", "type": "individual", "risk": "low"},
     {"name": "Global Trade Corp", "type": "corporate", "risk": "low"},
     {"name": "Acme International", "type": "corporate", "risk": "low"},
-    {"name": "Tehran Petroleum Exports", "type": "corporate", "risk": "high"},
     {"name": "Shell Company Alpha", "type": "corporate", "risk": "critical"},
     {"name": "Offshore Haven Corp", "type": "corporate", "risk": "critical"},
     {"name": "Dark Web Exchange", "type": "corporate", "risk": "critical"},
