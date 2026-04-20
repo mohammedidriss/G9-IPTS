@@ -51,6 +51,12 @@ tailwind.config = {
   .badge { padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
   .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;display:flex;align-items:center;justify-content:center; }
   .modal-content { background:#FFFFFF;border:1px solid #D1D9E0;border-radius:12px;max-width:700px;width:95%;max-height:85vh;overflow-y:auto;padding:24px; }
+  .role-badge-admin { background:#fef3c7; color:#b45309; border:1px solid #f59e0b; }
+  .role-badge-operator { background:#dbeafe; color:#1d4ed8; border:1px solid #3b82f6; }
+  .role-badge-compliance { background:#f3e8ff; color:#7c3aed; border:1px solid #a78bfa; }
+  .role-badge-client { background:#dcfce7; color:#15803d; border:1px solid #4ade80; }
+  .role-badge-auditor { background:#fee2e2; color:#b91c1c; border:1px solid #f87171; }
+  .role-badge-datascientist { background:#f0fdf4; color:#166534; border:1px solid #86efac; }
 </style>
 </head>
 <body class="text-gray-700 min-h-screen">
@@ -86,7 +92,8 @@ tailwind.config = {
         <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">rohit</td><td>Rohit@2026!</td><td class="text-right">Operator</td><td class="text-right text-accent font-semibold">$750,000</td></tr>
         <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">sriram</td><td>Sriram@2026!</td><td class="text-right">Auditor</td><td class="text-right text-accent font-semibold">$500,000</td></tr>
         <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">walid</td><td>Walid@2026!</td><td class="text-right">Compliance</td><td class="text-right text-accent font-semibold">$350,000</td></tr>
-        <tr><td class="py-1 font-mono text-accent">vibin</td><td>Vibin@2026!</td><td class="text-right">Data Scientist</td><td class="text-right text-accent font-semibold">$150,000</td></tr>
+        <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">vibin</td><td>Vibin@2026!</td><td class="text-right">Data Scientist</td><td class="text-right text-accent font-semibold">$150,000</td></tr>
+        <tr><td class="py-1 font-mono text-accent">sara</td><td>Sara@2026!</td><td class="text-right">Client</td><td class="text-right text-accent font-semibold">$50,000</td></tr>
       </table>
     </div>
     <div class="mt-4 text-center text-xs text-gray-400">
@@ -189,6 +196,16 @@ tailwind.config = {
 
     <!-- DASHBOARD TAB -->
     <div id="tab-dashboard" class="tab-content fade-in">
+      <!-- Client Welcome Banner (hidden for non-client roles) -->
+      <div id="clientDashWelcome" class="hidden glass rounded-xl p-5 mb-6 border-l-4 border-green-400 flex items-center gap-4">
+        <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+          <i class="fas fa-user text-green-600"></i>
+        </div>
+        <div>
+          <p class="text-base font-bold text-gray-800">Welcome back, <span></span>!</p>
+          <p class="text-xs text-gray-500">Here's an overview of your account activity.</p>
+        </div>
+      </div>
       <!-- KPI Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="glass rounded-xl p-5 glow-green">
@@ -286,8 +303,8 @@ tailwind.config = {
         </div>
       </div>
 
-      <!-- Real-time Ledger -->
-      <div class="glass rounded-xl p-4 mb-6">
+      <!-- Real-time Ledger (admin/operator/compliance only) -->
+      <div id="dashAmlLedger" class="glass rounded-xl p-4 mb-6">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2">
             <i class="fas fa-list-ul text-cyan-400 text-xs"></i>
@@ -320,8 +337,22 @@ tailwind.config = {
         <canvas id="volumeChart" height="200"></canvas>
       </div>
 
-      <!-- AML Telemetry Table -->
-      <div class="glass rounded-xl p-6">
+      <!-- Client-friendly recent transactions (client only) -->
+      <div id="dashClientTransactions" class="hidden glass rounded-xl p-4 mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-clock-rotate-left text-accent text-xs"></i>
+            <span class="text-xs font-semibold text-gray-800">Recent Transactions</span>
+          </div>
+          <button onclick="loadClientTransactions()" class="text-xs text-accent hover:text-accent/80"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+        </div>
+        <div id="clientTxList" class="space-y-2">
+          <p class="text-xs text-gray-400 text-center py-4">Loading your transactions...</p>
+        </div>
+      </div>
+
+      <!-- AML Telemetry Table (admin/operator/compliance only) -->
+      <div id="dashAmlTelemetry" class="glass rounded-xl p-6">
         <div class="flex justify-between items-center mb-4">
           <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-satellite-dish mr-2 text-accent"></i>AML Telemetry - Live Ledger</h3>
           <span class="pulse-dot inline-block w-2 h-2 rounded-full bg-accent"></span>
@@ -728,6 +759,41 @@ tailwind.config = {
         </div>
       </div>
 
+      <!-- CLIENT AI INSIGHTS (visible only for client role) -->
+      <div id="clientAIInsights" class="hidden">
+        <!-- Personal Welcome -->
+        <div class="glass rounded-xl p-6 mb-6 border-l-4 border-green-400">
+          <h2 class="text-lg font-bold text-gray-800 mb-1"><i class="fas fa-sparkles mr-2 text-green-500"></i>AI Insights — <span id="clientWelcomeName"></span></h2>
+          <p class="text-sm text-gray-500">Personalized activity analysis powered by IPTS AI</p>
+        </div>
+
+        <!-- Unusual Activity Alerts -->
+        <div class="glass rounded-xl p-6 mb-6">
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-triangle-exclamation mr-2 text-yellow-500"></i>Your Recent Unusual Activity</h3>
+          <div id="clientUnusualActivity" class="space-y-3">
+            <div class="text-center text-gray-400 text-sm py-6"><i class="fas fa-circle-notch fa-spin mr-2"></i>Analysing your transactions...</div>
+          </div>
+        </div>
+
+        <!-- AI-Identified Risk Payees -->
+        <div class="glass rounded-xl p-6 mb-6">
+          <div class="flex items-center gap-2 mb-4">
+            <i class="fas fa-robot text-red-400"></i>
+            <h3 class="text-sm font-semibold text-gray-800">AI-Identified High-Risk Payees</h3>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-500 font-medium">Avoid sending to these entities</span>
+          </div>
+          <div id="clientRiskEntities" class="space-y-2">
+            <div class="text-center text-gray-400 text-sm py-4"><i class="fas fa-circle-notch fa-spin mr-2"></i>Loading...</div>
+          </div>
+        </div>
+
+        <!-- Spending Summary -->
+        <div class="glass rounded-xl p-6 mb-6">
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-chart-bar mr-2 text-accent"></i>My Spending Summary</h3>
+          <canvas id="clientSpendingChart" height="180"></canvas>
+        </div>
+      </div>
+
     </div>
 
     <!-- NETWORK GRAPH TAB -->
@@ -818,13 +884,66 @@ tailwind.config = {
       </div>
 
       <!-- GDPR Erasure -->
-      <div class="glass rounded-xl p-6">
+      <div class="glass rounded-xl p-6 mb-6">
         <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-eraser mr-2 text-red-400"></i>GDPR Right to Erasure</h3>
         <div class="flex gap-3">
           <input id="gdprEntityId" type="text" class="flex-1 px-3 py-2 rounded-lg text-sm" placeholder="Entity ID to erase">
           <button onclick="gdprErase()" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-500 transition">
             <i class="fas fa-trash mr-1"></i>Erase
           </button>
+        </div>
+      </div>
+
+      <!-- System Stats (Admin only) -->
+      <div id="adminSystemStats" class="glass rounded-xl p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-server mr-2 text-indigo-400"></i>System Overview</h3>
+          <button onclick="loadSystemStats()" class="text-xs text-accent hover:underline"><i class="fas fa-refresh mr-1"></i>Refresh</button>
+        </div>
+        <div id="systemStatsGrid" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <p class="text-xs text-gray-400 col-span-4 text-center py-4">Loading...</p>
+        </div>
+      </div>
+
+      <!-- User Management (Admin only) -->
+      <div id="adminUserMgmt" class="glass rounded-xl p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-users-cog mr-2 text-accent"></i>User Management</h3>
+          <button onclick="loadAdminUsers()" class="text-xs text-accent hover:underline"><i class="fas fa-refresh mr-1"></i>Refresh</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-gray-500 border-b border-gray-200">
+                <th class="text-left py-2 px-2">User</th>
+                <th class="text-left py-2 px-2">Role</th>
+                <th class="text-right py-2 px-2">Balance</th>
+                <th class="text-right py-2 px-2">Transactions</th>
+                <th class="text-right py-2 px-2">Cards</th>
+                <th class="text-center py-2 px-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersBody">
+              <tr><td colspan="6" class="text-center py-6 text-gray-400">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Balance Adjustment Modal -->
+        <div id="balanceAdjustPanel" class="hidden mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <p class="text-xs font-semibold text-gray-700 mb-3"><i class="fas fa-dollar-sign mr-1 text-green-500"></i>Adjust Balance for <span id="balanceAdjustUser" class="text-accent"></span></p>
+          <div class="flex gap-2 items-end">
+            <div class="flex-1">
+              <label class="block text-xs text-gray-500 mb-1">Amount (USD)</label>
+              <input id="balanceAdjustAmount" type="number" min="0" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="0.00">
+            </div>
+            <select id="balanceAdjustAction" class="px-3 py-2 rounded-lg text-sm border border-gray-200">
+              <option value="credit">Credit (+)</option>
+              <option value="debit">Debit (−)</option>
+            </select>
+            <button onclick="submitBalanceAdjust()" class="px-4 py-2 rounded-lg bg-accent text-white text-sm hover:bg-accent/90 transition">Apply</button>
+            <button onclick="document.getElementById('balanceAdjustPanel').classList.add('hidden')" class="px-3 py-2 rounded-lg bg-gray-200 text-gray-600 text-sm hover:bg-gray-300 transition">Cancel</button>
+          </div>
+          <p id="balanceAdjustMsg" class="hidden text-xs mt-2 rounded px-2 py-1"></p>
         </div>
       </div>
     </div>
@@ -1289,28 +1408,52 @@ tailwind.config = {
     <!-- CARDS TAB -->
     <div id="tab-cards" class="tab-content hidden fade-in">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Generate Card -->
+
+        <!-- LEFT PANEL: Request (client/operator) or Admin controls -->
         <div class="glass rounded-xl p-6">
-          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-plus-circle mr-2 text-accent"></i>Generate Virtual Card</h3>
-          <div class="space-y-3">
-            <div><label class="block text-xs text-gray-500 mb-1">Card Label</label><input id="cardLabel" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g. Online Shopping"></div>
-            <div><label class="block text-xs text-gray-500 mb-1">Spending Limit (USD)</label><input id="cardLimit" type="number" class="w-full px-3 py-2 rounded-lg text-sm" value="5000"></div>
-            <div id="cardGenResult" class="hidden bg-gray-100 rounded-lg p-4 border border-accent/30">
-              <p class="text-xs text-gray-500 mb-1">New Card Generated</p>
-              <p id="cardGenNumber" class="text-gray-800 font-mono text-lg tracking-widest"></p>
-              <div class="flex justify-between mt-2">
-                <span id="cardGenExpiry" class="text-xs text-gray-400"></span>
-                <span id="cardGenCVV" class="text-xs text-accent font-mono"></span>
+
+          <!-- Client / Operator: Request Card form -->
+          <div id="cardRequestPanel">
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-plus-circle mr-2 text-accent"></i>Request Virtual Card</h3>
+            <div class="space-y-3">
+              <div><label class="block text-xs text-gray-500 mb-1">Card Label</label><input id="cardLabel" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g. Online Shopping"></div>
+              <div><label class="block text-xs text-gray-500 mb-1">Card Type</label>
+                <select id="cardType" class="w-full px-3 py-2 rounded-lg text-sm">
+                  <option value="Virtual Debit">Virtual Debit</option>
+                  <option value="Virtual Credit">Virtual Credit</option>
+                  <option value="Prepaid">Prepaid</option>
+                </select>
               </div>
+              <div><label class="block text-xs text-gray-500 mb-1">Network</label>
+                <select id="cardNetwork" class="w-full px-3 py-2 rounded-lg text-sm">
+                  <option value="Visa">Visa</option>
+                  <option value="Mastercard">Mastercard</option>
+                </select>
+              </div>
+              <div><label class="block text-xs text-gray-500 mb-1">Spending Limit (USD)</label><input id="cardLimit" type="number" class="w-full px-3 py-2 rounded-lg text-sm" value="5000"></div>
+              <div id="cardReqMsg" class="hidden text-xs rounded-lg px-3 py-2"></div>
+              <button onclick="requestCard()" id="cardReqBtn" class="w-full py-2.5 rounded-lg bg-accent text-white font-semibold hover:bg-accent/90 transition text-sm"><i class="fas fa-paper-plane mr-2"></i>Submit Request</button>
+              <p class="text-xs text-gray-400 text-center"><i class="fas fa-info-circle mr-1"></i>Card requests are reviewed and approved by an admin before activation.</p>
             </div>
-            <button onclick="generateCard()" class="w-full py-2.5 rounded-lg bg-accent text-white font-semibold hover:bg-accent/90 transition text-sm"><i class="fas fa-credit-card mr-2"></i>Generate Card</button>
+          </div>
+
+          <!-- Admin: Pending card requests queue -->
+          <div id="cardAdminPanel" class="hidden">
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-inbox mr-2 text-amber-400"></i>Pending Card Requests</h3>
+            <div id="cardRequestsList" class="space-y-3">
+              <p class="text-xs text-gray-400 text-center py-4">No pending card requests.</p>
+            </div>
           </div>
         </div>
-        <!-- My Cards -->
+
+        <!-- RIGHT PANEL: My Cards -->
         <div class="glass rounded-xl p-6 lg:col-span-2">
-          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-wallet mr-2 text-purple-400"></i>My Virtual Cards</h3>
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-wallet mr-2 text-purple-400"></i>My Virtual Cards</h3>
+            <button onclick="loadCards()" class="text-xs text-accent hover:text-accent/80"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+          </div>
           <div id="cardsList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <p class="text-gray-600 text-sm text-center py-8 col-span-2">No virtual cards yet. Generate one!</p>
+            <p class="text-gray-600 text-sm text-center py-8 col-span-2">No virtual cards yet.</p>
           </div>
         </div>
       </div>
@@ -1707,8 +1850,100 @@ async function fetchAccountInfo() {
 
 function updateHeaderInfo() {
   document.getElementById('headerFullName').textContent = FULL_NAME;
-  document.getElementById('headerRoleBadge').textContent = ROLE;
+  const badge = document.getElementById('headerRoleBadge');
+  badge.textContent = ROLE.toUpperCase();
+  badge.className = `badge role-badge-${ROLE}`;
   document.getElementById('headerBalance').textContent = `$${Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+}
+
+function configureUIForRole() {
+  // Tab visibility map: role -> array of tab data-tab values to SHOW
+  const tabAccess = {
+    // Admin: full system oversight — no personal payments/beneficiaries/spending
+    admin:         ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'security', 'cards', 'defi', 'admin', 'documents', 'graph'],
+    operator:      ['dashboard', 'payments', 'beneficiaries', 'aiml', 'security', 'cards', 'defi', 'documents', 'spending360'],
+    compliance:    ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'graph', 'admin'],
+    client:        ['dashboard', 'payments', 'beneficiaries', 'cards', 'documents', 'spending360', 'security', 'aiml'],
+    auditor:       ['dashboard', 'aiml', 'compliance', 'cases', 'admin', 'graph'],
+    datascientist: ['dashboard', 'aiml', 'compliance', 'cases', 'graph'],
+  };
+
+  const allowed = tabAccess[ROLE] || null;
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const tab = btn.getAttribute('data-tab');
+    if (allowed === null) {
+      btn.style.display = '';
+    } else if (allowed.includes(tab)) {
+      btn.style.display = '';
+    } else {
+      btn.style.display = 'none';
+    }
+  });
+
+  // For client: show AI Insights, hide full AI/ML sections
+  const clientInsights = document.getElementById('clientAIInsights');
+  const fullAIML = document.querySelectorAll('#tab-aiml > *:not(#clientAIInsights)');
+  if (ROLE === 'client') {
+    clientInsights.classList.remove('hidden');
+    fullAIML.forEach(el => el.style.display = 'none');
+    document.getElementById('clientWelcomeName').textContent = FULL_NAME;
+    // Rename AI/ML tab label to "AI Insights" for client
+    const aimlBtn = document.querySelector('[data-tab="aiml"]');
+    if (aimlBtn) aimlBtn.innerHTML = '<i class="fas fa-sparkles mr-1"></i>AI Insights';
+  } else {
+    clientInsights.classList.add('hidden');
+    fullAIML.forEach(el => el.style.display = '');
+  }
+
+  // For compliance: show only Audit Log in Admin tab; hide HITL, GDPR, User Mgmt, Stats
+  const adminOnlySections = ['adminSystemStats', 'adminUserMgmt'];
+  const hitlSection = document.querySelector('#tab-admin .glass:first-child');
+  const gdprSection = document.getElementById('gdprEntityId')?.closest('.glass');
+  if (ROLE === 'compliance') {
+    if (hitlSection) hitlSection.style.display = 'none';
+    if (gdprSection) gdprSection.style.display = 'none';
+    adminOnlySections.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  } else if (ROLE === 'admin') {
+    if (hitlSection) hitlSection.style.display = '';
+    if (gdprSection) gdprSection.style.display = '';
+    adminOnlySections.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+  }
+
+  // Welcome banner for client on dashboard
+  const dashWelcome = document.getElementById('clientDashWelcome');
+  if (dashWelcome) {
+    if (ROLE === 'client') {
+      dashWelcome.style.display = '';
+      dashWelcome.querySelector('span').textContent = FULL_NAME;
+    } else {
+      dashWelcome.style.display = 'none';
+    }
+  }
+
+  // Cards tab: show admin panel for admin, request panel for everyone else
+  const cardAdminPanel   = document.getElementById('cardAdminPanel');
+  const cardRequestPanel = document.getElementById('cardRequestPanel');
+  if (ROLE === 'admin') {
+    if (cardAdminPanel)   { cardAdminPanel.classList.remove('hidden');   cardAdminPanel.style.display   = ''; }
+    if (cardRequestPanel) { cardRequestPanel.classList.add('hidden');    cardRequestPanel.style.display = 'none'; }
+  } else {
+    if (cardAdminPanel)   { cardAdminPanel.classList.add('hidden');      cardAdminPanel.style.display   = 'none'; }
+    if (cardRequestPanel) { cardRequestPanel.classList.remove('hidden'); cardRequestPanel.style.display = ''; }
+  }
+
+  // Hide AML ledger & telemetry from clients; show their own transaction list instead
+  const amlLedger    = document.getElementById('dashAmlLedger');
+  const amlTelemetry = document.getElementById('dashAmlTelemetry');
+  const clientTx     = document.getElementById('dashClientTransactions');
+  if (ROLE === 'client') {
+    if (amlLedger)    amlLedger.style.display    = 'none';
+    if (amlTelemetry) amlTelemetry.style.display = 'none';
+    if (clientTx)     clientTx.classList.remove('hidden');
+  } else {
+    if (amlLedger)    amlLedger.style.display    = '';
+    if (amlTelemetry) amlTelemetry.style.display = '';
+    if (clientTx)     clientTx.classList.add('hidden');
+  }
 }
 
 function doLogout() {
@@ -1728,6 +1963,8 @@ function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('mainApp').classList.remove('hidden');
   updateHeaderInfo();
+  configureUIForRole();
+  if (ROLE === 'admin') loadCardRequests();
   // Show/hide retrain button based on role
   const retrainSection = document.getElementById('retrainSection');
   if (ROLE === 'admin' || ROLE === 'datascientist') {
@@ -1757,17 +1994,23 @@ function switchTab(tab) {
   const btn = document.querySelector(`[data-tab="${tab}"]`);
   if (btn) { btn.classList.add('tab-active'); btn.classList.remove('text-gray-500'); }
 
-  if (tab === 'dashboard') loadDashboard();
+  if (tab === 'dashboard') { loadDashboard(); if (ROLE === 'client') loadClientTransactions(); }
   if (tab === 'payments') loadPaymentForm();
-  if (tab === 'aiml') { loadModelMetrics(); loadFraudHeatmap(); loadRiskEntities(); }
+  if (tab === 'aiml') {
+    if (ROLE === 'client') { loadClientAIInsights(); }
+    else { loadModelMetrics(); loadFraudHeatmap(); loadRiskEntities(); }
+  }
   if (tab === 'graph') loadGraph();
-  if (tab === 'admin') { loadHITL(); loadAudit(); }
+  if (tab === 'admin') {
+    loadHITL(); loadAudit();
+    if (ROLE === 'admin') { loadSystemStats(); loadAdminUsers(); }
+  }
   if (tab === 'compliance') { loadSanctions(); loadNostro(); }
   if (tab === 'cases') loadCases();
   if (tab === 'beneficiaries') loadBeneficiaries();
   if (tab === 'spending360') loadSpending360();
   if (tab === 'approvals') loadApprovals();
-  if (tab === 'cards') loadCards();
+  if (tab === 'cards') { loadCards(); if (ROLE === 'admin') loadCardRequests(); }
   if (tab === 'security') { loadKYCStatus(); loadFraudAlerts(); }
   if (tab === 'documents') loadDocuments();
   if (tab === 'defi') { loadPools(); loadStaking(); loadEscrows(); }
@@ -1776,6 +2019,41 @@ function switchTab(tab) {
 // ============================================================
 // Dashboard
 // ============================================================
+async function loadClientTransactions() {
+  const list = document.getElementById('clientTxList');
+  if (!list) return;
+  try {
+    const data = await apiFetch('/api/transactions?limit=10');
+    const txs = (data.transactions || []).filter(function(t) {
+      return t.sender_username === USER || t.receiver_username === USER || t.sender === FULL_NAME;
+    });
+    if (!txs.length) {
+      list.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">No transactions yet.</p>';
+      return;
+    }
+    list.innerHTML = txs.map(function(t) {
+      const isOut = (t.sender_username === USER || t.sender === FULL_NAME);
+      const sign  = isOut ? '-' : '+';
+      const color = isOut ? 'text-red-500' : 'text-green-500';
+      const icon  = isOut ? 'fa-arrow-up-right text-red-400' : 'fa-arrow-down-left text-green-400';
+      const label = isOut ? (t.beneficiary_name || t.receiver || 'Transfer') : ('From ' + (t.sender || 'Transfer'));
+      const statusBadge = t.status === 'blocked' ? '<span class="text-xs text-red-400 font-medium">Blocked</span>' :
+                          t.status === 'flagged'  ? '<span class="text-xs text-yellow-500 font-medium">Flagged</span>' : '';
+      const date = t.created_at ? t.created_at.slice(0,10) : '';
+      return '<div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">' +
+        '<div class="flex items-center gap-3">' +
+          '<div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><i class="fas ' + icon + ' text-xs"></i></div>' +
+          '<div><p class="text-xs font-medium text-gray-800">' + label + '</p>' +
+               '<p class="text-xs text-gray-400">' + date + ' ' + statusBadge + '</p></div>' +
+        '</div>' +
+        '<span class="text-sm font-semibold ' + color + '">' + sign + '$' + Number(t.amount).toLocaleString('en-US', {minimumFractionDigits:2}) + '</span>' +
+      '</div>';
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<p class="text-xs text-red-400 text-center py-4">Could not load transactions.</p>';
+  }
+}
+
 async function loadDashboard() {
   try {
     const data = await apiFetch('/api/dashboard');
@@ -1931,6 +2209,7 @@ function connectSSE() {
       const event = JSON.parse(e.data);
       if (event.type === 'settlement') {
         loadDashboard();
+        if (ROLE === 'client') loadClientTransactions();
         pushChartData(event.data.status);
       } else if (event.type === 'hitl') {
         loadHITL();
@@ -2304,13 +2583,15 @@ async function executeSettlement() {
       })
     });
 
-    // Update balance
+    // Update balance immediately from response, then confirm from API
     if (result.new_balance !== undefined) {
       BALANCE = result.new_balance;
       localStorage.setItem('ipts_balance', BALANCE.toString());
       updateHeaderInfo();
       document.getElementById('paySenderBalance').textContent = '$' + Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     }
+    // Always re-sync balance from server (catches edge cases like blocked/flagged)
+    fetchAccountInfo();
 
     // Trigger payment journey completion animation
     if (result.status === 'blocked' || result.risk_decision === 'blocked') {
@@ -2407,6 +2688,104 @@ async function executeSettlement() {
 // ============================================================
 // AI/ML
 // ============================================================
+async function loadClientAIInsights() {
+  const actContainer = document.getElementById('clientUnusualActivity');
+
+  // ── 1. Unusual activity: client's own transactions with risk_score > 50 ──
+  try {
+    const data = await apiFetch('/api/transactions?limit=50');
+    const all = data.transactions || [];
+    // Filter to this user's transactions that have elevated risk
+    const flagged = all.filter(function(t) {
+      const mine = (t.sender_username === USER || t.sender === FULL_NAME);
+      return mine && (t.risk_score || 0) > 50;
+    });
+    if (!flagged.length) {
+      actContainer.innerHTML = '<p class="text-center text-gray-400 text-sm py-6"><i class="fas fa-shield-check mr-2 text-green-400"></i>No unusual activity detected on your account.</p>';
+    } else {
+      actContainer.innerHTML = flagged.slice(0, 5).map(function(t) {
+        const date   = t.created_at ? t.created_at.substring(0, 10) : 'N/A';
+        const risk   = t.risk_score || 0;
+        const status = t.status || 'unknown';
+        const isBlocked = status === 'blocked';
+        const cls    = isBlocked ? 'text-red-700 bg-red-50 border-red-200' :
+                       risk >= 70 ? 'text-orange-600 bg-orange-50 border-orange-200' :
+                                    'text-yellow-700 bg-yellow-50 border-yellow-200';
+        const icon   = isBlocked ? 'fa-ban' : 'fa-triangle-exclamation';
+        const title  = isBlocked ? 'Transaction blocked by AI fraud detection' : 'Unusual transaction flagged by AI';
+        const benef  = t.beneficiary_name || t.receiver || 'Unknown payee';
+        return '<div class="flex items-start gap-3 p-4 rounded-xl border ' + cls + '">' +
+          '<i class="fas ' + icon + ' mt-0.5 text-base"></i>' +
+          '<div class="flex-1">' +
+            '<p class="text-sm font-semibold">' + title + '</p>' +
+            '<p class="text-xs mt-1 opacity-80">To: ' + benef + ' &nbsp;·&nbsp; $' + Number(t.amount||0).toLocaleString('en-US',{minimumFractionDigits:2}) + ' &nbsp;·&nbsp; ' + date + '</p>' +
+            '<div class="flex items-center gap-2 mt-1.5">' +
+              '<span class="text-xs font-medium">AI Risk Score: ' + risk.toFixed(0) + '/100</span>' +
+              '<div class="flex-1 bg-white/60 rounded-full h-1.5 max-w-24"><div class="h-1.5 rounded-full bg-current" style="width:' + Math.min(risk,100) + '%"></div></div>' +
+              '<span class="text-xs capitalize px-2 py-0.5 rounded-full bg-white/50 font-medium">' + status + '</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+  } catch(e) {
+    actContainer.innerHTML = '<p class="text-center text-red-400 text-sm py-4">Could not load activity — ' + (e.message||'error') + '</p>';
+  }
+
+  // ── 2. AI-identified risk entities (payees the AI considers risky) ──
+  const riskContainer = document.getElementById('clientRiskEntities');
+  if (riskContainer) {
+    try {
+      const re = await apiFetch('/api/analytics/risk-entities');
+      const entities = (re && re.entities) ? re.entities : [];
+      if (!entities.length) {
+        riskContainer.innerHTML = '<p class="text-center text-gray-400 text-xs py-4"><i class="fas fa-check-circle mr-1 text-green-400"></i>No high-risk payees identified.</p>';
+      } else {
+        riskContainer.innerHTML = entities.slice(0, 6).map(function(e) {
+          const isCrit = e.level === 'critical';
+          const cls    = isCrit ? 'bg-red-50 border-red-200 text-red-700' : 'bg-orange-50 border-orange-200 text-orange-700';
+          const badge  = isCrit ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700';
+          return '<div class="flex items-center justify-between p-3 rounded-lg border ' + cls + '">' +
+            '<div class="flex items-center gap-2">' +
+              '<i class="fas fa-circle-exclamation text-sm"></i>' +
+              '<span class="text-xs font-semibold">' + e.name + '</span>' +
+            '</div>' +
+            '<div class="flex items-center gap-2">' +
+              '<span class="text-xs px-2 py-0.5 rounded-full font-medium ' + badge + '">' + (isCrit ? 'CRITICAL' : 'HIGH') + '</span>' +
+              '<span class="text-xs font-mono">Score ' + (e.max_risk||0).toFixed(0) + '</span>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+    } catch(e) {
+      riskContainer.innerHTML = '<p class="text-center text-gray-400 text-xs py-4">Could not load risk data.</p>';
+    }
+  }
+
+  // ── 3. Spending summary chart ──
+  try {
+    const s = await apiFetch('/api/reporting/spending-360');
+    const cats = (s.categories || []).filter(function(c){ return (c.amount||c.total||0) > 0; }).slice(0,6);
+    const ctx = document.getElementById('clientSpendingChart');
+    if (ctx && cats.length) {
+      if (window._clientSpendChart) window._clientSpendChart.destroy();
+      window._clientSpendChart = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: cats.map(function(c){ return c.name||c.category||'Other'; }),
+          datasets: [{ label: 'Amount ($)', data: cats.map(function(c){ return c.amount||c.total||0; }),
+            backgroundColor: ['#3B82F6','#8B5CF6','#10B981','#F59E0B','#EF4444','#6366F1'],
+            borderRadius: 6 }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return '$'+Number(v).toLocaleString(); } } } } }
+      });
+    } else if (ctx) {
+      ctx.parentElement.innerHTML = '<p class="text-center text-gray-400 text-xs py-4">No spending data yet.</p>';
+    }
+  } catch(e) { /* chart is optional */ }
+}
+
 async function loadModelMetrics() {
   try {
     const data = await apiFetch('/api/models/metrics');
@@ -2768,6 +3147,104 @@ async function gdprErase() {
     alert(`Erasure complete. ${data.records_affected} records affected.`);
     document.getElementById('gdprEntityId').value = '';
   } catch (e) { alert('Error: ' + e.message); }
+}
+
+// ============================================================
+// Admin — User Management & System Stats
+// ============================================================
+const ROLE_COLORS = {
+  admin: 'bg-purple-100 text-purple-700', operator: 'bg-blue-100 text-blue-700',
+  compliance: 'bg-yellow-100 text-yellow-700', client: 'bg-green-100 text-green-700',
+  auditor: 'bg-gray-100 text-gray-600', datascientist: 'bg-pink-100 text-pink-700',
+};
+const VALID_ROLES = ['admin','operator','compliance','client','auditor','datascientist'];
+
+async function loadSystemStats() {
+  try {
+    const d = await apiFetch('/api/admin/system-stats');
+    document.getElementById('systemStatsGrid').innerHTML = [
+      { icon: 'fa-exchange-alt', color: 'text-accent',   label: 'Total Transactions', value: d.total_transactions.toLocaleString() },
+      { icon: 'fa-dollar-sign',  color: 'text-green-500',label: 'Total Volume',        value: '$' + Number(d.total_volume).toLocaleString() },
+      { icon: 'fa-ban',          color: 'text-red-500',  label: 'Blocked Txns',        value: d.blocked_transactions },
+      { icon: 'fa-clock',        color: 'text-amber-500',label: 'Pending Review',      value: d.pending_review },
+      { icon: 'fa-folder-open',  color: 'text-orange-500',label:'Open Cases',          value: d.open_cases },
+      { icon: 'fa-credit-card',  color: 'text-blue-500', label: 'Card Requests',       value: d.pending_card_requests },
+      { icon: 'fa-users',        color: 'text-indigo-500',label:'Total Users',         value: d.total_users },
+      { icon: 'fa-vault',        color: 'text-purple-500',label:'System Balance',      value: '$' + Number(d.total_system_balance).toLocaleString() },
+    ].map(s => `<div class="bg-gray-50 rounded-lg p-3 flex items-center gap-3">
+      <i class="fas ${s.icon} ${s.color} text-lg w-5 text-center"></i>
+      <div><p class="text-[10px] text-gray-500 uppercase leading-none">${s.label}</p><p class="text-sm font-bold text-gray-800 mt-0.5">${s.value}</p></div>
+    </div>`).join('');
+  } catch (e) { console.error(e); }
+}
+
+let _balanceAdjustTarget = '';
+async function loadAdminUsers() {
+  try {
+    const d = await apiFetch('/api/admin/users');
+    const tbody = document.getElementById('adminUsersBody');
+    if (!d.users.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-400">No users found</td></tr>'; return; }
+    tbody.innerHTML = d.users.map(u => {
+      const roleClass = ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600';
+      const roleOpts = VALID_ROLES.map(r => `<option value="${r}"${r===u.role?' selected':''}>${r}</option>`).join('');
+      const isMe = u.username === USER;
+      return `<tr class="border-b border-gray-100 hover:bg-gray-50">
+        <td class="py-2 px-2">
+          <p class="font-semibold text-gray-800">${u.full_name}</p>
+          <p class="text-gray-400">@${u.username}</p>
+        </td>
+        <td class="py-2 px-2">
+          ${isMe
+            ? `<span class="badge text-xs px-2 py-0.5 rounded-full ${roleClass}">${u.role}</span>`
+            : `<select onchange="changeUserRole('${u.username}',this.value)" class="text-xs border border-gray-200 rounded px-2 py-1 ${roleClass}">
+                ${roleOpts}
+               </select>`
+          }
+        </td>
+        <td class="py-2 px-2 text-right font-mono">$${Number(u.balance).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+        <td class="py-2 px-2 text-right">${u.tx_count}</td>
+        <td class="py-2 px-2 text-right">${u.card_count}</td>
+        <td class="py-2 px-2 text-center">
+          <button onclick="openBalanceAdjust('${u.username}')" class="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 transition"><i class="fas fa-coins mr-1"></i>Adjust</button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (e) { console.error(e); }
+}
+
+async function changeUserRole(username, newRole) {
+  try {
+    const d = await apiFetch(`/api/admin/users/${username}/role`, { method: 'POST', body: JSON.stringify({ role: newRole }) });
+    alert(`✔ ${username}'s role updated to ${newRole}`);
+    loadAdminUsers();
+  } catch (e) { alert(e.message || 'Failed to update role'); loadAdminUsers(); }
+}
+
+function openBalanceAdjust(username) {
+  _balanceAdjustTarget = username;
+  document.getElementById('balanceAdjustUser').textContent = '@' + username;
+  document.getElementById('balanceAdjustAmount').value = '';
+  document.getElementById('balanceAdjustMsg').classList.add('hidden');
+  document.getElementById('balanceAdjustPanel').classList.remove('hidden');
+}
+
+async function submitBalanceAdjust() {
+  const amount = parseFloat(document.getElementById('balanceAdjustAmount').value);
+  const action = document.getElementById('balanceAdjustAction').value;
+  const msg = document.getElementById('balanceAdjustMsg');
+  if (!amount || amount <= 0) { msg.className='text-xs mt-2 rounded px-2 py-1 bg-red-100 text-red-600'; msg.textContent='Enter a valid amount'; msg.classList.remove('hidden'); return; }
+  try {
+    const d = await apiFetch(`/api/admin/users/${_balanceAdjustTarget}/balance`, { method: 'POST', body: JSON.stringify({ amount, action }) });
+    msg.className='text-xs mt-2 rounded px-2 py-1 bg-green-100 text-green-700';
+    msg.textContent = `✔ ${d.message} · New balance: $${Number(d.new_balance).toLocaleString()}`;
+    msg.classList.remove('hidden');
+    loadAdminUsers();
+    setTimeout(() => document.getElementById('balanceAdjustPanel').classList.add('hidden'), 2000);
+  } catch (e) {
+    msg.className='text-xs mt-2 rounded px-2 py-1 bg-red-100 text-red-600';
+    msg.textContent = '✘ ' + (e.message || 'Failed');
+    msg.classList.remove('hidden');
+  }
 }
 
 // ============================================================
@@ -3732,7 +4209,7 @@ async function sendP2P() {
     })});
     sucDiv.textContent = `$${result.new_balance !== undefined ? 'Sent! ' : ''}${result.recipient ? 'To ' + result.recipient : ''}`;
     sucDiv.classList.remove('hidden');
-    BALANCE = result.new_balance || BALANCE; updateHeaderInfo();
+    BALANCE = result.new_balance || BALANCE; updateHeaderInfo(); fetchAccountInfo();
     loadP2PHistory();
   } catch (e) { errDiv.textContent = e.message; errDiv.classList.remove('hidden'); }
 }
@@ -3774,7 +4251,7 @@ async function sendExternal() {
     })});
     sucDiv.innerHTML = `<i class="fas fa-check mr-1"></i>${currentExtType.toUpperCase()} transfer sent! Fee: $${result.fee}. Processing: ${result.processing_time}`;
     sucDiv.classList.remove('hidden');
-    BALANCE = result.new_balance || BALANCE; updateHeaderInfo();
+    BALANCE = result.new_balance || BALANCE; updateHeaderInfo(); fetchAccountInfo();
   } catch (e) { errDiv.textContent = e.message; errDiv.classList.remove('hidden'); }
 }
 
@@ -3842,23 +4319,105 @@ async function payQR() {
     })});
     sucDiv.textContent = `Paid $${result.new_balance ? '' : ''}to ${result.recipient}!`;
     sucDiv.classList.remove('hidden');
-    BALANCE = result.new_balance || BALANCE; updateHeaderInfo();
+    BALANCE = result.new_balance || BALANCE; updateHeaderInfo(); fetchAccountInfo();
   } catch (e) { errDiv.textContent = e.message; errDiv.classList.remove('hidden'); }
 }
 
 // ============================================================
 // Virtual Cards
 // ============================================================
+async function requestCard() {
+  const btn = document.getElementById('cardReqBtn');
+  const msg = document.getElementById('cardReqMsg');
+  btn.disabled = true;
+  msg.classList.add('hidden');
+  try {
+    await apiFetch('/api/cards/request', { method: 'POST', body: JSON.stringify({
+      label: document.getElementById('cardLabel').value || 'Virtual Card',
+      card_type: document.getElementById('cardType').value || 'debit',
+      card_network: document.getElementById('cardNetwork').value || 'Visa',
+      spending_limit: parseFloat(document.getElementById('cardLimit').value) || 5000,
+    })});
+    msg.className = 'text-xs rounded-lg px-3 py-2 bg-green-500/20 text-green-600';
+    msg.textContent = '✔ Request submitted! An admin will review and activate your card shortly.';
+    msg.classList.remove('hidden');
+    loadCards();
+  } catch (e) {
+    msg.className = 'text-xs rounded-lg px-3 py-2 bg-red-500/20 text-red-500';
+    msg.textContent = '✘ ' + (e.message || 'Request failed');
+    msg.classList.remove('hidden');
+  }
+  btn.disabled = false;
+}
+
+async function loadCardRequests() {
+  try {
+    const data = await apiFetch('/api/cards/requests');
+    const div = document.getElementById('cardRequestsList');
+    if (!data.requests || !data.requests.length) {
+      div.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">No pending card requests.</p>';
+      return;
+    }
+    div.innerHTML = data.requests.map(r => `
+      <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+        <div class="flex justify-between items-start mb-2">
+          <div>
+            <p class="text-sm font-semibold text-gray-800">${r.username}</p>
+            <p class="text-xs text-gray-500">${r.label || 'Virtual Card'} · ${r.card_type} · ${r.card_network}</p>
+          </div>
+          <span class="badge bg-amber-100 text-amber-700 text-xs">Pending</span>
+        </div>
+        <p class="text-xs text-gray-500 mb-3">Limit: $${Number(r.spending_limit).toLocaleString()} · Requested: ${new Date(r.created_at).toLocaleDateString()}</p>
+        <div class="flex gap-2">
+          <button onclick="approveCard('${r.id}')" class="flex-1 py-1.5 rounded text-xs bg-green-500/20 text-green-600 hover:bg-green-500/30 font-semibold"><i class="fas fa-check mr-1"></i>Approve</button>
+          <button onclick="rejectCard('${r.id}')" class="flex-1 py-1.5 rounded text-xs bg-red-500/10 text-red-500 hover:bg-red-500/20 font-semibold"><i class="fas fa-times mr-1"></i>Reject</button>
+        </div>
+      </div>`).join('');
+  } catch (e) { console.error(e); }
+}
+
+async function approveCard(id) {
+  try {
+    await apiFetch(`/api/cards/${id}/approve`, { method: 'POST' });
+    loadCardRequests();
+    loadCards();
+  } catch (e) { alert(e.message || 'Approval failed'); }
+}
+
+async function rejectCard(id) {
+  const reason = prompt('Rejection reason (optional):') ?? '';
+  try {
+    await apiFetch(`/api/cards/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) });
+    loadCardRequests();
+  } catch (e) { alert(e.message || 'Rejection failed'); }
+}
+
 async function loadCards() {
   try {
     const data = await apiFetch('/api/cards');
     const div = document.getElementById('cardsList');
-    if (!data.cards.length) { div.innerHTML = '<p class="text-gray-600 text-sm text-center py-8 col-span-2">No virtual cards yet. Generate one!</p>'; return; }
+    if (!data.cards.length) { div.innerHTML = '<p class="text-gray-600 text-sm text-center py-8 col-span-2">No virtual cards yet.</p>'; return; }
     div.innerHTML = data.cards.map(c => {
       const frozen = c.status === 'frozen';
       const cancelled = c.status === 'cancelled';
-      const borderColor = cancelled ? 'border-red-500/30' : frozen ? 'border-yellow-500/30' : 'border-accent/30';
+      const pending = c.status === 'pending_approval';
+      const borderColor = cancelled ? 'border-red-500/30' : frozen ? 'border-yellow-500/30' : pending ? 'border-amber-400/40' : 'border-accent/30';
       const networkIcon = c.card_network === 'Visa' ? 'fab fa-cc-visa' : 'fab fa-cc-mastercard';
+      if (pending) {
+        return `<div class="bg-gradient-to-br from-amber-50 to-gray-100 rounded-xl p-5 border ${borderColor} relative opacity-80">
+          <div class="absolute top-2 right-2 badge bg-amber-100 text-amber-700 text-xs">PENDING APPROVAL</div>
+          <div class="flex justify-between items-start mb-6">
+            <span class="text-xs text-gray-500">${c.label || 'Virtual Card'}</span>
+            <i class="${networkIcon} text-2xl text-gray-300"></i>
+          </div>
+          <p class="text-gray-400 font-mono text-lg tracking-[0.2em] mb-4">•••• •••• •••• ••••</p>
+          <div class="flex justify-between items-end">
+            <div><p class="text-[10px] text-gray-400 uppercase">Expires</p><p class="text-gray-400 text-sm font-mono">••/••</p></div>
+            <div><p class="text-[10px] text-gray-400 uppercase">Limit</p><p class="text-gray-600 text-sm font-mono">$${Number(c.spending_limit).toLocaleString()}</p></div>
+          </div>
+          <p class="text-xs text-amber-600 mt-3 text-center"><i class="fas fa-clock mr-1"></i>Awaiting admin approval</p>
+        </div>`;
+      }
       return `<div class="bg-gradient-to-br ${cancelled ? 'from-dark-700 to-dark-800' : frozen ? 'from-yellow-900/20 to-dark-800' : 'from-dark-600 to-dark-800'} rounded-xl p-5 border ${borderColor} relative">
         ${frozen ? '<div class="absolute top-2 right-2 badge bg-yellow-500/20 text-yellow-400">FROZEN</div>' : ''}
         ${cancelled ? '<div class="absolute top-2 right-2 badge bg-red-500/20 text-red-400">CANCELLED</div>' : ''}
