@@ -3616,25 +3616,108 @@ async function caseAction(caseId, action) {
         body: JSON.stringify({ status: 'investigating' })
       });
     } else if (action === 'resolve') {
-      const resolution = prompt('Enter resolution notes:');
-      if (!resolution) return;
-      await apiFetch(`/api/compliance/cases/${caseId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'resolved', resolution: resolution })
-      });
+      showResolveModal(caseId);
+      return; // modal handles the rest
     }
     closeCaseModal();
     loadCases();
   } catch (e) { alert('Action error: ' + e.message); }
 }
 
+const CASE_ASSIGNEES = ['Mohamad', 'Walid', 'Rohit', 'Vibin', 'Sriram'];
+
 function promptAssign(caseId) {
-  const assignee = prompt('Assign to (username):');
-  if (!assignee) return;
-  apiFetch(`/api/compliance/cases/${caseId}`, {
-    method: 'PUT',
-    body: JSON.stringify({ assigned_to: assignee })
-  }).then(() => { closeCaseModal(); loadCases(); }).catch(e => alert('Error: ' + e.message));
+  showAssignModal(caseId);
+}
+
+function showAssignModal(caseId, currentAssignee) {
+  // Remove existing modal if any
+  document.getElementById('assignModal')?.remove();
+  const opts = CASE_ASSIGNEES.map(n =>
+    `<option value="${n}"${n === currentAssignee ? ' selected' : ''}>${n}</option>`
+  ).join('');
+  const modal = document.createElement('div');
+  modal.id = 'assignModal';
+  modal.className = 'fixed inset-0 z-[300] flex items-center justify-center bg-black/50';
+  modal.innerHTML = `
+    <div class="bg-white rounded-xl shadow-2xl p-6 w-80">
+      <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-user-plus mr-2 text-blue-500"></i>Assign Case</h3>
+      <label class="block text-xs text-gray-500 mb-1">Assignee</label>
+      <select id="assigneeSelect" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm mb-4">
+        <option value="">— Select assignee —</option>
+        ${opts}
+      </select>
+      <div class="flex gap-2">
+        <button onclick="submitAssign('${caseId}')" class="flex-1 py-2 rounded-lg bg-accent text-white text-sm font-semibold hover:bg-accent/90">Assign</button>
+        <button onclick="document.getElementById('assignModal').remove()" class="flex-1 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm hover:bg-gray-200">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function submitAssign(caseId) {
+  const assignee = document.getElementById('assigneeSelect').value;
+  if (!assignee) { alert('Please select an assignee.'); return; }
+  try {
+    await apiFetch(`/api/compliance/cases/${caseId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ assigned_to: assignee })
+    });
+    document.getElementById('assignModal').remove();
+    closeCaseModal();
+    loadCases();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+function showResolveModal(caseId) {
+  document.getElementById('resolveModal')?.remove();
+  const opts = CASE_ASSIGNEES.map(n => `<option value="${n}">${n}</option>`).join('');
+  const modal = document.createElement('div');
+  modal.id = 'resolveModal';
+  modal.className = 'fixed inset-0 z-[300] flex items-center justify-center bg-black/50';
+  modal.innerHTML = `
+    <div class="bg-white rounded-xl shadow-2xl p-6 w-96">
+      <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-check-circle mr-2 text-green-500"></i>Resolve Case</h3>
+      <div id="resolveError" class="hidden mb-3 text-xs bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2"></div>
+      <label class="block text-xs text-gray-500 mb-1">Assignee <span class="text-red-400">*</span></label>
+      <select id="resolveAssignee" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm mb-3">
+        <option value="">— Select assignee —</option>
+        ${opts}
+      </select>
+      <label class="block text-xs text-gray-500 mb-1">Resolution Notes <span class="text-red-400">*</span></label>
+      <textarea id="resolveNotes" rows="3" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm mb-4 resize-none" placeholder="Describe the resolution…"></textarea>
+      <div class="flex gap-2">
+        <button onclick="submitResolve('${caseId}')" class="flex-1 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-500">Mark Resolved</button>
+        <button onclick="document.getElementById('resolveModal').remove()" class="flex-1 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm hover:bg-gray-200">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function submitResolve(caseId) {
+  const assignee = document.getElementById('resolveAssignee').value;
+  const resolution = document.getElementById('resolveNotes').value.trim();
+  const errDiv = document.getElementById('resolveError');
+  if (!assignee) {
+    errDiv.textContent = 'An assignee is required before resolving a case.';
+    errDiv.classList.remove('hidden'); return;
+  }
+  if (!resolution) {
+    errDiv.textContent = 'Resolution notes are required.';
+    errDiv.classList.remove('hidden'); return;
+  }
+  try {
+    await apiFetch(`/api/compliance/cases/${caseId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: 'resolved', assigned_to: assignee, resolution })
+    });
+    document.getElementById('resolveModal').remove();
+    closeCaseModal();
+    loadCases();
+  } catch (e) {
+    errDiv.textContent = e.message || 'Failed to resolve case.';
+    errDiv.classList.remove('hidden');
+  }
 }
 
 function promptFindings(caseId) {
