@@ -104,6 +104,14 @@ tailwind.config = {
 
 <!-- Main App -->
 <div id="mainApp" class="hidden">
+  <!-- Session Warning Banner -->
+  <div id="sessionWarnBanner" class="hidden fixed top-0 left-0 right-0 z-[200] bg-amber-500 text-white text-sm py-2 px-4 flex items-center justify-between">
+    <span><i class="fas fa-clock mr-2"></i>Your session expires in <strong>5 minutes</strong>. Save your work.</span>
+    <div class="flex gap-3">
+      <button onclick="extendSession()" class="bg-white text-amber-600 font-semibold px-3 py-1 rounded text-xs hover:bg-amber-50">Extend Session</button>
+      <button onclick="doLogout()" class="text-white/80 hover:text-white text-xs underline">Log out</button>
+    </div>
+  </div>
   <!-- Header -->
   <header class="sticky top-0 z-50 px-6 py-3 flex items-center justify-between" style="background:#003366;">
     <div class="flex items-center gap-3">
@@ -124,18 +132,22 @@ tailwind.config = {
         <span id="headerBalance" class="text-sm font-bold text-green-300"></span>
       </div>
       <!-- Notification Bell -->
-      <div class="relative">
-        <button onclick="toggleNotifications()" class="relative text-blue-200 hover:text-gray-800 transition p-1">
-          <i class="fas fa-bell text-sm"></i>
-          <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[9px] font-bold flex items-center justify-center">0</span>
+      <div class="relative" id="notifBellWrapper">
+        <button onclick="toggleNotifPanel()" class="relative p-2 rounded-full hover:bg-white/10 transition" id="notifBellBtn">
+          <i class="fas fa-bell text-blue-200 text-base"></i>
+          <span id="notifBadge" class="hidden absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">0</span>
         </button>
-        <div id="notifPanel" class="hidden absolute right-0 top-10 w-80 max-h-96 overflow-y-auto bg-white rounded-xl border border-gray-200 shadow-xl z-50">
-          <div class="flex justify-between items-center p-3 border-b border-gray-200">
-            <span class="text-xs font-semibold text-gray-800">Notifications</span>
-            <button onclick="markAllRead()" class="text-xs text-accent hover:underline">Mark all read</button>
+        <!-- Notification Panel -->
+        <div id="notifPanel" class="hidden absolute right-0 top-10 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
+            <h4 class="text-sm font-semibold text-gray-800"><i class="fas fa-bell mr-2 text-accent"></i>Notifications</h4>
+            <div class="flex gap-2">
+              <button onclick="markAllRead()" class="text-xs text-accent hover:underline">Mark all read</button>
+              <button onclick="clearReadNotifs()" class="text-xs text-gray-400 hover:text-red-400">Clear read</button>
+            </div>
           </div>
-          <div id="notifList" class="divide-y divide-gray-100">
-            <p class="text-center text-gray-400 text-xs py-6">No notifications</p>
+          <div id="notifList" class="max-h-96 overflow-y-auto divide-y divide-gray-50">
+            <p class="text-xs text-gray-400 text-center py-6">No notifications</p>
           </div>
         </div>
       </div>
@@ -525,6 +537,10 @@ tailwind.config = {
                   <p id="paySenderBalance" class="text-2xl font-bold text-blue-400 mt-1">$0.00</p>
                 </div>
               </div>
+              <div id="txLimitsBar" class="mt-3 pt-3 border-t border-gray-200 grid grid-cols-2 gap-2 hidden">
+                <div><p class="text-[10px] text-gray-400 uppercase">Per Transaction Limit</p><p id="perTxLimit" class="text-xs font-semibold text-gray-600"></p></div>
+                <div><p class="text-[10px] text-gray-400 uppercase">Daily Limit</p><p id="dailyLimit" class="text-xs font-semibold text-gray-600"></p></div>
+              </div>
             </div>
 
             <div>
@@ -554,6 +570,22 @@ tailwind.config = {
                 <span class="text-gray-500">Settlement Amount (USD)</span>
                 <span id="fxPreviewUSD" class="text-gray-800 font-bold"></span>
               </div>
+            </div>
+            <!-- Travel Rule fields (shown for amounts ≥ $3,000) -->
+            <div id="travelRuleFields" class="hidden bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+              <p class="text-xs font-semibold text-amber-700"><i class="fas fa-globe mr-1"></i>FATF Travel Rule — Required for transfers ≥ $3,000</p>
+              <div class="grid grid-cols-2 gap-2">
+                <div><label class="block text-xs text-gray-500 mb-1">Originator Full Name</label><input id="originatorName" class="w-full px-2 py-1.5 rounded text-xs border border-gray-200" placeholder="Legal name"></div>
+                <div><label class="block text-xs text-gray-500 mb-1">Originator Account #</label><input id="originatorAccount" class="w-full px-2 py-1.5 rounded text-xs border border-gray-200" placeholder="Account number"></div>
+                <div><label class="block text-xs text-gray-500 mb-1">Beneficiary Account #</label><input id="beneficiaryAccount" class="w-full px-2 py-1.5 rounded text-xs border border-gray-200" placeholder="Account number"></div>
+                <div><label class="block text-xs text-gray-500 mb-1">Destination Country</label><input id="destCountry" class="w-full px-2 py-1.5 rounded text-xs border border-gray-200" placeholder="ISO code e.g. GB"></div>
+              </div>
+            </div>
+            <!-- Live fee preview -->
+            <div id="feePreview" class="hidden bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs">
+              <div class="flex justify-between text-gray-500"><span><i class="fas fa-receipt mr-1 text-blue-400"></i>Fee preview</span><span id="feePreviewRate"></span></div>
+              <div class="flex justify-between mt-1"><span class="text-gray-500">Transaction fee</span><span id="feePreviewAmount" class="font-semibold text-blue-600"></span></div>
+              <div class="flex justify-between"><span class="text-gray-500">You pay total</span><span id="feePreviewTotal" class="font-bold text-gray-800"></span></div>
             </div>
             <div id="amlWarning" class="hidden text-xs bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-yellow-400">
               <i class="fas fa-exclamation-triangle mr-1"></i>
@@ -718,6 +750,18 @@ tailwind.config = {
           Execute a settlement to see SHAP feature contributions.
         </div>
         <canvas id="shapChart" class="hidden" height="180"></canvas>
+      </div>
+
+      <!-- Risk Score Trend -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-chart-line mr-2 text-purple-400"></i>Risk Score Trend (30 Days)</h3>
+          <div class="flex gap-2 items-center">
+            <span id="riskTrendSummary" class="text-xs text-gray-400"></span>
+            <button onclick="loadRiskTrend()" class="text-xs text-accent hover:underline"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+          </div>
+        </div>
+        <canvas id="riskTrendChart" height="120"></canvas>
       </div>
 
       <!-- Fraud Heatmap -->
@@ -1546,10 +1590,14 @@ tailwind.config = {
       <div class="glass rounded-xl p-6">
         <div class="flex justify-between items-center mb-4">
           <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-file-invoice mr-2 text-blue-400"></i>Document Center</h3>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-3">
             <select id="docFilter" class="px-3 py-1.5 rounded-lg text-xs" onchange="loadDocuments()">
               <option value="">All Documents</option><option value="statement">Statements</option><option value="tax_1099">Tax Documents</option><option value="receipt">Receipts</option>
             </select>
+            <div class="flex items-center gap-2">
+              <select id="statementMonth" class="px-2 py-1.5 rounded-lg text-xs border border-gray-200"></select>
+              <button onclick="downloadStatement()" class="px-3 py-1.5 rounded-lg bg-accent text-white text-xs hover:bg-accent/90 transition"><i class="fas fa-file-pdf mr-1"></i>Statement PDF</button>
+            </div>
           </div>
         </div>
         <div id="documentsList" class="space-y-2">
@@ -1825,6 +1873,8 @@ async function doLogin() {
       localStorage.setItem('ipts_user', USER);
       localStorage.setItem('ipts_role', ROLE);
       localStorage.setItem('ipts_fullname', FULL_NAME);
+      if (data.refresh_token) localStorage.setItem('ipts_refresh_token', data.refresh_token);
+      if (data.tx_limits) showTxLimits(data.tx_limits);
       await fetchAccountInfo();
       showApp();
     } else {
@@ -1947,14 +1997,21 @@ function configureUIForRole() {
 }
 
 function doLogout() {
+  // Blacklist token server-side (fire-and-forget)
+  if (TOKEN) {
+    fetch(API + '/api/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' } }).catch(() => {});
+  }
   TOKEN = ''; USER = ''; ROLE = ''; FULL_NAME = ''; BALANCE = 0;
   localStorage.removeItem('ipts_token');
   localStorage.removeItem('ipts_user');
   localStorage.removeItem('ipts_role');
   localStorage.removeItem('ipts_fullname');
   localStorage.removeItem('ipts_balance');
+  localStorage.removeItem('ipts_refresh_token');
   if (sseSource) sseSource.close();
   if (healthInterval) { clearInterval(healthInterval); healthInterval = null; }
+  clearTimeout(_sessionTimer); clearTimeout(_sessionWarnTimer);
+  document.getElementById('sessionWarnBanner')?.classList.add('hidden');
   document.getElementById('loginScreen').classList.remove('hidden');
   document.getElementById('mainApp').classList.add('hidden');
 }
@@ -1978,7 +2035,9 @@ function showApp() {
   pollHealth();
   if (healthInterval) clearInterval(healthInterval);
   healthInterval = setInterval(pollHealth, 30000);
+  setInterval(loadNotifications, 30000);
   connectSSE();
+  startSessionTimer();
 }
 
 // ============================================================
@@ -1998,7 +2057,7 @@ function switchTab(tab) {
   if (tab === 'payments') loadPaymentForm();
   if (tab === 'aiml') {
     if (ROLE === 'client') { loadClientAIInsights(); }
-    else { loadModelMetrics(); loadFraudHeatmap(); loadRiskEntities(); }
+    else { loadModelMetrics(); loadFraudHeatmap(); loadRiskEntities(); loadRiskTrend(); }
   }
   if (tab === 'graph') loadGraph();
   if (tab === 'admin') {
@@ -2012,7 +2071,7 @@ function switchTab(tab) {
   if (tab === 'approvals') loadApprovals();
   if (tab === 'cards') { loadCards(); if (ROLE === 'admin') loadCardRequests(); }
   if (tab === 'security') { loadKYCStatus(); loadFraudAlerts(); }
-  if (tab === 'documents') loadDocuments();
+  if (tab === 'documents') { loadDocuments(); initStatementMonthPicker(); }
   if (tab === 'defi') { loadPools(); loadStaking(); loadEscrows(); }
 }
 
@@ -2220,6 +2279,9 @@ function connectSSE() {
         }
       } else if (event.type === 'retrain') {
         loadModelMetrics();
+      } else if (event.type === 'notification') {
+        // Refresh notification badge for current user
+        loadNotifications();
       }
     } catch (err) {}
   };
@@ -2235,6 +2297,9 @@ async function loadPaymentForm() {
   // Show sender info
   document.getElementById('paySenderName').textContent = FULL_NAME;
   document.getElementById('paySenderBalance').textContent = '$' + Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  // Show tx limits from login data
+  const limits = { admin:{daily:10000000,per_tx:5000000}, operator:{daily:2000000,per_tx:500000}, client:{daily:100000,per_tx:50000} };
+  if (limits[ROLE]) showTxLimits(limits[ROLE]);
 
   // Load beneficiaries
   try {
@@ -2575,11 +2640,16 @@ async function executeSettlement() {
     const result = await apiFetch('/api/settlement', {
       method: 'POST',
       body: JSON.stringify({
-        beneficiary_name: beneficiaryName,
-        amount: amount,
-        currency: currency,
-        receiver_username: receiverUsername,
-        confirmed: true, // Send confirmation flag
+        beneficiary_name:    beneficiaryName,
+        amount:              amount,
+        currency:            currency,
+        receiver_username:   receiverUsername,
+        confirmed:           true,
+        originator_name:     document.getElementById('originatorName')?.value || '',
+        originator_account:  document.getElementById('originatorAccount')?.value || '',
+        beneficiary_account: document.getElementById('beneficiaryAccount')?.value || '',
+        destination_country: document.getElementById('destCountry')?.value || '',
+        payment_type:        currency !== 'USD' ? 'fx' : 'standard',
       })
     });
 
@@ -2625,6 +2695,13 @@ async function executeSettlement() {
             <p class="text-xl font-bold text-accent">${result.settlement_time_ms || 'N/A'}ms</p>
           </div>
         </div>
+        ${result.fee ? `<div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs">
+          <p class="text-blue-600 font-semibold mb-1"><i class="fas fa-receipt mr-1"></i>Fee Breakdown</p>
+          <div class="flex justify-between"><span class="text-gray-500">Base fee (${result.fee.rate_pct}%)</span><span>$${result.fee.base_fee.toFixed(2)}</span></div>
+          ${result.fee.swift_fee ? `<div class="flex justify-between"><span class="text-gray-500">SWIFT/Wire fee</span><span>$${result.fee.swift_fee.toFixed(2)}</span></div>` : ''}
+          ${result.fee.fx_fee ? `<div class="flex justify-between"><span class="text-gray-500">FX conversion fee</span><span>$${result.fee.fx_fee.toFixed(2)}</span></div>` : ''}
+          <div class="flex justify-between font-semibold border-t border-blue-100 pt-1 mt-1"><span>Total fee</span><span class="text-blue-600">$${result.fee.total_fee.toFixed(2)}</span></div>
+        </div>` : ''}
         ${result.tx_hash ? `<div class="bg-gray-100 rounded-lg p-3 text-xs"><p class="text-gray-500">Transaction Hash</p><p class="font-mono text-accent break-all">${result.tx_hash}</p></div>` : ''}
         ${result.uetr ? `<div class="bg-gray-100 rounded-lg p-3 text-xs"><p class="text-gray-500">SWIFT GPI UETR</p><p class="font-mono text-blue-400">${result.uetr}</p></div>` : ''}
         ${result.risk_reasons && result.risk_reasons.length > 0 ? `
@@ -3573,20 +3650,44 @@ function updateFXPreview() {
   const currency = document.getElementById('payCurrency').value;
   const amount = parseFloat(document.getElementById('payAmount').value) || 0;
   const fxPreview = document.getElementById('fxPreview');
-  const amlWarning = document.getElementById('amlWarning');
 
+  let usdAmount = amount;
   if (currency && currency !== 'USD' && FX_RATES[currency]) {
     const rate = FX_RATES[currency];
-    const usdAmount = amount / rate;
+    usdAmount = amount / rate;
     document.getElementById('fxPreviewRate').textContent = `1 USD = ${rate.toFixed(4)} ${currency}`;
     document.getElementById('fxPreviewUSD').textContent = `$${usdAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
     fxPreview.classList.remove('hidden');
-    // Check AML threshold on USD equivalent
-    showAMLWarning(usdAmount);
   } else {
     fxPreview.classList.add('hidden');
-    showAMLWarning(amount);
   }
+
+  // Travel Rule toggle
+  const trFields = document.getElementById('travelRuleFields');
+  if (trFields) {
+    if (usdAmount >= 3000) trFields.classList.remove('hidden');
+    else trFields.classList.add('hidden');
+  }
+
+  // Live fee preview
+  const feeDiv = document.getElementById('feePreview');
+  if (feeDiv && usdAmount > 0) {
+    const pyType = currency !== 'USD' ? 'fx' : 'standard';
+    const tiers = [[0,1000,0.0025,0.50],[1000,10000,0.0020,2.00],[10000,100000,0.0015,15.00],[100000,500000,0.0010,100.00],[500000,null,0.0005,500.00]];
+    let rate = 0.0025, minFee = 0.50;
+    for (const [lo, hi, r, mf] of tiers) { if (hi === null || usdAmount < hi) { rate = r; minFee = mf; break; } }
+    const baseFee = Math.max(usdAmount * rate, minFee);
+    const fxFee   = pyType === 'fx' ? usdAmount * 0.001 : 0;
+    const total   = baseFee + fxFee;
+    document.getElementById('feePreviewRate').textContent    = `${(rate*100).toFixed(3)}%`;
+    document.getElementById('feePreviewAmount').textContent  = `$${total.toFixed(2)}`;
+    document.getElementById('feePreviewTotal').textContent   = `$${(usdAmount + total).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+    feeDiv.classList.remove('hidden');
+  } else if (feeDiv) {
+    feeDiv.classList.add('hidden');
+  }
+
+  showAMLWarning(usdAmount);
 }
 
 function showAMLWarning(usdAmount) {
@@ -4652,34 +4753,87 @@ function closeDocPreview() {
 // ============================================================
 // Notifications
 // ============================================================
-function toggleNotifications() {
+// ============================================================
+// Notification Center
+// ============================================================
+const NOTIF_ICONS = {
+  success: { icon: 'fa-check-circle', color: 'text-green-500' },
+  error:   { icon: 'fa-times-circle', color: 'text-red-500' },
+  warning: { icon: 'fa-exclamation-triangle', color: 'text-amber-500' },
+  info:    { icon: 'fa-info-circle', color: 'text-blue-500' },
+};
+
+async function loadNotifications() {
+  try {
+    const d = await apiFetch('/api/notifications');
+    const badge = document.getElementById('notifBadge');
+    const list  = document.getElementById('notifList');
+    if (!badge || !list) return;
+    // Update badge
+    if (d.unread_count > 0) {
+      badge.textContent = d.unread_count > 99 ? '99+' : d.unread_count;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+    // Render list
+    if (!d.notifications.length) {
+      list.innerHTML = '<p class="text-xs text-gray-400 text-center py-6">No notifications</p>';
+      return;
+    }
+    list.innerHTML = d.notifications.map(n => {
+      const ic = NOTIF_ICONS[n.type] || NOTIF_ICONS.info;
+      const time = n.created_at ? new Date(n.created_at).toLocaleString() : '';
+      const unreadClass = n.is_read ? '' : 'bg-blue-50';
+      return `<div class="px-4 py-3 hover:bg-gray-50 cursor-pointer ${unreadClass} transition"
+                   onclick="notifClick('${n.id}', '${n.link_tab || ''}')">
+        <div class="flex gap-3 items-start">
+          <i class="fas ${ic.icon} ${ic.color} mt-0.5 flex-shrink-0"></i>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs ${n.is_read ? 'font-semibold' : 'font-bold'} text-gray-800">${n.title}</p>
+            <p class="text-xs text-gray-500 mt-0.5 leading-snug">${n.message}</p>
+            <p class="text-[10px] text-gray-300 mt-1">${time}</p>
+          </div>
+          ${!n.is_read ? '<span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-1"></span>' : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) { console.error('Notif load error', e); }
+}
+
+async function notifClick(id, linkTab) {
+  await apiFetch(`/api/notifications/${id}/read`, { method: 'POST' });
+  toggleNotifPanel(); // close panel
+  if (linkTab) switchTab(linkTab);
+  loadNotifications();
+}
+
+async function markAllRead() {
+  await apiFetch('/api/notifications/read-all', { method: 'POST' });
+  loadNotifications();
+}
+
+async function clearReadNotifs() {
+  await apiFetch('/api/notifications/clear', { method: 'DELETE' });
+  loadNotifications();
+}
+
+function toggleNotifPanel() {
   const panel = document.getElementById('notifPanel');
   panel.classList.toggle('hidden');
   if (!panel.classList.contains('hidden')) loadNotifications();
 }
 
-async function loadNotifications() {
-  try {
-    const data = await apiFetch('/api/notifications');
-    const badge = document.getElementById('notifBadge');
-    if (data.unread_count > 0) { badge.textContent = data.unread_count > 9 ? '9+' : data.unread_count; badge.classList.remove('hidden'); }
-    else { badge.classList.add('hidden'); }
-    const div = document.getElementById('notifList');
-    if (!data.notifications.length) { div.innerHTML = '<p class="text-center text-gray-600 text-xs py-6">No notifications</p>'; return; }
-    div.innerHTML = data.notifications.slice(0, 15).map(n => {
-      const colors = { green: 'text-green-400', red: 'text-red-400', blue: 'text-blue-400', orange: 'text-orange-400', purple: 'text-purple-400', yellow: 'text-yellow-400' };
-      return `<div class="px-3 py-2.5 hover:bg-gray-100 transition cursor-pointer ${n.is_read ? 'opacity-60' : ''}" onclick="markRead('${n.id}')">
-        <div class="flex items-start gap-2">
-          <i class="fas ${n.icon || 'fa-bell'} ${colors[n.color] || 'text-gray-400'} mt-0.5 text-xs"></i>
-          <div><p class="text-gray-800 text-xs font-medium">${n.title}</p><p class="text-gray-500 text-[10px]">${n.message}</p>
-            <p class="text-gray-600 text-[10px] mt-0.5">${n.created_at ? new Date(n.created_at).toLocaleString() : ''}</p></div>
-        </div></div>`;
-    }).join('');
-  } catch (e) { console.error(e); }
-}
+// Keep legacy alias
+function toggleNotifications() { toggleNotifPanel(); }
 
-async function markRead(id) { await apiFetch('/api/notifications/read', { method: 'POST', body: JSON.stringify({ id }) }); loadNotifications(); }
-async function markAllRead() { await apiFetch('/api/notifications/read', { method: 'POST', body: JSON.stringify({ all: true }) }); loadNotifications(); }
+// Close notification panel when clicking outside
+document.addEventListener('click', function(e) {
+  const wrapper = document.getElementById('notifBellWrapper');
+  if (wrapper && !wrapper.contains(e.target)) {
+    document.getElementById('notifPanel')?.classList.add('hidden');
+  }
+});
 
 // ============================================================
 // Support Chat
@@ -5100,10 +5254,142 @@ async function downloadSAR(caseId) {
   } catch(e) { alert('Failed to download SAR report'); }
 }
 
+// ============================================================
+// Session Timeout Warning
+// ============================================================
+let _sessionTimer = null;
+let _sessionWarnTimer = null;
+const SESSION_HOURS = 8;
+const WARN_BEFORE_MINS = 5;
+
+function startSessionTimer() {
+  clearTimeout(_sessionTimer);
+  clearTimeout(_sessionWarnTimer);
+  const warnMs = (SESSION_HOURS * 3600 - WARN_BEFORE_MINS * 60) * 1000;
+  const expireMs = SESSION_HOURS * 3600 * 1000;
+  _sessionWarnTimer = setTimeout(() => {
+    const banner = document.getElementById('sessionWarnBanner');
+    if (banner) { banner.classList.remove('hidden'); }
+  }, warnMs);
+  _sessionTimer = setTimeout(() => {
+    alert('Your session has expired. You will be logged out.');
+    doLogout();
+  }, expireMs);
+}
+
+async function extendSession() {
+  try {
+    const refresh = localStorage.getItem('ipts_refresh_token');
+    if (!refresh) { doLogout(); return; }
+    const d = await fetch('/api/auth/refresh', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({refresh_token: refresh}) });
+    const json = await d.json();
+    if (json.token) {
+      TOKEN = json.token;
+      localStorage.setItem('ipts_token', TOKEN);
+      document.getElementById('sessionWarnBanner')?.classList.add('hidden');
+      startSessionTimer();
+    } else { doLogout(); }
+  } catch(e) { doLogout(); }
+}
+
+// ============================================================
+// Risk Score Trend Chart
+// ============================================================
+let _riskTrendChart = null;
+
+async function loadRiskTrend() {
+  try {
+    const d = await apiFetch('/api/analytics/risk-trend?days=30');
+    const summary = d.summary_7d;
+    document.getElementById('riskTrendSummary').textContent =
+      `7d avg: ${summary.avg_risk || 'N/A'} | max: ${summary.max_risk || 'N/A'} | ${summary.tx_count || 0} txns`;
+
+    const labels = d.trend.map(r => r.day.slice(5)); // MM-DD
+    const avgRisk = d.trend.map(r => r.avg_risk);
+    const blocked = d.trend.map(r => r.blocked);
+
+    if (_riskTrendChart) _riskTrendChart.destroy();
+    const ctx = document.getElementById('riskTrendChart').getContext('2d');
+    _riskTrendChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Avg Risk Score', data: avgRisk, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)', fill: true, tension: 0.4, pointRadius: 3 },
+          { label: 'Blocked Count',  data: blocked, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)', fill: true, tension: 0.4, yAxisID: 'y2', pointRadius: 3 },
+        ]
+      },
+      options: {
+        responsive: true, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { labels: { font: { size: 10 } } } },
+        scales: {
+          x: { ticks: { font: { size: 9 } } },
+          y:  { title: { display: true, text: 'Risk Score', font: { size: 9 } }, min: 0, max: 100 },
+          y2: { position: 'right', title: { display: true, text: 'Blocked', font: { size: 9 } }, min: 0, grid: { drawOnChartArea: false } },
+        }
+      }
+    });
+  } catch(e) { console.error('Risk trend error', e); }
+}
+
+// ============================================================
+// Account Statement Download
+// ============================================================
+function initStatementMonthPicker() {
+  const sel = document.getElementById('statementMonth');
+  if (!sel) return;
+  sel.innerHTML = '';
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = d.toLocaleString('default', { month: 'long', year: 'numeric' });
+    sel.innerHTML += `<option value="${val}">${label}</option>`;
+  }
+}
+
+async function downloadStatement() {
+  const month = document.getElementById('statementMonth')?.value;
+  if (!month) return;
+  const url = `/api/accounts/statement?month=${month}&format=pdf&token=${TOKEN}`;
+  const a = document.createElement('a');
+  a.href = url; a.download = `IPTS_Statement_${month}.pdf`;
+  a.click();
+}
+
+// ============================================================
+// Transaction Limits Display
+// ============================================================
+function showTxLimits(txLimits) {
+  if (!txLimits || (!txLimits.per_tx && !txLimits.daily)) return;
+  const bar = document.getElementById('txLimitsBar');
+  if (!bar) return;
+  document.getElementById('perTxLimit').textContent =
+    txLimits.per_tx ? `$${Number(txLimits.per_tx).toLocaleString()}` : 'Unlimited';
+  document.getElementById('dailyLimit').textContent =
+    txLimits.daily ? `$${Number(txLimits.daily).toLocaleString()} / day` : 'Unlimited';
+  bar.classList.remove('hidden');
+}
+
+// ============================================================
+// Admin: Settlement Refund
+// ============================================================
+async function refundSettlement(settlementId) {
+  const reason = prompt('Reason for reversal (required):');
+  if (reason === null) return;
+  if (!reason.trim()) { alert('A reason is required for settlement reversal.'); return; }
+  try {
+    const d = await apiFetch(`/api/settlement/${settlementId}/refund`, { method: 'POST', body: JSON.stringify({ reason }) });
+    alert(`✔ ${d.message}`);
+    loadDashboard();
+  } catch(e) { alert('Reversal failed: ' + e.message); }
+}
+
 // Init
 // ============================================================
 window.addEventListener('DOMContentLoaded', () => {
   initVolumeChart();
+  initStatementMonthPicker();
   if (TOKEN) {
     fetchAccountInfo().then(() => showApp());
   }
