@@ -588,27 +588,43 @@ erDiagram
 
 ## Quick Start
 
-### Local macOS (Recommended)
+### One-Command Installation
 
-**Prerequisites:** Python 3.12, Node.js 18+, npm
+Use the platform-specific installation scripts — they handle **everything** automatically: prerequisites, Python environment, Ganache, Ollama, ML model training, and first-time database setup.
 
+#### macOS
 ```bash
-# Clone the repository
 git clone https://github.com/mohamad-idriss/IPTS.git
 cd IPTS
-
-# Run the local deployment script
-bash run_local.sh
+bash install_macos.sh
 ```
 
-The script automatically:
-1. Creates a Python 3.12 virtual environment
-2. Installs all Python and Node.js dependencies
-3. Patches the deployment script for local execution (port 5001)
-4. Starts Ganache, trains 5 ML models on 16 features, compiles 7 contracts
-5. Launches Flask API server at **http://127.0.0.1:5001**
+#### Red Hat Linux (RHEL / Rocky / AlmaLinux)
+```bash
+# Development install
+sudo bash install_redhat.sh
 
-> **Note:** Port 5001 is used because macOS AirPlay uses port 5000.
+# Production install (Gunicorn + Nginx + systemd)
+sudo bash install_redhat.sh --prod
+
+# Production with SSL
+sudo bash install_redhat.sh --prod --domain yourdomain.com
+```
+
+See the full [Installation](#-installation) section for a step-by-step breakdown of what each script does.
+
+---
+
+### Manual Quick Start (macOS — existing environment)
+
+If Python 3.12, Node.js, Ganache, and Ollama are already installed:
+
+```bash
+git clone https://github.com/mohamad-idriss/IPTS.git
+cd IPTS
+bash run_local.sh        # First time only (trains models, deploys contracts)
+bash restart.sh          # Every subsequent restart (~15 seconds)
+```
 
 ### Google Colab
 
@@ -625,7 +641,7 @@ uploaded = files.upload()  # Select IPTS_deploy.py and ipts_frontend.html
 !python IPTS_deploy.py
 ```
 
-### Total Boot Time: ~90-120 seconds
+### Total Boot Time: ~90–120 seconds (first run) · ~15 seconds (restart)
 
 ---
 

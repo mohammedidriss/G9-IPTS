@@ -55,8 +55,11 @@ package-lock.json
 *.pem
 *.key
 credentials.json
+
+# Node
 node_modules/
-package.json
 package-lock.json
+
+# Docs scripts (not needed on server)
 docs/generate_report.js
 
