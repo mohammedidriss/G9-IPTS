@@ -168,6 +168,7 @@ dnf install -y \
   sqlite sqlite-devel \
   libffi-devel zlib-devel xz-devel \
   tesseract tesseract-langpack-eng \
+  zstd \
   jq procps-ng lsof \
   2>/dev/null || warn "Some packages may have been skipped (check output above)"
 
