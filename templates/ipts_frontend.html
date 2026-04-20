@@ -2298,7 +2298,7 @@ async function loadPaymentForm() {
   document.getElementById('paySenderName').textContent = FULL_NAME;
   document.getElementById('paySenderBalance').textContent = '$' + Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   // Show tx limits from login data
-  const limits = { admin:{daily:10000000,per_tx:5000000}, operator:{daily:2000000,per_tx:500000}, client:{daily:100000,per_tx:50000} };
+  const limits = { admin:{daily:10000000,per_tx:5000000}, operator:{daily:1000000,per_tx:500000}, client:{daily:1000000,per_tx:500000} };
   if (limits[ROLE]) showTxLimits(limits[ROLE]);
 
   // Load beneficiaries
