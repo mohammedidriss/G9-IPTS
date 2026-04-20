@@ -353,6 +353,7 @@ tailwind.config = {
         <h2 class="text-xl font-bold text-navy mb-1">Pending Approvals</h2>
         <p class="text-sm text-gray-500">Payments awaiting Human-in-the-Loop (HITL) review and authorisation.</p>
       </div>
+      <div id="approvalNotice" class="hidden mb-3 px-4 py-3 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm font-medium"></div>
       <div id="approvals-list" class="space-y-3">
         <div class="text-sm text-gray-400 italic">Loading pending approvals...</div>
       </div>
@@ -1591,6 +1592,30 @@ tailwind.config = {
 })();
 </script>
 
+<!-- Document Preview Modal -->
+<div id="docPreviewModal" class="modal-overlay hidden" onclick="if(event.target===this)closeDocPreview()">
+  <div class="modal-content fade-in" style="max-width:680px;width:95%;">
+    <div class="flex justify-between items-center mb-4">
+      <div class="flex items-center gap-3">
+        <div id="docPreviewIcon" class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center"><i class="fas fa-file-lines text-blue-400 text-lg"></i></div>
+        <div>
+          <h2 id="docPreviewTitle" class="text-base font-bold text-gray-800">Document</h2>
+          <p id="docPreviewMeta" class="text-xs text-gray-400"></p>
+        </div>
+      </div>
+      <button onclick="closeDocPreview()" class="text-gray-400 hover:text-gray-700"><i class="fas fa-times text-lg"></i></button>
+    </div>
+    <!-- PDF viewer via iframe -->
+    <div class="rounded-xl overflow-hidden border border-gray-200 bg-gray-50" style="height:460px;">
+      <iframe id="docPreviewFrame" src="" style="width:100%;height:100%;border:none;"></iframe>
+    </div>
+    <div class="flex justify-end gap-3 mt-4">
+      <button onclick="closeDocPreview()" class="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-medium hover:bg-gray-200 transition">Close</button>
+      <button id="docPreviewDownloadBtn" onclick="" class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition"><i class="fas fa-download mr-2"></i>Download</button>
+    </div>
+  </div>
+</div>
+
 <!-- Case Detail Modal -->
 <div id="caseModal" class="modal-overlay hidden" onclick="if(event.target===this)closeCaseModal()">
   <div class="modal-content fade-in">
@@ -2083,8 +2108,11 @@ async function loadPaymentForm() {
     }
 
     if (phase === 'hitl_pending') {
+      // Cancel any running start-animation timers so they don't overwrite this state
+      pfReset();
       // Blocked but sent to HITL — pause at AML with amber "awaiting approval" state
       const riskScore = data && data.risk_score !== undefined ? data.risk_score.toFixed(1) : '—';
+      pfActivateNode(1, 'Transfer initiated ✓', 'green');
       pfActivateNode(2, '⏳ Pending HITL  score: ' + riskScore, 'yellow');
       const badge = document.getElementById('flowStatusBadge');
       const icon  = document.getElementById('flowPanelIcon');
@@ -2151,8 +2179,11 @@ async function loadPaymentForm() {
     }
 
     if (phase === 'blocked') {
+      // Cancel any running start-animation timers
+      pfReset();
       // Fully blocked (rejected or no HITL path) — mark node 2 red, dim 3-6
       const riskScore = data && data.risk_score !== undefined ? data.risk_score.toFixed(1) : '—';
+      pfActivateNode(1, 'Transfer initiated ✓', 'green');
       pfActivateNode(2, '❌ BLOCKED  score: ' + riskScore, 'red');
       const badge = document.getElementById('flowStatusBadge');
       const icon  = document.getElementById('flowPanelIcon');
@@ -2587,25 +2618,27 @@ async function loadApprovals() {
       return;
     }
     container.innerHTML = data.queue.map(item => {
-      const needsFourEyes = item.amount >= 100000;
-      const statusColor = item.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : item.status === 'awaiting_second_approval' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700';
+      const needsThreeEyes = item.amount >= 150000;
+      const isAwaitingSecond = item.status === 'awaiting_second_approval';
+      const statusColor = item.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : isAwaitingSecond ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700';
+      const approverInfo = item.first_approver ? ' · 1st: ' + item.first_approver : '';
       return `
       <div class="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between shadow-sm">
         <div class="flex-1">
           <div class="flex items-center gap-3 mb-1">
             <span class="font-mono text-xs text-gray-400">#${item.id.substring(0,8)}...</span>
-            <span class="text-xs px-2 py-0.5 rounded-full font-medium ${statusColor}">${item.status.replace('_',' ').toUpperCase()}</span>
-            ${needsFourEyes ? '<span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">4-EYES</span>' : ''}
+            <span class="text-xs px-2 py-0.5 rounded-full font-medium ${statusColor}">${item.status.replace(/_/g,' ').toUpperCase()}</span>
+            ${needsThreeEyes ? '<span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium"><i class="fas fa-eye mr-1"></i>3-EYES</span>' : ''}
           </div>
           <div class="text-sm font-semibold text-gray-800">${item.beneficiary_name || 'Unknown Beneficiary'}</div>
-          <div class="text-xs text-gray-500 mt-0.5">${item.reason || 'Flagged for review'} &nbsp;·&nbsp; Risk Score: <span class="text-red-500 font-medium">${(item.risk_score||0).toFixed(1)}</span></div>
+          <div class="text-xs text-gray-500 mt-0.5">${item.reason || 'Flagged for review'} &nbsp;·&nbsp; Risk Score: <span class="text-red-500 font-medium">${(item.risk_score||0).toFixed(1)}</span>${approverInfo}</div>
         </div>
         <div class="text-right ml-6">
           <div class="text-lg font-bold text-gray-800">$${Number(item.amount).toLocaleString()}</div>
-          ${item.status === 'pending' || item.status === 'awaiting_second_approval' ? `
+          ${item.status === 'pending' || isAwaitingSecond ? `
           <div class="flex gap-2 mt-2">
-            <button onclick="hitlAction('approve','${item.id}');loadApprovals();" class="px-3 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-500">${item.status === 'awaiting_second_approval' ? '2nd Approve' : 'Approve'}</button>
-            <button onclick="hitlAction('reject','${item.id}');loadApprovals();" class="px-3 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-500">Reject</button>
+            <button onclick="hitlAction('approve','${item.id}')" class="px-3 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-500">${isAwaitingSecond ? '<i class=\'fas fa-check-double mr-1\'></i>2nd Approve' : 'Approve'}</button>
+            <button onclick="hitlAction('reject','${item.id}')" class="px-3 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-500">Reject</button>
           </div>` : `<div class="text-xs text-gray-400 mt-1">${item.reviewed_by || 'Reviewed'}</div>`}
         </div>
       </div>`;
@@ -2624,16 +2657,16 @@ async function loadHITL() {
       return;
     }
     tbody.innerHTML = data.queue.map(item => {
-      const needsFourEyes = item.amount >= 100000;
+      const needsFourEyes = item.amount >= 150000;
       let fourEyesBadge;
       if (!needsFourEyes) {
         fourEyesBadge = `<span class="text-xs text-gray-600">N/A</span>`;
       } else if (item.four_eyes_status === 'completed') {
-        fourEyesBadge = `<span class="px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-xs"><i class="fas fa-check-double mr-1"></i>2/2</span>`;
+        fourEyesBadge = `<span class="px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-xs"><i class="fas fa-check-double mr-1"></i>2/2 ✓</span>`;
       } else if (item.first_approver) {
-        fourEyesBadge = `<span class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-xs"><i class="fas fa-eye mr-1"></i>1/2 ${item.first_approver}</span>`;
+        fourEyesBadge = `<span class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-xs"><i class="fas fa-eye mr-1"></i>1/2 — ${item.first_approver}</span>`;
       } else {
-        fourEyesBadge = `<span class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-xs"><i class="fas fa-eye mr-1"></i>Required</span>`;
+        fourEyesBadge = `<span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-xs"><i class="fas fa-eye mr-1"></i>3-Eyes Required</span>`;
       }
       return `<tr class="border-b border-gray-200/50 hover:bg-gray-50">
         <td class="py-2 px-2 font-mono">${item.id.substring(0, 8)}...</td>
@@ -2658,10 +2691,18 @@ async function hitlAction(action, id) {
   try {
     const result = await apiFetch(`/api/hitl/${action}/${id}`, { method: 'POST' });
 
-    // Handle four-eyes awaiting second approval
+    // Handle three-eyes awaiting second approval
     if (result.status === 'awaiting_second_approval') {
-      alert(result.message || 'Four-eyes: first approval recorded. A different user must provide the second approval.');
+      // Immediately refresh both views so button changes to "2nd Approve"
+      await loadApprovals();
       loadHITL();
+      // Show inline notice instead of blocking alert
+      const notice = document.getElementById('approvalNotice');
+      if (notice) {
+        notice.textContent = '⚠️ First approval recorded. A second approver must confirm this transaction (3-eyes control).';
+        notice.classList.remove('hidden');
+        setTimeout(() => notice.classList.add('hidden'), 6000);
+      }
       return;
     }
 
@@ -4007,17 +4048,47 @@ async function loadDocuments() {
     const docs = data.documents || [];
     if (!docs.length) { div.innerHTML = '<p class="text-gray-600 text-sm text-center py-8">No documents available.</p>'; return; }
     const icons = { statement: 'fa-file-lines text-blue-400', tax_1099: 'fa-file-invoice-dollar text-green-400', receipt: 'fa-receipt text-purple-400' };
-    div.innerHTML = docs.map(d => `<div class="bg-gray-100 rounded-lg p-4 flex items-center justify-between hover:bg-gray-200 transition">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center"><i class="fas ${icons[d.doc_type] || 'fa-file text-gray-400'}"></i></div>
-        <div><p class="text-gray-800 text-sm font-medium">${d.title}</p><p class="text-gray-500 text-xs">Period: ${d.period} • ${(d.file_size / 1024).toFixed(0)} KB</p></div>
-      </div>
-      <button onclick="downloadDoc('${d.id}')" class="px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-xs font-semibold hover:bg-accent/20 transition"><i class="fas fa-download mr-1"></i>Download</button>
-    </div>`).join('');
+    div.innerHTML = docs.map(d => {
+      const icon = icons[d.type] || 'fa-file text-gray-400';
+      const escapedTitle = d.title.replace(/'/g, "\\'");
+      const escapedMeta  = (d.description + ' \u2022 ' + d.size + ' \u2022 ' + d.format).replace(/'/g, "\\'");
+      return '<div class="bg-gray-100 rounded-lg p-4 flex items-center justify-between hover:bg-gray-200 transition">' +
+        '<div class="flex items-center gap-3">' +
+          '<div class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center"><i class="fas ' + icon + '"></i></div>' +
+          '<div><p class="text-gray-800 text-sm font-medium">' + d.title + '</p>' +
+          '<p class="text-gray-500 text-xs">' + d.description + ' \u2022 ' + d.size + ' \u2022 ' + d.format + '</p></div>' +
+        '</div>' +
+        '<div class="flex gap-2">' +
+          '<button onclick="previewDoc(\'' + d.id + '\',\'' + escapedTitle + '\',\'' + escapedMeta + '\',\'' + icon + '\')" ' +
+            'class="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-600 text-xs font-semibold hover:bg-gray-300 transition">' +
+            '<i class="fas fa-eye mr-1"></i>View</button>' +
+          '<button onclick="downloadDoc(\'' + d.id + '\')" ' +
+            'class="px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-xs font-semibold hover:bg-accent/20 transition">' +
+            '<i class="fas fa-download mr-1"></i>Download</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
   } catch (e) { console.error(e); }
 }
 
-function downloadDoc(id) { window.open(API + '/api/documents/' + id + '/download?token=' + TOKEN, '_blank'); }
+function downloadDoc(id) {
+  window.open(API + '/api/documents/' + id + '/download?token=' + TOKEN, '_blank');
+}
+
+function previewDoc(id, title, meta, icon) {
+  const url = API + '/api/documents/' + id + '/download?token=' + TOKEN;
+  document.getElementById('docPreviewTitle').textContent = title;
+  document.getElementById('docPreviewMeta').textContent = meta;
+  document.getElementById('docPreviewIcon').innerHTML = '<i class="fas ' + icon + ' text-lg"></i>';
+  document.getElementById('docPreviewFrame').src = url;
+  document.getElementById('docPreviewDownloadBtn').onclick = function() { downloadDoc(id); };
+  document.getElementById('docPreviewModal').classList.remove('hidden');
+}
+
+function closeDocPreview() {
+  document.getElementById('docPreviewModal').classList.add('hidden');
+  document.getElementById('docPreviewFrame').src = '';
+}
 
 // ============================================================
 // Notifications
