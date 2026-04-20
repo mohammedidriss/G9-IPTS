@@ -3088,14 +3088,24 @@ async function loadApprovals() {
           </div>
           <div class="text-sm font-semibold text-gray-800">${item.beneficiary_name || 'Unknown Beneficiary'}</div>
           <div class="text-xs text-gray-500 mt-0.5">${item.reason || 'Flagged for review'} &nbsp;·&nbsp; Risk Score: <span class="text-red-500 font-medium">${(item.risk_score||0).toFixed(1)}</span>${approverInfo}</div>
+          ${item.case_number ? (() => {
+            const cs = item.case_status || 'open';
+            const caseBlocked = !['resolved','closed'].includes(cs);
+            const caseColor = caseBlocked ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700';
+            const caseIcon  = caseBlocked ? 'fa-lock' : 'fa-check-circle';
+            return `<div class="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded border text-xs ${caseColor}"><i class="fas ${caseIcon}"></i>Case ${item.case_number} — ${cs.toUpperCase()}${caseBlocked ? ' · Resolve case to unlock approval' : ''}</div>`;
+          })() : ''}
         </div>
         <div class="text-right ml-6">
           <div class="text-lg font-bold text-gray-800">$${Number(item.amount).toLocaleString()}</div>
-          ${item.status === 'pending' || isAwaitingSecond ? `
-          <div class="flex gap-2 mt-2">
-            <button onclick="hitlAction('approve','${item.id}')" class="px-3 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-500">${isAwaitingSecond ? '<i class=\'fas fa-check-double mr-1\'></i>2nd Approve' : 'Approve'}</button>
-            <button onclick="hitlAction('reject','${item.id}')" class="px-3 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-500">Reject</button>
-          </div>` : `<div class="text-xs text-gray-400 mt-1">${item.reviewed_by || 'Reviewed'}</div>`}
+          ${item.status === 'pending' || isAwaitingSecond ? (() => {
+            const cs = item.case_status || 'open';
+            const caseBlocked = item.case_number && !['resolved','closed'].includes(cs);
+            return `<div class="flex gap-2 mt-2">
+              <button onclick="hitlAction('approve','${item.id}')" ${caseBlocked ? 'disabled title="Resolve compliance case first"' : ''} class="px-3 py-1 rounded text-white text-xs ${caseBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500'}">${isAwaitingSecond ? '<i class=\'fas fa-check-double mr-1\'></i>2nd Approve' : 'Approve'}</button>
+              <button onclick="hitlAction('reject','${item.id}')" ${caseBlocked ? 'disabled title="Resolve compliance case first"' : ''} class="px-3 py-1 rounded text-white text-xs ${caseBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-500'}">Reject</button>
+            </div>`;
+          })() : `<div class="text-xs text-gray-400 mt-1">${item.reviewed_by || 'Reviewed'}</div>`}
         </div>
       </div>`;
     }).join('');
@@ -3133,10 +3143,16 @@ async function loadHITL() {
         <td class="py-2 px-2 text-center">${fourEyesBadge}</td>
         <td class="py-2 px-2 text-center"><span class="status-${item.status} uppercase text-xs font-medium">${item.status}</span></td>
         <td class="py-2 px-2 text-center">
-          ${item.status === 'pending' || item.status === 'awaiting_second_approval' ? `
-            <button onclick="hitlAction('approve', '${item.id}')" class="px-2 py-1 rounded bg-green-600 text-white text-xs mr-1 hover:bg-green-500">${item.status === 'awaiting_second_approval' ? '2nd Approve' : 'Approve'}</button>
-            <button onclick="hitlAction('reject', '${item.id}')" class="px-2 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-500">Reject</button>
-          ` : `<span class="text-xs text-gray-500">${item.reviewed_by || ''}</span>`}
+          ${item.status === 'pending' || item.status === 'awaiting_second_approval' ? (() => {
+            const cs = item.case_status || 'open';
+            const caseBlocked = item.case_number && !['resolved','closed'].includes(cs);
+            const lockTip = caseBlocked ? `title="Case ${item.case_number} is ${cs} — resolve it first"` : '';
+            return `<div class="flex gap-1 justify-center flex-wrap">
+              ${item.case_number ? `<span class="w-full text-center mb-1 text-[10px] px-1.5 py-0.5 rounded ${caseBlocked ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}"><i class="fas ${caseBlocked ? 'fa-lock' : 'fa-unlock'} mr-0.5"></i>${item.case_number}: ${cs}</span>` : ''}
+              <button onclick="hitlAction('approve', '${item.id}')" ${caseBlocked ? `disabled ${lockTip}` : ''} class="px-2 py-1 rounded text-white text-xs ${caseBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500'}">${item.status === 'awaiting_second_approval' ? '2nd Approve' : 'Approve'}</button>
+              <button onclick="hitlAction('reject', '${item.id}')" ${caseBlocked ? `disabled ${lockTip}` : ''} class="px-2 py-1 rounded text-white text-xs ${caseBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-500'}">Reject</button>
+            </div>`;
+          })() : `<span class="text-xs text-gray-500">${item.reviewed_by || ''}</span>`}
         </td>
       </tr>`;
     }).join('');
@@ -3184,7 +3200,22 @@ async function hitlAction(action, id) {
     await fetchAccountInfo();
     loadHITL();
     loadDashboard();
-  } catch (e) { alert('Error: ' + e.message); }
+  } catch (e) {
+    // Show compliance case gate error inline if possible, otherwise alert
+    if (e.data && e.data.blocked_by === 'compliance_case') {
+      const notice = document.getElementById('approvalNotice');
+      if (notice) {
+        notice.className = 'mb-4 px-4 py-3 rounded-lg text-sm font-medium bg-red-50 border border-red-200 text-red-700';
+        notice.innerHTML = `<i class="fas fa-lock mr-2"></i><strong>Approval blocked:</strong> Case <strong>${e.data.case_number}</strong> is currently <strong>${e.data.case_status}</strong>. Resolve the compliance case first before approving this transaction.`;
+        notice.classList.remove('hidden');
+        // Don't auto-hide — keep visible until action is taken
+      } else {
+        alert(`Approval blocked\n\nCase ${e.data.case_number} must be resolved before this transaction can be approved.\n\nCurrent case status: ${e.data.case_status}`);
+      }
+    } else {
+      alert('Error: ' + e.message);
+    }
+  }
 }
 
 // ============================================================
