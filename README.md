@@ -67,6 +67,18 @@ The system integrates:
 - [Features](#-features)
 - [Quick Start](#-quick-start)
 - [Installation](#-installation)
+  - [System Components](#system-components)
+  - [Step 1 — Prerequisites](#step-1--prerequisites)
+  - [Step 2 — Install Ganache](#step-2--install-ganache)
+  - [Step 3 — Copy the Project](#step-3--copy-the-project)
+  - [Step 4 — Python Environment](#step-4--set-up-python-environment)
+  - [Step 5 — Node Dependencies](#step-5--install-node-dependencies)
+  - [Step 6 — Pull the AI Model](#step-6--pull-the-ai-model)
+  - [Step 7 — Fix the Path](#step-7--fix-the-path-in-restartsh)
+  - [Step 8 — First Run](#step-8--first-run)
+  - [Step 9 — Verify](#step-9--verify-everything-works)
+  - [What NOT to Copy](#what-not-to-copy)
+  - [Installation Checklist](#installation-checklist)
 - [User Accounts](#-user-accounts)
 - [User Guide](#-user-guide)
 - [API Reference](#-api-reference)
@@ -619,28 +631,293 @@ uploaded = files.upload()  # Select IPTS_deploy.py and ipts_frontend.html
 
 ## Installation
 
-### Prerequisites
+This section covers everything you need to install IPTS on a **new laptop or server** from scratch. Follow every step in order.
 
-- Python 3.12+ (3.14 not supported due to ast.Num removal)
-- Node.js 18+
-- npm 9+
+---
 
-### Dependencies
+### System Components
+
+IPTS is made up of **5 components** that must all be running:
+
+| Component | What it does | How it is installed |
+|---|---|---|
+| **Python 3.12 + Flask** | Backend API server — all business logic, ML, endpoints | `pip install -r requirements.txt` |
+| **Ganache** | Local Ethereum blockchain — smart contract execution | `npm install -g ganache` |
+| **Ollama + Llama 3.2** | Local AI model — powers the support chat bot | `brew install ollama` + `ollama pull llama3.2` |
+| **Trained ML models** | Fraud detection `.pkl` files — 7 models, pre-trained | Auto-generated on first run via `run_local.sh` |
+| **SQLite database** | All users, transactions, compliance cases, cards | Auto-created on first run |
+
+---
+
+### Step 1 — Prerequisites
+
+Install the following on the new machine **before** anything else.
+
+#### macOS
+```bash
+# Python 3.12 (do NOT use 3.13 or 3.14 — they break scikit-learn)
+brew install python@3.12
+
+# Node.js and npm (required for Ganache)
+brew install node
+
+# Ollama — local LLM runtime
+brew install ollama
+
+# Tesseract — OCR engine for KYC document scanning
+brew install tesseract
+```
+
+#### Linux (Ubuntu / Debian)
+```bash
+sudo apt update
+sudo apt install python3.12 python3.12-venv python3-pip nodejs npm tesseract-ocr -y
+
+# Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+#### Windows
+| Tool | Download |
+|---|---|
+| Python 3.12 | https://python.org/downloads |
+| Node.js | https://nodejs.org |
+| Ollama | https://ollama.com/download |
+| Tesseract | https://github.com/UB-Mannheim/tesseract/wiki |
+
+> ⚠️ **Python version:** Use exactly **Python 3.12**. Python 3.13+ removed `ast.Num` which breaks scikit-learn and several dependencies.
+
+---
+
+### Step 2 — Install Ganache
+
+Ganache is the local Ethereum blockchain. Install it globally via npm:
+
+```bash
+npm install -g ganache
+```
+
+Verify the installation:
+```bash
+ganache --version
+# Expected: ganache v7.x.x
+```
+
+---
+
+### Step 3 — Copy the Project
+
+**Option A — Export as ZIP from the source machine:**
+
+Run this on the machine that currently has IPTS:
+```bash
+cd /Users/mohamadidriss/Projects
+zip -r IPTS_export.zip IPTS \
+  --exclude "IPTS/.venv/*" \
+  --exclude "IPTS/__pycache__/*" \
+  --exclude "IPTS/.runtime/__pycache__/*" \
+  --exclude "IPTS/node_modules/*" \
+  --exclude "IPTS/logs/*" \
+  --exclude "IPTS/.git/*"
+```
+
+Transfer `IPTS_export.zip` to the new machine (USB, AirDrop, SCP, Google Drive) and unzip it.
+
+**Option B — Clone from Git:**
+```bash
+git clone <your-repo-url> IPTS
+cd IPTS
+```
+
+---
+
+### Step 4 — Set Up Python Environment
+
+```bash
+cd IPTS
+
+# Create an isolated virtual environment
+python3.12 -m venv .venv
+
+# Activate it
+source .venv/bin/activate          # macOS / Linux
+# .\.venv\Scripts\activate         # Windows (PowerShell)
+
+# Install all Python packages from the pinned requirements file
+pip install -r requirements.txt
+```
+
+This installs Flask, Web3.py, scikit-learn, XGBoost, SHAP, NetworkX, PyJWT, Ollama client, and all other dependencies at their exact tested versions.
+
+---
+
+### Step 5 — Install Node Dependencies
+
+```bash
+npm install
+```
+
+> This is only required if you use the screenshot capture tool (`docs/capture_all_tabs.js`) or the PPTX export scripts. The core application runs entirely on Python.
+
+---
+
+### Step 6 — Pull the AI Model
+
+The support chat uses **Llama 3.2** running locally via Ollama. Download the model (~2 GB, one-time):
+
+```bash
+ollama pull llama3.2
+```
+
+Verify the model is available:
+```bash
+ollama list
+# Expected output includes: llama3.2
+```
+
+> If Ollama is not running as a service, start it manually in a separate terminal: `ollama serve`
+
+---
+
+### Step 7 — Fix the Path in restart.sh
+
+The `restart.sh` and `run_local.sh` scripts have the **original machine's path hardcoded**. Update them to match where you placed the project on the new machine.
+
+Open `restart.sh` and change:
+```bash
+# Find this line near the top:
+IPTS_DIR="/Users/mohamadidriss/Projects/IPTS"
+
+# Change it to your actual path, for example:
+IPTS_DIR="/home/yourname/Projects/IPTS"
+# or on Windows (Git Bash):
+# IPTS_DIR="C:/Projects/IPTS"
+```
+
+Do the same in `run_local.sh`:
+```bash
+IPTS_DIR="/Users/mohamadidriss/Projects/IPTS"   # ← change this line too
+```
+
+---
+
+### Step 8 — First Run
+
+Make the scripts executable, then run the **full setup script** on the first boot:
+
+```bash
+chmod +x restart.sh run_local.sh
+
+# First time only — this sets up everything from scratch:
+bash run_local.sh
+```
+
+The first run takes **5–10 minutes** and performs these steps automatically:
+1. Creates the SQLite database (`ipts.db`) and seeds all users, accounts, and sample data
+2. Trains and saves all **7 ML models** to `models/` (XGBoost, Random Forest, Isolation Forest, Autoencoder, Sequence Detector, PageRank, SHAP)
+3. Compiles and deploys **7 Solidity smart contracts** to Ganache
+4. Syncs the frontend template to the runtime directory
+5. Starts the Flask API server at `http://127.0.0.1:5001`
+
+**Every subsequent restart** (after the first), use the faster script:
+```bash
+bash restart.sh
+```
+
+This skips training and contract compilation — it takes ~15 seconds.
+
+---
+
+### Step 9 — Verify Everything Works
+
+Open a browser and go to: **http://127.0.0.1:5001**
+
+Log in with any of these accounts:
+
+| Username | Password | Role | Access |
+|---|---|---|---|
+| `mohamad` | `Mohamad@2026!` | Admin | Full system access |
+| `rohit` | `Rohit@2026!` | Operator | Payments, Approvals |
+| `walid` | `Walid@2026!` | Compliance | Cases, AML, Security |
+| `sara` | `Sara@2026!` | Client | Payments, Cards, Dashboard |
+
+Run a quick health check from the terminal:
+```bash
+curl http://127.0.0.1:5001/api/health
+# Expected: {"status": "ok", "ganache": true, "model_loaded": true, ...}
+```
+
+Check that all three services are running:
+
+| Service | Port | Check |
+|---|---|---|
+| Flask API | 5001 | `curl http://127.0.0.1:5001/api/health` |
+| Ganache blockchain | 8545 | `curl -s http://127.0.0.1:8545` (returns JSON) |
+| Ollama AI | 11434 | `curl http://localhost:11434/api/tags` |
+
+---
+
+### What NOT to Copy
+
+These items should **not** be copied — they are either platform-specific or regenerated automatically:
+
+| Item | Why |
+|---|---|
+| `.venv/` | Platform-specific binaries — recreate with `pip install -r requirements.txt` |
+| `node_modules/` | Recreate with `npm install` |
+| `logs/` | Old log files from the previous machine — not needed |
+| `.git/` | Only include if you want the full git history |
+| `ipts.db` / `ipts_vault.db` | **Optional** — copy these if you want to transfer existing users and transaction history. Leave them out for a completely fresh database. |
+
+---
+
+### Dependencies Reference
 
 | Category | Package | Version | Purpose |
-|----------|---------|---------|---------|
-| Web | Flask | 3.0+ | REST API framework |
-| Blockchain | Web3.py | 6.15+ | Ethereum interaction |
-| Blockchain | py-solc-x | 2.0+ | Solidity compiler |
-| Auth | PyJWT | 2.8+ | JWT token management |
-| ML | scikit-learn | 1.4+ | Isolation Forest, Random Forest |
-| ML | XGBoost | 2.0+ | Gradient boosting classifier |
-| ML | SHAP | 0.44+ | SHAP TreeExplainer |
-| ML | imbalanced-learn | 0.12+ | SMOTE oversampling |
-| Graph | NetworkX | 3.2+ | Graph analytics, PageRank |
-| Crypto | cryptography | 42.0+ | Encryption utilities |
-| Data | numpy, pandas | latest | Numerical and data processing |
-| Infra | Ganache | 7.0+ | Local Ethereum blockchain |
+|---|---|---|---|
+| Web Framework | Flask | 3.0.3 | REST API server |
+| Web Framework | flask-cors | 4.0.1 | Cross-origin requests |
+| Production | gunicorn | 22.0.0 | WSGI server for Linux |
+| Auth | PyJWT | 2.8.0 | JWT token management |
+| Auth | cryptography | 42.0.8 | Encryption utilities |
+| Blockchain | web3 | 6.15.1 | Ethereum interaction |
+| Blockchain | py-solc-x | 2.1.1 | Solidity compiler |
+| ML | scikit-learn | 1.4.2 | Isolation Forest, Random Forest |
+| ML | xgboost | 2.0.3 | Gradient boosting classifier |
+| ML | shap | 0.44.1 | SHAP TreeExplainer |
+| ML | imbalanced-learn | 0.12.3 | SMOTE oversampling |
+| ML | numpy | 1.26.4 | Numerical computing |
+| ML | pandas | 2.2.2 | Data processing |
+| Graph | networkx | 3.2.1 | PageRank, graph analytics |
+| AI Chat | ollama | ≥0.4.0 | Local LLM client |
+| OCR | pytesseract | 0.3.13 | KYC document scanning |
+| Images | pillow | 10.4.0 | Image processing |
+| Utils | requests | 2.32.3 | HTTP client |
+| Utils | joblib | 1.4.2 | Model persistence |
+
+---
+
+### Installation Checklist
+
+Use this checklist to confirm everything is in place before first launch:
+
+```
+□ Python 3.12 installed (not 3.13 or 3.14)
+□ Node.js 18+ and npm installed
+□ Ganache installed globally:  npm install -g ganache
+□ Ollama installed and running: ollama serve
+□ Llama 3.2 model pulled:      ollama pull llama3.2
+□ Tesseract OCR installed
+□ Project files copied (zip or git clone)
+□ IPTS_DIR path updated in restart.sh
+□ IPTS_DIR path updated in run_local.sh
+□ Virtual environment created:  python3.12 -m venv .venv
+□ Dependencies installed:       pip install -r requirements.txt
+□ Node packages installed:      npm install
+□ First run completed:          bash run_local.sh
+□ Browser opens http://127.0.0.1:5001 and login works ✓
+□ Health check passes:          curl http://127.0.0.1:5001/api/health ✓
+```
 
 ---
 
@@ -1059,16 +1336,79 @@ IPTS/
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|---------|
-| Python 3.14 errors | Use Python 3.12 (3.14 removed ast.Num, breaking scikit-learn) |
-| Port 5000 blocked on macOS | run_local.sh uses port 5001 (AirPlay uses 5000) |
-| Ganache not reachable | Re-run the script. Ganache sometimes needs extra startup time. |
-| Frontend shows placeholder | Ensure ipts_frontend.html is in templates/ directory |
-| SHAP not showing results | Verify models trained on 16 features (check /api/shap/test) |
-| Four-eyes approving with one person | Verify four_eyes_approvals table column index (fe_record[7]) |
-| Port already in use | `kill -9 $(lsof -ti:8545) 2>/dev/null; kill -9 $(lsof -ti:5001) 2>/dev/null` |
-| Import errors | `pip install web3 py-solc-x flask pyjwt scikit-learn xgboost shap imbalanced-learn networkx` |
+### Startup Issues
+
+| Problem | Cause | Fix |
+|---|---|---|
+| `SyntaxError` or `ast.Num` errors | Wrong Python version (3.13/3.14) | Install Python 3.12: `brew install python@3.12` |
+| `Port 5001 already in use` | Old Flask process still running | `lsof -ti:5001 \| xargs kill -9` |
+| `Port 8545 already in use` | Old Ganache process still running | `lsof -ti:8545 \| xargs kill -9` |
+| `Port 5000 blocked on macOS` | macOS AirPlay Receiver uses port 5000 | IPTS uses port 5001 by design — no action needed |
+| Flask app does not respond | Failed to start — check logs | `cat logs/flask_stderr.log` |
+| Ganache fails to start | Port conflict or bad install | `cat logs/ganache.log` then `npm install -g ganache` |
+
+### Python / Package Issues
+
+| Problem | Fix |
+|---|---|
+| `ModuleNotFoundError` for any package | Make sure the virtual environment is active: `source .venv/bin/activate`, then `pip install -r requirements.txt` |
+| `pip install` fails on a package | Try upgrading pip first: `pip install --upgrade pip`, then retry |
+| `web3` or `solc` errors | `pip install web3==6.15.1 py-solc-x==2.1.1` |
+| `ImportError: cannot import name 'X' from sklearn` | Reinstall: `pip install scikit-learn==1.4.2 --force-reinstall` |
+
+### AI / ML Issues
+
+| Problem | Fix |
+|---|---|
+| ML models not found | Run `bash run_local.sh` once — it trains and saves all models to `models/` |
+| SHAP chart not showing | Check `/api/shap/test` endpoint; models must be trained on exactly 16 features |
+| Support chat says "I'm offline" | Ollama is not running — run `ollama serve` in a terminal |
+| Support chat gives wrong tab names | System prompt out of date — update `SUPPORT_SYSTEM_PROMPT` in `app.py` |
+| `ollama pull llama3.2` fails | Check internet connection; the model is ~2 GB |
+
+### Blockchain Issues
+
+| Problem | Fix |
+|---|---|
+| `web3 connection failed` | Ganache is not running — check `logs/ganache.log` and restart with `bash restart.sh` |
+| Smart contracts not deployed | Run `bash run_local.sh` — it recompiles and redeploys all 7 contracts |
+| Proof of Reserve shows 0 | Ganache not connected — verify port 8545 is listening: `lsof -ti:8545` |
+
+### Frontend Issues
+
+| Problem | Fix |
+|---|---|
+| Blank white page | Python error in backend — check `logs/flask_stderr.log` |
+| Old version showing after edit | Frontend not synced to runtime — run: `cp templates/ipts_frontend.html .runtime/templates/index.html` |
+| Charts not rendering | Chart.js CDN blocked — check network/firewall; IPTS loads Chart.js from CDN |
+| Tab not visible after login | Role does not have access to that tab — check role permissions matrix |
+
+### Database Issues
+
+| Problem | Fix |
+|---|---|
+| `no such table` errors | Database schema is outdated — run `python reset_db.py` to recreate (⚠️ clears all data) |
+| `no such column` errors | A new column was added to the schema — restart Flask; it applies `ALTER TABLE` migrations on startup |
+| Login fails for all users | Database corrupted — restore from `ipts_vault_backup_*.db` in `.runtime/` |
+
+### Kill Everything and Start Fresh
+
+If something is badly broken, this resets all running processes:
+```bash
+# Kill Flask and Ganache
+lsof -ti:5001 | xargs kill -9 2>/dev/null
+lsof -ti:8545 | xargs kill -9 2>/dev/null
+
+# Wait 2 seconds, then restart
+sleep 2 && bash restart.sh
+```
+
+For a completely fresh database (⚠️ deletes all transactions and users):
+```bash
+cd /path/to/IPTS
+rm -f .runtime/ipts.db .runtime/ipts_vault.db
+bash run_local.sh
+```
 
 ---
 
