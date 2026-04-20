@@ -184,32 +184,87 @@ ok "System packages installed"
 # ── Step 3: Python 3.12 ───────────────────────────────────────────────────────
 hdr "STEP 3 — Python 3.12"
 
-if command -v python3.12 &>/dev/null; then
-  ok "Python $(python3.12 --version) already installed"
-else
-  info "Python 3.12 not found — building from source (takes ~5 minutes)..."
+install_python312() {
+  # ── Attempt 1: dnf package (RHEL 9 AppStream — instant) ──────────────────
+  info "Attempt 1/3: dnf install python3.12 (pre-built package)..."
+  if dnf install -y python3.12 python3.12-devel 2>/dev/null; then
+    if command -v python3.12 &>/dev/null; then
+      ok "Python 3.12 installed via dnf (pre-built)"
+      return 0
+    fi
+  fi
+  warn "dnf package not available — trying next method"
+
+  # ── Attempt 2: IUS / Remi repo (RHEL 8 — pre-built RPM) ─────────────────
+  info "Attempt 2/3: IUS/Remi repository (pre-built RPM)..."
+  if [[ "$RHEL_VER" -eq 8 ]]; then
+    dnf install -y \
+      "https://repo.ius.io/ius-release-el8.noarch.rpm" 2>/dev/null || true
+    dnf install -y python3.12 python3.12-devel 2>/dev/null || true
+  else
+    # Try Remi repo for RHEL 9
+    dnf install -y \
+      "https://rpms.remirepo.net/enterprise/remi-release-${RHEL_VER}.rpm" 2>/dev/null || true
+    dnf module reset python312 -y 2>/dev/null || true
+    dnf install -y python3.12 python3.12-devel 2>/dev/null || true
+  fi
+
+  if command -v python3.12 &>/dev/null; then
+    ok "Python 3.12 installed via RPM repository"
+    return 0
+  fi
+  warn "RPM repository not available — falling back to source compilation"
+
+  # ── Attempt 3: Build from source (works everywhere, takes 10–20 min) ─────
+  info "Attempt 3/3: Building Python 3.12 from source..."
+  echo ""
+  echo -e "  ${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo -e "  ${YELLOW}  Source compilation on a $(nproc)-core machine takes 10–20 min.${NC}"
+  echo -e "  ${YELLOW}  Output is shown live below — it is NOT stuck.${NC}"
+  echo -e "  ${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo ""
+
   PYTHON_VER="3.12.7"
-  cd /tmp
-  wget -q "https://www.python.org/ftp/python/${PYTHON_VER}/Python-${PYTHON_VER}.tgz"
+  BUILD_DIR="/tmp/python312_build"
+  mkdir -p "$BUILD_DIR"
+  cd "$BUILD_DIR"
+
+  info "Downloading Python ${PYTHON_VER} source..."
+  wget --progress=bar:force \
+    "https://www.python.org/ftp/python/${PYTHON_VER}/Python-${PYTHON_VER}.tgz" \
+    -O "Python-${PYTHON_VER}.tgz"
   tar -xzf "Python-${PYTHON_VER}.tgz"
   cd "Python-${PYTHON_VER}"
-  info "Configuring Python build (optimised)..."
+
+  info "Configuring build (optimisations enabled)..."
   ./configure \
     --enable-optimizations \
     --with-lto \
     --enable-shared \
-    LDFLAGS="-Wl,-rpath /usr/local/lib" \
-    > /dev/null 2>&1
-  info "Compiling Python 3.12 (using $(nproc) cores)..."
-  make -j"$(nproc)" > /dev/null 2>&1
-  make altinstall > /dev/null 2>&1
-  cd /tmp && rm -rf "Python-${PYTHON_VER}" "Python-${PYTHON_VER}.tgz"
+    LDFLAGS="-Wl,-rpath /usr/local/lib"
+
+  info "Compiling with $(nproc) cores — please wait..."
+  make -j"$(nproc)"
+
+  info "Installing (altinstall — won't replace system python3)..."
+  make altinstall
+
+  cd /tmp && rm -rf "$BUILD_DIR"
   ok "Python 3.12 built and installed from source"
+  return 0
+}
+
+if command -v python3.12 &>/dev/null; then
+  ok "Python $(python3.12 --version) already installed"
+else
+  install_python312
 fi
 
-# Verify it's actually 3.12
-PY_VER=$(python3.12 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-[[ "$PY_VER" != "3.12" ]] && err "Python version mismatch: expected 3.12, got $PY_VER"
+# Verify correct version — 3.13/3.14 break scikit-learn
+PY_VER=$(python3.12 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "")
+if [[ "$PY_VER" != "3.12" ]]; then
+  err "Python 3.12 not found after installation. Check the output above."
+fi
 ok "Python version verified: $PY_VER"
 
 # ── Step 4: Node.js 20 LTS ────────────────────────────────────────────────────
