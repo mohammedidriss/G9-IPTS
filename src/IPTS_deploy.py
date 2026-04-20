@@ -1312,6 +1312,7 @@ def init_db():
         currency TEXT,
         beneficiary_type TEXT,
         notes TEXT,
+        wallet_address TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
     c.execute("""CREATE TABLE IF NOT EXISTS virtual_cards (

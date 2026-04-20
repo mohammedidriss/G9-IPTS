@@ -694,18 +694,39 @@ tailwind.config = {
         <div id="fraudHeatmapContainer" class="text-center text-gray-500 text-sm py-4">Loading heatmap...</div>
       </div>
 
-      <!-- Retrain Button -->
-      <div id="retrainSection" class="glass rounded-xl p-6">
-        <div class="flex items-center justify-between">
+      <!-- AI-Identified Risk Entities -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
           <div>
-            <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-rotate mr-2 text-accent"></i>Model Retraining</h3>
-            <p class="text-xs text-gray-500 mt-1">Retrain all 5 models with fresh synthetic data</p>
+            <h3 class="text-sm font-semibold text-gray-800">
+              <i class="fas fa-robot mr-2 text-red-500"></i>AI-Identified Risk Entities
+            </h3>
+            <p class="text-xs text-gray-500 mt-0.5">Counterparties flagged as high or critical risk by the ensemble AI/ML models based on transaction behaviour</p>
           </div>
-          <button onclick="retrainModels()" id="retrainBtn" class="px-6 py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-500 transition">
-            <i class="fas fa-gears mr-2"></i>Retrain Models
+          <button onclick="loadRiskEntities()" class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs hover:bg-gray-200 transition">
+            <i class="fas fa-rotate-right mr-1"></i>Refresh
           </button>
         </div>
+
+        <!-- Legend -->
+        <div class="flex gap-4 mb-4 text-xs">
+          <span class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-600 inline-block"></span>
+            <span class="text-gray-600">Critical Risk  ≥ 85</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span>
+            <span class="text-gray-600">High Risk  70–84</span>
+          </span>
+        </div>
+
+        <div id="riskEntitiesContainer">
+          <div class="text-center text-gray-400 text-sm py-8">
+            <i class="fas fa-circle-notch fa-spin mr-2"></i>Analysing transaction patterns...
+          </div>
+        </div>
       </div>
+
     </div>
 
     <!-- NETWORK GRAPH TAB -->
@@ -1035,14 +1056,27 @@ tailwind.config = {
               <label class="block text-xs text-gray-500 mb-1">Account Number / IBAN</label>
               <input id="benAccount" type="text" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g. GB82WEST12345698765432">
             </div>
+            <!-- Blockchain Wallet Address — Primary routing identifier -->
+            <div>
+              <label class="block text-xs font-semibold text-blue-600 mb-1">
+                <i class="fas fa-link mr-1"></i>Blockchain Wallet Address
+                <span class="ml-1 px-1.5 py-0.5 rounded text-xs bg-blue-100 text-blue-700 font-bold">PRIMARY</span>
+              </label>
+              <input id="benWallet" type="text" class="w-full px-3 py-2 rounded-lg text-sm border border-blue-200 focus:border-blue-400" placeholder="0x... or did:ipts:... (blockchain routing address)">
+              <p class="text-xs text-gray-400 mt-1"><i class="fas fa-shield-alt mr-1 text-green-500"></i>Used for direct on-chain settlement via IPTS network</p>
+            </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs text-gray-500 mb-1">Bank Name</label>
                 <input id="benBank" type="text" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g. HSBC">
               </div>
               <div>
-                <label class="block text-xs text-gray-500 mb-1">SWIFT / BIC</label>
-                <input id="benSwift" type="text" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g. HSBCGB2L">
+                <label class="block text-xs text-gray-500 mb-1">
+                  SWIFT / BIC
+                  <span class="ml-1 px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-500 font-medium">Legacy fallback only</span>
+                </label>
+                <input id="benSwift" type="text" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g. HSBCGB2L (optional)">
+                <p class="text-xs text-gray-400 mt-1"><i class="fas fa-exclamation-circle mr-1 text-amber-400"></i>Only used if receiver is not on IPTS network</p>
               </div>
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -1511,20 +1545,51 @@ tailwind.config = {
   <button onclick="toggleChat()" id="chatToggle" class="w-14 h-14 rounded-full bg-accent text-white shadow-lg hover:bg-accent/90 transition flex items-center justify-center text-xl">
     <i class="fas fa-headset"></i>
   </button>
-  <div id="chatPanel" class="hidden absolute bottom-16 right-0 w-80 glass rounded-xl border border-gray-200 shadow-xl overflow-hidden">
-    <div class="bg-accent/20 px-4 py-3 flex justify-between items-center">
+  <div id="chatPanel" class="hidden absolute bottom-16 right-0 glass rounded-xl border border-gray-200 shadow-xl overflow-hidden flex flex-col" style="width:320px;min-width:240px;max-width:600px;min-height:280px;max-height:80vh;">
+    <!-- Resize handle (top-left corner) -->
+    <div id="chatResizeHandle" style="position:absolute;top:0;left:0;width:18px;height:18px;cursor:nw-resize;z-index:10;display:flex;align-items:center;justify-content:center;">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 9L9 1M1 5L5 1M5 9L9 5" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+    <div class="bg-accent/20 px-4 py-3 flex justify-between items-center flex-shrink-0">
       <span class="text-sm font-semibold text-gray-800"><i class="fas fa-robot mr-2"></i>IPTS Support</span>
       <button onclick="toggleChat()" class="text-gray-400 hover:text-gray-800"><i class="fas fa-times"></i></button>
     </div>
-    <div id="chatMessages" class="h-64 overflow-y-auto p-3 space-y-2">
+    <div id="chatMessages" class="overflow-y-auto p-3 space-y-2 flex-1">
       <div class="bg-blue-50 rounded-lg p-2 text-xs text-gray-600 max-w-[85%]"><span class="text-accent font-semibold">Bot:</span> Hi! I'm IPTS Support Bot. How can I help?</div>
     </div>
-    <div class="p-3 border-t border-gray-200 flex gap-2">
+    <div class="p-3 border-t border-gray-200 flex gap-2 flex-shrink-0">
       <input id="chatInput" class="flex-1 px-3 py-2 rounded-lg text-xs" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendChat()">
       <button onclick="sendChat()" class="px-3 py-2 rounded-lg bg-accent text-white text-xs font-semibold"><i class="fas fa-paper-plane"></i></button>
     </div>
   </div>
 </div>
+
+<script>
+(function() {
+  const handle = document.getElementById('chatResizeHandle');
+  const panel  = document.getElementById('chatPanel');
+  let dragging = false, startX, startY, startW, startH;
+
+  handle.addEventListener('mousedown', function(e) {
+    e.preventDefault();
+    dragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    startW = panel.offsetWidth;
+    startH = panel.offsetHeight;
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!dragging) return;
+    const newW = Math.max(240, Math.min(600, startW - (e.clientX - startX)));
+    const newH = Math.max(280, Math.min(window.innerHeight * 0.8, startH - (e.clientY - startY)));
+    panel.style.width  = newW + 'px';
+    panel.style.height = newH + 'px';
+  });
+
+  document.addEventListener('mouseup', function() { dragging = false; });
+})();
+</script>
 
 <!-- Case Detail Modal -->
 <div id="caseModal" class="modal-overlay hidden" onclick="if(event.target===this)closeCaseModal()">
@@ -1669,7 +1734,7 @@ function switchTab(tab) {
 
   if (tab === 'dashboard') loadDashboard();
   if (tab === 'payments') loadPaymentForm();
-  if (tab === 'aiml') { loadModelMetrics(); loadFraudHeatmap(); }
+  if (tab === 'aiml') { loadModelMetrics(); loadFraudHeatmap(); loadRiskEntities(); }
   if (tab === 'graph') loadGraph();
   if (tab === 'admin') { loadHITL(); loadAudit(); }
   if (tab === 'compliance') { loadSanctions(); loadNostro(); }
@@ -1874,9 +1939,7 @@ async function loadPaymentForm() {
     const sel = document.getElementById('payBeneficiary');
     sel.innerHTML = '<option value="">Select beneficiary...</option>' +
       BENEFICIARY_LIST.map(b => {
-        const riskBadge = b.risk === 'critical' ? ' [CRITICAL RISK]' : b.risk === 'high' ? ' [HIGH RISK]' : '';
-        const riskColor = b.risk === 'critical' ? 'color:#ef4444' : b.risk === 'high' ? 'color:#f97316' : '';
-        return `<option value="${b.name}" data-username="${b.username || ''}" data-risk="${b.risk}" style="${riskColor}">${b.name} (${b.type})${riskBadge}</option>`;
+        return `<option value="${b.name}" data-username="${b.username || ''}">${b.name} (${b.type})</option>`;
       }).join('');
   } catch (e) { console.error('Beneficiary load error:', e); }
   updateFXPreview();
@@ -3203,7 +3266,15 @@ function renderBeneficiaries(list) {
         </div>
       </td>
       <td class="py-3 pr-3"><span class="badge ${typeBadge}"><i class="fas ${typeIcon} mr-1"></i>${b.beneficiary_type}</span></td>
-      <td class="py-3 pr-3 text-gray-400">${b.bank_name || '—'}${b.swift_code ? `<br><span class="font-mono text-gray-600">${b.swift_code}</span>` : ''}</td>
+      <td class="py-3 pr-3 text-gray-400">
+        ${b.wallet_address
+          ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-xs font-medium mb-1"><i class="fas fa-link text-xs"></i>On-Chain</span><br><span class="font-mono text-xs text-blue-500">${b.wallet_address.slice(0,10)}...</span>`
+          : b.swift_code
+            ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-medium mb-1"><i class="fas fa-exclamation-circle text-xs"></i>Legacy Fallback</span><br><span class="font-mono text-xs">${b.swift_code}</span>`
+            : `<span class="text-xs text-gray-400">—</span>`
+        }
+        ${b.bank_name ? `<br><span class="text-xs text-gray-400">${b.bank_name}</span>` : ''}
+      </td>
       <td class="py-3 pr-3">${flag} ${b.country}</td>
       <td class="py-3 pr-3"><span class="font-mono text-accent">${b.currency}</span></td>
       <td class="py-3 pr-3 text-gray-500">${dateStr}</td>
@@ -3240,7 +3311,8 @@ async function addBeneficiary() {
         nickname: document.getElementById('benNickname').value.trim(),
         account_number: document.getElementById('benAccount').value.trim(),
         bank_name: document.getElementById('benBank').value.trim(),
-        swift_code: document.getElementById('benSwift').value.trim().toUpperCase(),
+        swift_code: document.getElementById('benSwift').value.trim().toUpperCase() || null,
+        wallet_address: document.getElementById('benWallet').value.trim() || null,
         country: document.getElementById('benCountry').value,
         currency: document.getElementById('benCurrency').value,
         beneficiary_type: document.getElementById('benType').value,
@@ -3250,7 +3322,7 @@ async function addBeneficiary() {
     sucDiv.textContent = result.message || 'Beneficiary added successfully!';
     sucDiv.classList.remove('hidden');
     // Clear form
-    ['benName','benNickname','benAccount','benBank','benSwift','benNotes'].forEach(id => document.getElementById(id).value = '');
+    ['benName','benNickname','benAccount','benBank','benSwift','benWallet','benNotes'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('benType').value = 'individual';
     document.getElementById('benCountry').value = 'US';
     document.getElementById('benCurrency').value = 'USD';
@@ -3274,6 +3346,7 @@ function editBeneficiary(id) {
   document.getElementById('benAccount').value = b.account_number || '';
   document.getElementById('benBank').value = b.bank_name || '';
   document.getElementById('benSwift').value = b.swift_code || '';
+  document.getElementById('benWallet').value = b.wallet_address || '';
   document.getElementById('benCountry').value = b.country || 'US';
   document.getElementById('benCurrency').value = b.currency || 'USD';
   document.getElementById('benType').value = b.beneficiary_type || 'individual';
@@ -4054,6 +4127,87 @@ async function loadFraudHeatmap() {
     html += '</div>';
     container.innerHTML = html;
   } catch(e) { console.error('Heatmap error', e); }
+}
+
+// ============================================================
+// AI-Identified Risk Entities
+// ============================================================
+async function loadRiskEntities() {
+  const container = document.getElementById('riskEntitiesContainer');
+  if (!container) return;
+  container.innerHTML = '<div class="text-center text-gray-400 text-sm py-6"><i class="fas fa-circle-notch fa-spin mr-2"></i>Analysing transaction patterns...</div>';
+  try {
+    const data = await apiFetch('/api/analytics/risk-entities');
+    const entities = (data && data.entities) ? data.entities : [];
+    if (!entities.length) {
+      container.innerHTML = '<div class="text-center py-8"><i class="fas fa-shield-check text-2xl text-green-400 block mb-3"></i><p class="text-green-600 font-medium text-sm">No high-risk entities detected</p><p class="text-xs text-gray-400 mt-1">Execute settlements to build the AI risk profile.</p></div>';
+      return;
+    }
+    const critical = entities.filter(function(e){ return e.level === 'critical'; });
+    const high     = entities.filter(function(e){ return e.level === 'high'; });
+    let html = '';
+    if (critical.length) {
+      html += '<div class="mb-5"><div class="flex items-center gap-2 mb-3"><span class="w-2.5 h-2.5 rounded-full bg-red-600 inline-block animate-pulse"></span><span class="text-xs font-bold text-red-600 uppercase tracking-wider">Critical Risk — ' + critical.length + ' ' + (critical.length === 1 ? 'entity' : 'entities') + '</span></div><div class="space-y-3">';
+      critical.forEach(function(e){ html += buildEntityCard(e, 'critical'); });
+      html += '</div></div>';
+    }
+    if (high.length) {
+      html += '<div class="mb-2"><div class="flex items-center gap-2 mb-3"><span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span><span class="text-xs font-bold text-orange-500 uppercase tracking-wider">High Risk — ' + high.length + ' ' + (high.length === 1 ? 'entity' : 'entities') + '</span></div><div class="space-y-3">';
+      high.forEach(function(e){ html += buildEntityCard(e, 'high'); });
+      html += '</div></div>';
+    }
+    container.innerHTML = html;
+  } catch(err) {
+    container.innerHTML = '<p class="text-red-400 text-xs text-center py-4"><i class="fas fa-exclamation-circle mr-1"></i>Could not load risk entities — ' + (err.message || 'unknown error') + '</p>';
+    console.error('Risk entities error:', err);
+  }
+}
+
+function buildEntityCard(entity, level) {
+  var isCritical  = (level === 'critical');
+  var borderCls   = isCritical ? 'border border-red-300 bg-red-50'     : 'border border-orange-300 bg-orange-50';
+  var badgeCls    = isCritical ? 'bg-red-600 text-white'               : 'bg-orange-500 text-white';
+  var scoreCls    = isCritical ? 'text-red-600'                        : 'text-orange-500';
+  var labelTxt    = isCritical ? 'CRITICAL RISK'                       : 'HIGH RISK';
+  var iconCls     = isCritical ? 'fa-skull-crossbones'                 : 'fa-triangle-exclamation';
+  var blockedCls  = (entity.blocked_count > 0) ? 'text-red-600 font-bold' : 'text-gray-400';
+  var lastSeen    = entity.last_seen ? new Date(entity.last_seen).toLocaleString() : 'N/A';
+  var vol         = '$' + Number(entity.total_volume).toLocaleString('en-US', {maximumFractionDigits: 0});
+
+  var triggersHtml = '';
+  (entity.triggers || []).forEach(function(t){
+    triggersHtml += '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-xs mr-1 mb-1">' + t + '</span>';
+  });
+
+  var modelsHtml = '';
+  (entity.models || []).forEach(function(m){
+    modelsHtml += '<span class="px-1.5 py-0.5 rounded bg-gray-700 text-gray-200 text-xs mr-1">' + m + '</span>';
+  });
+
+  return '<div class="rounded-xl p-4 mb-2 ' + borderCls + '">'
+    + '<div class="flex items-start justify-between gap-3 mb-3">'
+    +   '<div class="flex items-center gap-2 min-w-0">'
+    +     '<i class="fas ' + iconCls + ' ' + scoreCls + ' text-sm"></i>'
+    +     '<span class="font-bold text-gray-800 text-sm">' + entity.name + '</span>'
+    +   '</div>'
+    +   '<div class="flex items-center gap-2">'
+    +     '<span class="text-xs font-bold px-2 py-0.5 rounded-full ' + badgeCls + '">' + labelTxt + '</span>'
+    +     '<span class="text-lg font-bold ' + scoreCls + '">' + entity.max_risk + '</span>'
+    +   '</div>'
+    + '</div>'
+    + '<div class="grid grid-cols-4 gap-2 mb-3 text-center">'
+    +   '<div class="bg-white rounded-lg py-1.5 border border-gray-100"><div class="text-xs text-gray-500">Max Score</div><div class="text-sm font-bold ' + scoreCls + '">' + entity.max_risk + '</div></div>'
+    +   '<div class="bg-white rounded-lg py-1.5 border border-gray-100"><div class="text-xs text-gray-500">Avg Score</div><div class="text-sm font-bold text-gray-700">' + entity.avg_risk + '</div></div>'
+    +   '<div class="bg-white rounded-lg py-1.5 border border-gray-100"><div class="text-xs text-gray-500">Transactions</div><div class="text-sm font-bold text-gray-700">' + entity.tx_count + '</div></div>'
+    +   '<div class="bg-white rounded-lg py-1.5 border border-gray-100"><div class="text-xs text-gray-500">Blocked</div><div class="text-sm ' + blockedCls + '">' + entity.blocked_count + '</div></div>'
+    + '</div>'
+    + '<div class="flex items-center justify-between text-xs text-gray-500 mb-3">'
+    +   '<span>Total Volume: <strong class="text-gray-700">' + vol + '</strong></span>'
+    +   '<span>Last seen: ' + lastSeen + '</span>'
+    + '</div>'
+    + '<div class="mb-3"><div class="text-xs text-gray-500 mb-1.5 font-medium">Risk Triggers Identified by AI:</div><div class="flex flex-wrap">' + triggersHtml + '</div></div>'
+    + '<div><div class="text-xs text-gray-500 mb-1.5 font-medium">Detected by Models:</div><div class="flex flex-wrap gap-1">' + modelsHtml + '</div></div>'
+    + '</div>';
 }
 
 // ============================================================
