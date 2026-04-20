@@ -422,16 +422,35 @@ done
 chmod +x "$IPTS_INSTALL_DIR/restart.sh" \
          "$IPTS_INSTALL_DIR/run_local.sh" 2>/dev/null || true
 
-# ── Step 12: Sync frontend template ──────────────────────────────────────────
-hdr "STEP 12 — Frontend Template Sync"
+# ── Step 12: Sync frontend template and verify runtime structure ──────────────
+hdr "STEP 12 — Runtime Directory Setup"
 
+# Ensure all required runtime subdirectories exist
+mkdir -p "$RUNTIME_DIR/templates" \
+         "$RUNTIME_DIR/models" \
+         "$RUNTIME_DIR/contracts" \
+         "$RUNTIME_DIR/data" \
+         "$IPTS_INSTALL_DIR/logs"
+
+# Verify app.py is present
+if [[ ! -f "$RUNTIME_DIR/app.py" ]]; then
+  err "app.py not found at $RUNTIME_DIR/app.py — ensure the git clone was complete. Run: git pull origin main"
+fi
+ok "app.py found at $RUNTIME_DIR/app.py"
+
+# Sync frontend template
 if [[ -f "$IPTS_INSTALL_DIR/templates/ipts_frontend.html" ]]; then
   cp "$IPTS_INSTALL_DIR/templates/ipts_frontend.html" \
      "$RUNTIME_DIR/templates/index.html"
-  ok "Frontend template synced to runtime"
+  ok "Frontend template synced to $RUNTIME_DIR/templates/index.html"
 else
   warn "ipts_frontend.html not found — UI may not load correctly"
 fi
+
+# Fix any hardcoded paths inside app.py that reference the Mac path
+sed -i "s|/Users/mohamadidriss/Projects/IPTS|$IPTS_INSTALL_DIR|g" \
+       "$RUNTIME_DIR/app.py" 2>/dev/null || true
+ok "Paths updated inside app.py"
 
 # ── Step 13: First-time setup ─────────────────────────────────────────────────
 hdr "STEP 13 — First-Time Setup (ML Training + Blockchain)"

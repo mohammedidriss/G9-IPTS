@@ -13,12 +13,21 @@ venv/
 env/
 .env
 .venv/
+
+# Runtime — exclude databases, cache, and compiled files but keep app.py and contracts
+.runtime/__pycache__/
+.runtime/*.db
+.runtime/ipts.db
+.runtime/ipts_vault.db
+.runtime/ipts_vault_backup_*.db
+.runtime/data/
+.runtime/logs/
+.runtime/models/
+.runtime/templates/
+
+# Python cache
 __pycache__/
 *.pyc
-.env
-.venv/
-.runtime/
-__pycache__/
 *.log
 
 # ML Models (large binaries)
