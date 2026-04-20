@@ -2125,6 +2125,7 @@ async function loadDashboard() {
     loadSubAccounts();
     loadLedger();
     loadProofOfReserve();
+    loadVolumeChart();
   } catch (e) { console.error('Dashboard error:', e); }
 }
 
@@ -2206,54 +2207,78 @@ async function loadTransactions() {
   } catch (e) { console.error('Transactions error:', e); }
 }
 
-function initVolumeChart() {
+function initVolumeChart(labels = [], settled = [], blocked = []) {
   const ctx = document.getElementById('volumeChart');
   if (!ctx) return;
   if (volumeChart) volumeChart.destroy();
   volumeChart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: [],
+      labels,
       datasets: [{
-        label: 'Settlements',
-        data: [],
-        borderColor: '#0D47A1',
-        backgroundColor: 'rgba(16,185,129,0.1)',
+        label: 'Settled',
+        data: settled,
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16,185,129,0.12)',
         fill: true,
         tension: 0.4,
-        pointRadius: 2,
+        pointRadius: 3,
+        pointHoverRadius: 5,
       }, {
         label: 'Blocked',
-        data: [],
+        data: blocked,
         borderColor: '#ef4444',
-        backgroundColor: 'rgba(239,68,68,0.1)',
+        backgroundColor: 'rgba(239,68,68,0.10)',
         fill: true,
         tension: 0.4,
-        pointRadius: 2,
+        pointRadius: 3,
+        pointHoverRadius: 5,
       }]
     },
     options: {
       responsive: true,
-      plugins: { legend: { labels: { color: '#8899aa', font: { size: 11 } } } },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#6b7280', font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} txns`
+          }
+        }
+      },
       scales: {
-        x: { ticks: { color: '#556677', font: { size: 10 } }, grid: { color: '#1e2d3d' } },
-        y: { ticks: { color: '#556677', font: { size: 10 } }, grid: { color: '#1e2d3d' } }
+        x: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { color: 'rgba(107,114,128,0.15)' } },
+        y: {
+          beginAtZero: true,
+          ticks: { color: '#9ca3af', font: { size: 10 }, stepSize: 1, precision: 0 },
+          grid: { color: 'rgba(107,114,128,0.15)' }
+        }
       }
     }
   });
 }
 
-function pushChartData(status) {
-  if (!volumeChart) initVolumeChart();
-  const now = new Date().toLocaleTimeString();
-  volumeChart.data.labels.push(now);
-  if (volumeChart.data.labels.length > 20) volumeChart.data.labels.shift();
+async function loadVolumeChart() {
+  try {
+    const data = await apiFetch('/api/analytics/volume-history?days=14');
+    initVolumeChart(data.labels || [], data.settled || [], data.blocked || []);
+  } catch (e) {
+    initVolumeChart(); // render empty chart on error
+  }
+}
 
+function pushChartData(status) {
+  // Increment today's bucket (last data point) rather than appending a new time point
+  if (!volumeChart) { loadVolumeChart(); return; }
   const settled = volumeChart.data.datasets[0].data;
   const blocked = volumeChart.data.datasets[1].data;
-  settled.push((settled.length > 0 ? settled[settled.length - 1] : 0) + (status !== 'blocked' ? 1 : 0));
-  blocked.push((blocked.length > 0 ? blocked[blocked.length - 1] : 0) + (status === 'blocked' ? 1 : 0));
-  if (settled.length > 20) { settled.shift(); blocked.shift(); }
+  if (settled.length === 0) { loadVolumeChart(); return; }
+  const idx = settled.length - 1;
+  if (status === 'blocked' || status === 'BLOCKED') {
+    blocked[idx] = (blocked[idx] || 0) + 1;
+  } else {
+    settled[idx] = (settled[idx] || 0) + 1;
+  }
   volumeChart.update();
 }
 
@@ -3093,7 +3118,10 @@ async function loadApprovals() {
             const caseBlocked = !['resolved','closed'].includes(cs);
             const caseColor = caseBlocked ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700';
             const caseIcon  = caseBlocked ? 'fa-lock' : 'fa-check-circle';
-            return `<div class="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded border text-xs ${caseColor}"><i class="fas ${caseIcon}"></i>Case ${item.case_number} — ${cs.toUpperCase()}${caseBlocked ? ' · Resolve case to unlock approval' : ''}</div>`;
+            return `<div class="flex items-center gap-2 mt-1.5 flex-wrap">
+              <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-xs ${caseColor}"><i class="fas ${caseIcon}"></i>Case ${item.case_number} — ${cs.toUpperCase()}${caseBlocked ? ' · Resolve case to unlock approval' : ''}</div>
+              <button onclick="viewCaseFromApprovals('${item.case_number}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium ${caseBlocked ? 'border-red-300 text-red-600 hover:bg-red-50' : 'border-blue-300 text-blue-600 hover:bg-blue-50'}"><i class="fas fa-folder-open"></i>View Case</button>
+            </div>`;
           })() : ''}
         </div>
         <div class="text-right ml-6">
@@ -3143,20 +3171,47 @@ async function loadHITL() {
         <td class="py-2 px-2 text-center">${fourEyesBadge}</td>
         <td class="py-2 px-2 text-center"><span class="status-${item.status} uppercase text-xs font-medium">${item.status}</span></td>
         <td class="py-2 px-2 text-center">
-          ${item.status === 'pending' || item.status === 'awaiting_second_approval' ? (() => {
+          ${(() => {
             const cs = item.case_status || 'open';
             const caseBlocked = item.case_number && !['resolved','closed'].includes(cs);
             const lockTip = caseBlocked ? `title="Case ${item.case_number} is ${cs} — resolve it first"` : '';
+            const isPending = item.status === 'pending' || item.status === 'awaiting_second_approval';
             return `<div class="flex gap-1 justify-center flex-wrap">
-              ${item.case_number ? `<span class="w-full text-center mb-1 text-[10px] px-1.5 py-0.5 rounded ${caseBlocked ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}"><i class="fas ${caseBlocked ? 'fa-lock' : 'fa-unlock'} mr-0.5"></i>${item.case_number}: ${cs}</span>` : ''}
-              <button onclick="hitlAction('approve', '${item.id}')" ${caseBlocked ? `disabled ${lockTip}` : ''} class="px-2 py-1 rounded text-white text-xs ${caseBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500'}">${item.status === 'awaiting_second_approval' ? '2nd Approve' : 'Approve'}</button>
-              <button onclick="hitlAction('reject', '${item.id}')" ${caseBlocked ? `disabled ${lockTip}` : ''} class="px-2 py-1 rounded text-white text-xs ${caseBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-500'}">Reject</button>
+              ${item.case_number ? `
+                <span class="w-full text-center mb-1 text-[10px] px-1.5 py-0.5 rounded ${caseBlocked ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">
+                  <i class="fas ${caseBlocked ? 'fa-lock' : 'fa-lock-open'} mr-0.5"></i>${item.case_number}: ${cs}
+                </span>` : ''}
+              ${isPending ? `
+                <button onclick="hitlAction('approve', '${item.id}')" ${caseBlocked ? `disabled ${lockTip}` : ''} class="px-2 py-1 rounded text-white text-xs ${caseBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500'}">${item.status === 'awaiting_second_approval' ? '2nd Approve' : 'Approve'}</button>
+                <button onclick="hitlAction('reject', '${item.id}')" ${caseBlocked ? `disabled ${lockTip}` : ''} class="px-2 py-1 rounded text-white text-xs ${caseBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-500'}">Reject</button>
+              ` : `<span class="text-xs text-gray-500 w-full text-center">${item.reviewed_by || ''}</span>`}
+              ${item.case_number ? `
+                <button onclick="viewCaseFromApprovals('${item.case_number}')" class="w-full mt-1 px-2 py-1 rounded text-xs font-semibold border ${caseBlocked ? 'border-red-400 text-red-500 hover:bg-red-50' : 'border-blue-300 text-blue-500 hover:bg-blue-50'}">
+                  <i class="fas fa-folder-open mr-1"></i>View Case
+                </button>` : ''}
             </div>`;
-          })() : `<span class="text-xs text-gray-500">${item.reviewed_by || ''}</span>`}
+          })()}
         </td>
       </tr>`;
     }).join('');
   } catch (e) { console.error('HITL error:', e); }
+}
+
+function viewCaseFromApprovals(caseNumber) {
+  // Switch to Cases tab, then open the matching case modal
+  switchTab('cases');
+  // Wait for cases to load, then find and open the case
+  const tryOpen = (attempts) => {
+    const allCaseIds = window._loadedCases || [];
+    const match = allCaseIds.find(c => c.case_number === caseNumber);
+    if (match) {
+      openCaseModal(match.id);
+    } else if (attempts > 0) {
+      setTimeout(() => tryOpen(attempts - 1), 400);
+    }
+  };
+  // loadCases() stores results in window._loadedCases; wait for it
+  loadCases().then(() => tryOpen(5));
 }
 
 async function hitlAction(action, id) {
@@ -3471,6 +3526,9 @@ async function loadCases() {
       document.getElementById('caseResolved').textContent = data.summary.resolved || 0;
     }
 
+    // Cache cases so viewCaseFromApprovals() can look up by case_number
+    window._loadedCases = data.cases || [];
+
     const tbody = document.getElementById('casesBody');
     if (!data.cases || data.cases.length === 0) {
       tbody.innerHTML = '<tr><td colspan="11" class="text-center py-8 text-gray-600">No compliance cases found.</td></tr>';
@@ -3509,7 +3567,63 @@ async function openCaseModal(caseId) {
     const sevClass = `severity-${c.severity}`;
     const statusBg = c.status === 'open' ? 'text-red-400' : c.status === 'investigating' ? 'text-yellow-400' : c.status === 'escalated' ? 'text-orange-400' : c.status === 'resolved' ? 'text-green-400' : 'text-gray-400';
 
+    // ── SLA Banner ────────────────────────────────────────────
+    const slaHours = { critical: 4, high: 24, medium: 72, low: 168 };
+    const maxHours = slaHours[c.severity] || 72;
+    let slaBanner = '';
+    if (c.status === 'resolved' || c.status === 'closed') {
+      slaBanner = `<div class="flex items-center gap-3 rounded-xl px-5 py-4 mb-4 bg-green-50 border border-green-200">
+        <i class="fas fa-check-circle text-3xl text-green-500"></i>
+        <div>
+          <p class="text-xs text-green-600 font-semibold uppercase tracking-wider">SLA Status</p>
+          <p class="text-2xl font-extrabold text-green-500 leading-tight">MET</p>
+          <p class="text-xs text-green-500 mt-0.5">Case resolved within the ${maxHours}h ${c.severity} SLA window</p>
+        </div>
+      </div>`;
+    } else if (c.created_at) {
+      const created = new Date(c.created_at);
+      const hoursElapsed = (new Date() - created) / (1000 * 60 * 60);
+      const remaining = maxHours - hoursElapsed;
+      if (remaining <= 0) {
+        const overBy = Math.abs(remaining);
+        const overHrs = Math.floor(overBy);
+        const overMins = Math.floor((overBy - overHrs) * 60);
+        slaBanner = `<div class="flex items-center gap-3 rounded-xl px-5 py-4 mb-4 bg-red-50 border-2 border-red-500 animate-pulse">
+          <i class="fas fa-exclamation-triangle text-4xl text-red-600"></i>
+          <div>
+            <p class="text-xs text-red-600 font-semibold uppercase tracking-wider">SLA Status</p>
+            <p class="text-3xl font-extrabold text-red-600 leading-tight">BREACHED</p>
+            <p class="text-sm font-semibold text-red-500 mt-0.5">Overdue by ${overHrs}h ${overMins}m &nbsp;·&nbsp; ${c.severity?.toUpperCase()} cases must be resolved within ${maxHours}h</p>
+          </div>
+        </div>`;
+      } else if (remaining <= maxHours * 0.25) {
+        const hrs = Math.floor(remaining);
+        const mins = Math.floor((remaining - hrs) * 60);
+        slaBanner = `<div class="flex items-center gap-3 rounded-xl px-5 py-4 mb-4 bg-orange-50 border-2 border-orange-400">
+          <i class="fas fa-clock text-4xl text-orange-500"></i>
+          <div>
+            <p class="text-xs text-orange-600 font-semibold uppercase tracking-wider">SLA Status</p>
+            <p class="text-3xl font-extrabold text-orange-500 leading-tight">${hrs}h ${mins}m REMAINING</p>
+            <p class="text-sm font-semibold text-orange-400 mt-0.5">⚠ Critical — ${c.severity?.toUpperCase()} SLA deadline approaching (${maxHours}h limit)</p>
+          </div>
+        </div>`;
+      } else {
+        const hrs = Math.floor(remaining);
+        const mins = Math.floor((remaining - hrs) * 60);
+        slaBanner = `<div class="flex items-center gap-3 rounded-xl px-5 py-4 mb-4 bg-blue-50 border border-blue-200">
+          <i class="fas fa-clock text-3xl text-blue-400"></i>
+          <div>
+            <p class="text-xs text-blue-500 font-semibold uppercase tracking-wider">SLA Status</p>
+            <p class="text-2xl font-extrabold text-blue-500 leading-tight">${hrs}h ${mins}m Remaining</p>
+            <p class="text-xs text-blue-400 mt-0.5">${c.severity?.toUpperCase()} cases must be resolved within ${maxHours}h of creation</p>
+          </div>
+        </div>`;
+      }
+    }
+    // ─────────────────────────────────────────────────────────
+
     document.getElementById('caseModalBody').innerHTML = `
+      ${slaBanner}
       <div class="grid grid-cols-2 gap-4">
         <div class="bg-gray-100 rounded-lg p-3">
           <p class="text-xs text-gray-500">Status</p>
@@ -3714,6 +3828,21 @@ async function submitResolve(caseId) {
     document.getElementById('resolveModal').remove();
     closeCaseModal();
     loadCases();
+
+    // If the current user is admin (or operator), redirect to Approvals tab
+    // so they can immediately approve any pending transactions unblocked by this resolution.
+    if (ROLE === 'admin' || ROLE === 'operator') {
+      // Brief toast so the user knows what's happening
+      const toast = document.createElement('div');
+      toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] bg-green-600 text-white text-sm font-semibold px-6 py-3 rounded-xl shadow-xl flex items-center gap-2 animate-fade-in';
+      toast.innerHTML = '<i class="fas fa-check-circle"></i> Case resolved — redirecting to Approvals…';
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        toast.remove();
+        switchTab('approvals');
+        loadHITL();
+      }, 1400);
+    }
   } catch (e) {
     errDiv.textContent = e.message || 'Failed to resolve case.';
     errDiv.classList.remove('hidden');
