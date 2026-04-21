@@ -168,16 +168,16 @@ dnf install -y \
   sqlite sqlite-devel \
   libffi-devel zlib-devel xz-devel \
   tesseract tesseract-langpack-eng \
+  nginx firewalld \
   zstd \
   jq procps-ng lsof \
   2>/dev/null || warn "Some packages may have been skipped (check output above)"
 
-# Install nginx and certbot only in production mode
+# Install certbot only in production mode
 if [[ "$PROD_MODE" == "true" ]]; then
-  info "Installing Nginx, firewalld, certbot (production mode)..."
-  dnf install -y nginx firewalld \
-    certbot python3-certbot-nginx 2>/dev/null || \
-    warn "Some production packages could not be installed"
+  info "Installing certbot (production mode)..."
+  dnf install -y certbot python3-certbot-nginx 2>/dev/null || \
+    warn "certbot could not be installed"
 fi
 
 ok "System packages installed"
@@ -521,7 +521,52 @@ fi
 # Set ownership
 chown -R "$IPTS_USER:$IPTS_USER" "$IPTS_INSTALL_DIR" "$LOG_DIR" 2>/dev/null || true
 
-# ── Step 14: Production systemd services (--prod only) ────────────────────────
+# ── Nginx setup (always — not just production) ────────────────────────────────
+hdr "STEP 14 — Nginx Reverse Proxy"
+
+cat > /etc/nginx/conf.d/ipts.conf << 'NGINXEOF'
+upstream ipts_backend { server 127.0.0.1:5001; keepalive 32; }
+server {
+    listen 80;
+    server_name _;
+    client_max_body_size 16M;
+    location /api/stream {
+        proxy_pass         http://ipts_backend;
+        proxy_http_version 1.1;
+        proxy_set_header   Connection "";
+        proxy_buffering    off;
+        proxy_cache        off;
+        proxy_read_timeout 3600s;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+    }
+    location / {
+        proxy_pass         http://ipts_backend;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_read_timeout 120s;
+    }
+}
+NGINXEOF
+
+nginx -t && ok "Nginx config valid" || warn "Nginx config error — check: nginx -t"
+
+# SELinux — allow Nginx to proxy to Flask
+setsebool -P httpd_can_network_connect 1 2>/dev/null || true
+
+# Firewall — open HTTP
+systemctl enable --now firewalld 2>/dev/null || true
+firewall-cmd --permanent --add-service=http  2>/dev/null || true
+firewall-cmd --permanent --add-port=5001/tcp 2>/dev/null || true
+firewall-cmd --reload 2>/dev/null || true
+
+# Start Nginx
+systemctl enable --now nginx && ok "Nginx started on port 80" || warn "Nginx failed to start"
+
+# ── Step 15: Production systemd services (--prod only) ────────────────────────
 if [[ "$PROD_MODE" == "true" ]]; then
 
   hdr "STEP 14 — systemd Services (Production)"
