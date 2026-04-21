@@ -41,11 +41,12 @@ APP_SECRET = os.environ.get("IPTS_SECRET_KEY", "ipts_enterprise_secret_2026_xK9m
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 8          # Extended for usability; refresh supported
 JWT_REFRESH_HOURS = 24
-_APP_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH      = os.path.join(_APP_DIR, "ipts_vault.db")
-MODELS_DIR   = os.path.join(_APP_DIR, "models")
-CONTRACTS_DIR= os.path.join(_APP_DIR, "contracts")
-LOG_DIR      = os.path.join(_APP_DIR, "..", "logs")
+_APP_DIR     = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_DIR = os.path.dirname(_APP_DIR)   # one level up from .runtime/
+DB_PATH      = os.path.join(_APP_DIR,      "ipts_vault.db")
+MODELS_DIR   = os.path.join(_APP_DIR,      "models")
+CONTRACTS_DIR= os.path.join(_APP_DIR,      "contracts")
+LOG_DIR      = os.path.join(_PROJECT_DIR,  "logs")
 
 # Fixed conversion rate for USD/ETH display
 ETH_USD_RATE = 3500.0
