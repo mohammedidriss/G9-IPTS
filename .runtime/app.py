@@ -16,7 +16,7 @@ import sqlite3
 import logging
 import threading
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 
 import jwt
@@ -274,7 +274,7 @@ class ISO20022Generator:
     @staticmethod
     def generate_pacs008(settlement_id, sender_name, sender_bic, receiver_name,
                           receiver_bic, amount, currency, beneficiary_name):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         msg_id = f"IPTS{now.strftime('%Y%m%d%H%M%S')}{settlement_id[:8]}"
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08">
@@ -584,7 +584,7 @@ def update_user_balance(username, new_balance):
     conn = open_db()
     c = conn.cursor()
     c.execute("UPDATE user_accounts SET balance = ?, updated_at = ? WHERE username = ?",
-              (new_balance, datetime.utcnow().isoformat(), username))
+              (new_balance, datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), username))
     conn.commit()
     conn.close()
 
@@ -669,7 +669,7 @@ def create_compliance_case_for_blocked(settlement_id, risk_result, amount, sende
     description += "Reasons: " + "; ".join(risk_result["reasons"])
 
     sla_hours = sla_hours_for_severity(severity)
-    sla_deadline = (datetime.utcnow() + timedelta(hours=sla_hours)).isoformat()
+    sla_deadline = (datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=sla_hours)).isoformat()
 
     conn = open_db()
     c = conn.cursor()
@@ -723,8 +723,8 @@ def generate_token(username, role):
     payload = {
         "sub": username,
         "role": role,
-        "iat": datetime.utcnow(),
-        "exp": datetime.utcnow() + timedelta(hours=JWT_EXPIRY_HOURS),
+        "iat": datetime.now(timezone.utc).replace(tzinfo=None),
+        "exp": datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=JWT_EXPIRY_HOURS),
         "jti": str(uuid.uuid4()),
     }
     return jwt.encode(payload, APP_SECRET, algorithm=JWT_ALGORITHM)
@@ -1162,7 +1162,7 @@ def push_sse(event_type, data):
         sse_events.append({
             "type": event_type,
             "data": data,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         })
         # Keep only last 200 events
         if len(sse_events) > 200:
@@ -1231,8 +1231,8 @@ def login():
     # Generate refresh token (longer-lived, no role — only for refreshing access)
     refresh_payload = {
         "sub": username, "type": "refresh",
-        "iat": datetime.utcnow(),
-        "exp": datetime.utcnow() + timedelta(hours=JWT_REFRESH_HOURS),
+        "iat": datetime.now(timezone.utc).replace(tzinfo=None),
+        "exp": datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=JWT_REFRESH_HOURS),
         "jti": str(uuid.uuid4()),
     }
     refresh_token = jwt.encode(refresh_payload, APP_SECRET, algorithm=JWT_ALGORITHM)
@@ -1376,7 +1376,7 @@ def p2p_send():
     c2.execute("""INSERT INTO settlements (id, sender, receiver, amount, currency, risk_score, status, beneficiary_name, created_at, sender_username, receiver_username)
         VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
         (tx_id, sender_name or username, recipient_name, amount, "USD", 0, "settled", recipient_name,
-         datetime.utcnow().isoformat(), username, recipient_username))
+         datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), username, recipient_username))
     conn2.commit()
     conn2.close()
     log_audit("p2p_transfer", username, {"to": recipient[0], "amount": amount, "note": note}, request.remote_addr)
@@ -1453,7 +1453,7 @@ def create_scheduled():
     recipient = data.get("beneficiary_name") or data.get("recipient", "")
     amount = float(data.get("amount", 0))
     frequency = data.get("frequency", "monthly")
-    next_date = data.get("next_run_date") or data.get("start_date", datetime.utcnow().isoformat()[:10])
+    next_date = data.get("next_run_date") or data.get("start_date", datetime.now(timezone.utc).replace(tzinfo=None).isoformat()[:10])
     description = data.get("description", "")
     if not recipient or amount <= 0:
         return jsonify({"error": "Recipient and positive amount required"}), 400
@@ -1554,7 +1554,7 @@ def download_document(doc_id):
             f"IPTS — Monthly Account Statement",
             f"Account Holder : {full_name}",
             f"Period         : {month_name}",
-            f"Generated      : {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
+            f"Generated      : {datetime.now(timezone.utc).replace(tzinfo=None).strftime('%Y-%m-%d %H:%M UTC')}",
             "",
             "This statement summarises all transactions processed through",
             "the Integrated Payment Transformation System (IPTS) for the",
@@ -1569,7 +1569,7 @@ def download_document(doc_id):
             f"IPTS — 1099-INT Interest Income Tax Form",
             f"Taxpayer       : {full_name}",
             f"Tax Year       : {year}",
-            f"Generated      : {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
+            f"Generated      : {datetime.now(timezone.utc).replace(tzinfo=None).strftime('%Y-%m-%d %H:%M UTC')}",
             "",
             "This form reports interest income earned through IPTS accounts.",
             "Please include this information in your annual tax return.",
@@ -1582,7 +1582,7 @@ def download_document(doc_id):
             f"IPTS — KYC Verification Receipt",
             f"Account Holder : {full_name}",
             f"Status         : VERIFIED",
-            f"Date           : {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
+            f"Date           : {datetime.now(timezone.utc).replace(tzinfo=None).strftime('%Y-%m-%d %H:%M UTC')}",
             "",
             "Identity verification has been completed successfully.",
             "This receipt confirms compliance with KYC/AML regulations.",
@@ -2559,7 +2559,7 @@ def create_settlement():
     daily_limit = limits.get("daily", 0)
     if daily_limit > 0:
         conn_l = open_db()
-        today_start = datetime.utcnow().strftime("%Y-%m-%d") + " 00:00:00"
+        today_start = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d") + " 00:00:00"
         row = conn_l.execute(
             "SELECT COALESCE(SUM(amount),0) FROM settlements WHERE sender_username=? AND created_at>=? AND status NOT IN ('blocked','reversed')",
             (sender_username, today_start)
@@ -2641,8 +2641,8 @@ def create_settlement():
             receiver = blockchain.accounts[1]
 
     # Generate risk parameters
-    hour = datetime.utcnow().hour
-    day = datetime.utcnow().weekday()
+    hour = datetime.now(timezone.utc).replace(tzinfo=None).hour
+    day = datetime.now(timezone.utc).replace(tzinfo=None).weekday()
     is_round = 1 if amount == int(amount) and amount > 0 else 0
     dest_country = data.get("destination_country", "")
     country_risk = country_risk_score(dest_country) if dest_country else float(data.get("country_risk", np.random.uniform(0, 1)))
@@ -2971,7 +2971,7 @@ def hitl_approve(hitl_id):
                 c.execute("""INSERT INTO four_eyes_approvals
                     (id, hitl_id, first_approver, first_approved_at, required, status)
                     VALUES (?, ?, ?, ?, 2, 'awaiting_second')""",
-                    (fe_id, hitl_id, approver, datetime.utcnow().isoformat()))
+                    (fe_id, hitl_id, approver, datetime.now(timezone.utc).replace(tzinfo=None).isoformat()))
                 c.execute("UPDATE hitl_queue SET status='awaiting_second_approval' WHERE id=?", (hitl_id,))
                 conn.commit()
                 conn.close()
@@ -3005,7 +3005,7 @@ def hitl_approve(hitl_id):
 
             # Second approval — proceed with execution
             c.execute("""UPDATE four_eyes_approvals SET second_approver=?, second_approved_at=?, status='completed'
-                WHERE hitl_id=?""", (approver, datetime.utcnow().isoformat(), hitl_id))
+                WHERE hitl_id=?""", (approver, datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), hitl_id))
             logger.info(f"FOUR-EYES COMPLETE: first={first_approver}, second={approver}, amount={settle_amount}")
 
         # === Balance check and transfer ===
@@ -3026,7 +3026,7 @@ def hitl_approve(hitl_id):
         # Deduct sender balance
         new_sender_balance = sender_balance - settle_amount
         c.execute("UPDATE user_accounts SET balance = ?, updated_at = ? WHERE username = ?",
-                  (new_sender_balance, datetime.utcnow().isoformat(), sender_username))
+                  (new_sender_balance, datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), sender_username))
         logger.info(f"HITL APPROVE: deducted {settle_amount} from {sender_username}: {sender_balance} -> {new_sender_balance}")
 
         # Credit receiver if they are a system user
@@ -3036,7 +3036,7 @@ def hitl_approve(hitl_id):
             if recv_row:
                 new_recv_balance = recv_row[0] + settle_amount
                 c.execute("UPDATE user_accounts SET balance = ?, updated_at = ? WHERE username = ?",
-                          (new_recv_balance, datetime.utcnow().isoformat(), receiver_username))
+                          (new_recv_balance, datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), receiver_username))
                 logger.info(f"HITL APPROVE: credited {settle_amount} to {receiver_username}: {recv_row[0]} -> {new_recv_balance}")
 
         # Execute blockchain settlement
@@ -3057,7 +3057,7 @@ def hitl_approve(hitl_id):
 
         # Update records
         c.execute("""UPDATE hitl_queue SET status='approved', reviewed_by=?, reviewed_at=?
-            WHERE id=?""", (approver, datetime.utcnow().isoformat(), hitl_id))
+            WHERE id=?""", (approver, datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), hitl_id))
         c.execute("UPDATE settlements SET status='settled', tx_hash=? WHERE id=?",
                   (tx_hash, settlement_id))
         conn.commit()
@@ -3122,7 +3122,7 @@ def hitl_reject(hitl_id):
     reject_amount = float(settle_row[1]) if settle_row else float(item[4] or 0)
 
     c.execute("""UPDATE hitl_queue SET status='rejected', reviewed_by=?, reviewed_at=?
-        WHERE id=?""", (request.user.get("sub"), datetime.utcnow().isoformat(), hitl_id))
+        WHERE id=?""", (request.user.get("sub"), datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), hitl_id))
     c.execute("UPDATE settlements SET status='rejected' WHERE id=?", (item[1],))
     conn.commit()
     conn.close()
@@ -3383,10 +3383,10 @@ def update_compliance_case(case_id):
 
     if data.get("status") in ("resolved", "closed"):
         updates.append("closed_at = ?")
-        params.append(datetime.utcnow().isoformat())
+        params.append(datetime.now(timezone.utc).replace(tzinfo=None).isoformat())
 
     updates.append("updated_at = ?")
-    params.append(datetime.utcnow().isoformat())
+    params.append(datetime.now(timezone.utc).replace(tzinfo=None).isoformat())
     params.append(case_id)
 
     c.execute(f"UPDATE compliance_cases SET {', '.join(updates)} WHERE id = ? OR case_number = ?",
@@ -3407,7 +3407,7 @@ def escalate_compliance_case(case_id):
     c = conn.cursor()
     c.execute("""UPDATE compliance_cases SET status='escalated', updated_at=?
         WHERE id = ? OR case_number = ?""",
-        (datetime.utcnow().isoformat(), case_id, case_id))
+        (datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), case_id, case_id))
     conn.commit()
     conn.close()
     log_audit("case_escalated", request.user.get("sub"),
@@ -3424,7 +3424,7 @@ def file_sar(case_id):
     c = conn.cursor()
     c.execute("""UPDATE compliance_cases SET regulatory_report_filed=1, sar_number=?, updated_at=?
         WHERE id = ? OR case_number = ?""",
-        (sar_number, datetime.utcnow().isoformat(), case_id, case_id))
+        (sar_number, datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), case_id, case_id))
     conn.commit()
     conn.close()
     log_audit("sar_filed", request.user.get("sub"),
@@ -3684,7 +3684,7 @@ def health_check():
         checks["blockchain"] = "unhealthy"
     checks["models"] = "healthy" if aml_engine.models_loaded else "unhealthy"
     overall = "healthy" if all(v == "healthy" for v in checks.values()) else "degraded"
-    return jsonify({"status": overall, "checks": checks, "timestamp": datetime.utcnow().isoformat()})
+    return jsonify({"status": overall, "checks": checks, "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()})
 
 # --- Prometheus Metrics ---
 @app.route("/api/metrics", methods=["GET"])
@@ -3758,7 +3758,7 @@ def compliance_sla_status():
     c.execute("SELECT id, case_number, severity, status, sla_deadline, created_at FROM compliance_cases WHERE status IN ('open','investigating','escalated')")
     rows = c.fetchall()
     conn.close()
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
     cases = []
     for r in rows:
         deadline = r[4]
@@ -3782,7 +3782,7 @@ def sse_stream():
                 last_idx = len(sse_events)
             else:
                 # Heartbeat
-                yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': datetime.utcnow().isoformat()})}\n\n"
+                yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': datetime.now(timezone.utc).replace(tzinfo=None).isoformat()})}\n\n"
             time.sleep(2)
 
     return Response(generate(), mimetype='text/event-stream',
@@ -3848,7 +3848,7 @@ def risk_trend():
 def account_statement():
     """Generate a monthly account statement for the logged-in user."""
     username = request.user.get("sub", "")
-    month = request.args.get("month", datetime.utcnow().strftime("%Y-%m"))  # YYYY-MM
+    month = request.args.get("month", datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m"))  # YYYY-MM
     fmt = request.args.get("format", "json")  # json or pdf
     try:
         year, mon = int(month.split("-")[0]), int(month.split("-")[1])
@@ -3899,7 +3899,7 @@ def account_statement():
              "currency":"USD","status":"settled","risk_score":0,"date":r[3],"ref":r[0]}
             for r in inbound
         ],
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
     }
     # Sort by date
     statement["transactions"].sort(key=lambda x: x["date"])
@@ -3983,7 +3983,7 @@ def proof_of_reserve():
         "onchain_total": round(onchain_total, 2),
         "ratio": round(ratio, 4),
         "backed": ratio >= 0.99,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
     })
 
 # --- SAR Auto-Generation ---
@@ -4008,7 +4008,7 @@ def sar_auto_report(case_id):
     report = {
         "report_type": "Suspicious Activity Report (SAR)",
         "format_version": "FinCEN BSA E-Filing v2.0",
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         "filing_institution": {"name": "IPTS Financial Services", "ein": "XX-XXXXXXX"},
         "case_reference": {"case_id": case["id"], "case_number": case["case_number"], "sar_number": case["sar_number"] or "PENDING"},
         "subject_information": {"sender_name": case["sender_name"], "beneficiary_name": case["beneficiary_name"], "activity_type": case["case_type"], "severity": case["severity"]},
@@ -4233,7 +4233,7 @@ def amm_swap():
         c.execute("UPDATE user_accounts SET balance = balance + ? WHERE username = ?", (amount_out_after_fee, username))
     swap_id = str(uuid.uuid4())
     c.execute("INSERT INTO swap_history (id, username, pair, direction, amount_in, amount_out, price, price_impact, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
-              (swap_id, username, pair, direction, amount_in, round(amount_out_after_fee, 6), round(price, 6), round(price_impact, 4), datetime.utcnow().isoformat()))
+              (swap_id, username, pair, direction, amount_in, round(amount_out_after_fee, 6), round(price, 6), round(price_impact, 4), datetime.now(timezone.utc).replace(tzinfo=None).isoformat()))
     conn.commit()
     c.execute("SELECT balance FROM user_accounts WHERE username = ?", (username,))
     new_balance = c.fetchone()[0]
@@ -4261,7 +4261,7 @@ def get_staking():
     for r in c.fetchall():
         p = dict(r)
         staked_at = datetime.fromisoformat(p["staked_at"])
-        days_elapsed = (datetime.utcnow() - staked_at).total_seconds() / 86400
+        days_elapsed = (datetime.now(timezone.utc).replace(tzinfo=None) - staked_at).total_seconds() / 86400
         p["accrued_yield"] = round(p["amount"] * (p["apy"] / 365 / 100) * days_elapsed, 2)
         p["days_elapsed"] = round(days_elapsed, 1)
         positions.append(p)
@@ -4287,11 +4287,11 @@ def stake_funds():
         return jsonify({"error": "Insufficient balance"}), 400
     update_user_balance(username, balance - amount)
     pos_id = str(uuid.uuid4())
-    unlock_at = (datetime.utcnow() + timedelta(days=pool["lock_days"])).isoformat() if pool["lock_days"] > 0 else None
+    unlock_at = (datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=pool["lock_days"])).isoformat() if pool["lock_days"] > 0 else None
     conn = open_db()
     c = conn.cursor()
     c.execute("INSERT INTO staking_positions (id, username, amount, pool, apy, staked_at, unlock_at, status) VALUES (?,?,?,?,?,?,?,?)",
-              (pos_id, username, amount, pool_id, pool["apy"], datetime.utcnow().isoformat(), unlock_at, "active"))
+              (pos_id, username, amount, pool_id, pool["apy"], datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), unlock_at, "active"))
     conn.commit()
     conn.close()
     log_audit("stake", username, {"pool": pool_id, "amount": amount, "apy": pool["apy"]}, request.remote_addr)
@@ -4314,11 +4314,11 @@ def unstake_funds(position_id):
     if pos["status"] != "active":
         conn.close()
         return jsonify({"error": "Position already closed"}), 400
-    if pos["unlock_at"] and datetime.utcnow() < datetime.fromisoformat(pos["unlock_at"]):
+    if pos["unlock_at"] and datetime.now(timezone.utc).replace(tzinfo=None) < datetime.fromisoformat(pos["unlock_at"]):
         conn.close()
         return jsonify({"error": f"Locked until {pos['unlock_at']}"}), 400
     staked_at = datetime.fromisoformat(pos["staked_at"])
-    days_elapsed = (datetime.utcnow() - staked_at).total_seconds() / 86400
+    days_elapsed = (datetime.now(timezone.utc).replace(tzinfo=None) - staked_at).total_seconds() / 86400
     accrued_yield = round(pos["amount"] * (pos["apy"] / 365 / 100) * days_elapsed, 2)
     total_return = pos["amount"] + accrued_yield
     balance = get_user_balance(username)
@@ -4342,7 +4342,7 @@ def list_escrows():
     escrows = []
     for r in c.fetchall():
         e = dict(r)
-        if e["status"] == "locked" and e["timelock"] and datetime.utcnow() > datetime.fromisoformat(e["timelock"]):
+        if e["status"] == "locked" and e["timelock"] and datetime.now(timezone.utc).replace(tzinfo=None) > datetime.fromisoformat(e["timelock"]):
             e["status"] = "expired"
         e["is_sender"] = e["sender"] == username
         escrows.append(e)
@@ -4377,7 +4377,7 @@ def create_escrow():
     import secrets, hashlib
     secret = secrets.token_hex(32)
     hashlock = hashlib.sha256(bytes.fromhex(secret)).hexdigest()
-    timelock = (datetime.utcnow() + timedelta(hours=timelock_hours)).isoformat()
+    timelock = (datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=timelock_hours)).isoformat()
     escrow_id = str(uuid.uuid4())
     update_user_balance(username, balance - amount)
     c.execute("INSERT INTO escrow_contracts (id, sender, receiver, amount, hashlock, timelock, status, secret) VALUES (?,?,?,?,?,?,?,?)",
@@ -4409,7 +4409,7 @@ def claim_escrow(escrow_id):
     if escrow["status"] != "locked":
         conn.close()
         return jsonify({"error": f"Escrow is {escrow['status']}"}), 400
-    if datetime.utcnow() > datetime.fromisoformat(escrow["timelock"]):
+    if datetime.now(timezone.utc).replace(tzinfo=None) > datetime.fromisoformat(escrow["timelock"]):
         conn.close()
         return jsonify({"error": "Escrow has expired"}), 400
     import hashlib
@@ -4418,7 +4418,7 @@ def claim_escrow(escrow_id):
         return jsonify({"error": "Invalid secret"}), 400
     balance = get_user_balance(username)
     update_user_balance(username, balance + escrow["amount"])
-    c.execute("UPDATE escrow_contracts SET status = 'claimed', claimed_at = ? WHERE id = ?", (datetime.utcnow().isoformat(), escrow_id))
+    c.execute("UPDATE escrow_contracts SET status = 'claimed', claimed_at = ? WHERE id = ?", (datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), escrow_id))
     conn.commit()
     conn.close()
     return jsonify({"status": "claimed", "amount": escrow["amount"], "new_balance": round(get_user_balance(username), 2)})
@@ -4443,12 +4443,12 @@ def refund_escrow(escrow_id):
     if escrow["status"] != "locked":
         conn.close()
         return jsonify({"error": f"Escrow is {escrow['status']}"}), 400
-    if datetime.utcnow() < datetime.fromisoformat(escrow["timelock"]):
+    if datetime.now(timezone.utc).replace(tzinfo=None) < datetime.fromisoformat(escrow["timelock"]):
         conn.close()
         return jsonify({"error": "Timelock has not expired yet"}), 400
     balance = get_user_balance(username)
     update_user_balance(username, balance + escrow["amount"])
-    c.execute("UPDATE escrow_contracts SET status = 'refunded', refunded_at = ? WHERE id = ?", (datetime.utcnow().isoformat(), escrow_id))
+    c.execute("UPDATE escrow_contracts SET status = 'refunded', refunded_at = ? WHERE id = ?", (datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), escrow_id))
     conn.commit()
     conn.close()
     return jsonify({"status": "refunded", "amount": escrow["amount"], "new_balance": round(get_user_balance(username), 2)})
