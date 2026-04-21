@@ -484,6 +484,7 @@ sleep 3
 
 # Run the Flask app once to initialise DB + train models
 info "Starting Flask (first run — training models)..."
+cd "$RUNTIME_DIR"
 "$VENV_DIR/bin/python3" "$RUNTIME_DIR/app.py" \
   > "$LOG_DIR/flask_stdout.log" \
   2> "$LOG_DIR/flask_stderr.log" &
