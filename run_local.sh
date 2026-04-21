@@ -6,7 +6,7 @@
 
 set -e
 
-IPTS_DIR="/Users/mohamadidriss/Projects/IPTS"
+IPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUNTIME_DIR="$IPTS_DIR/.runtime"
 FRONTEND_HTML="$IPTS_DIR/templates/ipts_frontend.html"
 

@@ -5,7 +5,7 @@
 #  Run from: /Users/mohamadidriss/Projects/IPTS/
 # ============================================================
 
-IPTS_DIR="/Users/mohamadidriss/Projects/IPTS"
+IPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUNTIME_DIR="$IPTS_DIR/.runtime"
 VENV_DIR="$IPTS_DIR/.venv"
 LOG_DIR="$IPTS_DIR/logs"
