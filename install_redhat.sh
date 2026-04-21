@@ -14,11 +14,15 @@
 #    --domain yourdomain.com    Domain name for Nginx + SSL (implies --prod)
 #    --no-ollama                Skip Ollama/LLM installation
 #    --no-ssl                   Skip Let's Encrypt SSL setup
+#    --nginx                    Use Nginx reverse proxy (non-interactive)
+#    --ngrok TOKEN              Use ngrok public tunnel with given auth token
 #
 #  Examples:
-#    sudo bash install_redhat.sh                          # local dev install
-#    sudo bash install_redhat.sh --prod                   # production (no SSL)
-#    sudo bash install_redhat.sh --prod --domain ipts.example.com
+#    sudo bash install_redhat.sh                             # interactive wizard
+#    sudo bash install_redhat.sh --nginx                     # Nginx on port 80
+#    sudo bash install_redhat.sh --nginx --domain ipts.example.com --no-ssl
+#    sudo bash install_redhat.sh --ngrok 2abc...xyz          # ngrok tunnel
+#    sudo bash install_redhat.sh --prod --domain ipts.example.com  # full prod
 #
 #  What this script does:
 #    1.  Validates system (RHEL 8/9, root, disk space)
@@ -65,17 +69,21 @@ INSTALL_OLLAMA=true
 INSTALL_SSL=false
 DOMAIN=""
 IPTS_USER="ipts"
+ACCESS_MODE=""       # "nginx" | "ngrok"
+NGROK_TOKEN=""
 
 # ── Parse arguments ───────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --dir)       IPTS_INSTALL_DIR="$2"; shift 2 ;;
-    --port)      APP_PORT="$2";         shift 2 ;;
-    --prod)      PROD_MODE=true;        shift ;;
-    --domain)    DOMAIN="$2"; PROD_MODE=true; INSTALL_SSL=true; shift 2 ;;
-    --no-ollama) INSTALL_OLLAMA=false;  shift ;;
-    --no-ssl)    INSTALL_SSL=false;     shift ;;
-    *) warn "Unknown argument: $1";     shift ;;
+    --dir)        IPTS_INSTALL_DIR="$2"; shift 2 ;;
+    --port)       APP_PORT="$2";         shift 2 ;;
+    --prod)       PROD_MODE=true;        shift ;;
+    --domain)     DOMAIN="$2"; PROD_MODE=true; INSTALL_SSL=true; shift 2 ;;
+    --no-ollama)  INSTALL_OLLAMA=false;  shift ;;
+    --no-ssl)     INSTALL_SSL=false;     shift ;;
+    --nginx)      ACCESS_MODE="nginx";              shift ;;
+    --ngrok)      ACCESS_MODE="ngrok"; NGROK_TOKEN="$2"; shift 2 ;;
+    *) warn "Unknown argument: $1";      shift ;;
   esac
 done
 
@@ -99,12 +107,77 @@ echo -e "  ${BOLD}Integrated Payment Transformation System${NC}"
 echo -e "  ${YELLOW}Red Hat Linux Installation Script — $(date '+%Y-%m-%d %H:%M:%S')${NC}"
 echo ""
 line
-echo -e "  Install dir : ${BOLD}$IPTS_INSTALL_DIR${NC}"
-echo -e "  App port    : ${BOLD}$APP_PORT${NC}"
-echo -e "  Mode        : ${BOLD}$([ "$PROD_MODE" == "true" ] && echo "Production (Gunicorn + Nginx + systemd)" || echo "Development (Flask direct)")${NC}"
-echo -e "  Ollama/LLM  : ${BOLD}$([ "$INSTALL_OLLAMA" == "true" ] && echo "Yes" || echo "No")${NC}"
-echo -e "  Domain/SSL  : ${BOLD}$([ -n "$DOMAIN" ] && echo "$DOMAIN" || echo "None (IP access)")${NC}"
+
+# ── Interactive setup wizard (runs if --nginx or --ngrok not passed) ──────────
+if [[ -z "$ACCESS_MODE" ]]; then
+  echo ""
+  echo -e "  ${BOLD}How should IPTS be accessed from the internet?${NC}"
+  echo ""
+  echo -e "  ${CYAN}[1]${NC} ${BOLD}Nginx${NC} — serve on port 80 via Nginx reverse proxy"
+  echo -e "      Best for: dedicated servers, VMs, cloud instances (AWS, GCP, Oracle)"
+  echo -e "      Requires port 80 to be open externally"
+  echo ""
+  echo -e "  ${CYAN}[2]${NC} ${BOLD}ngrok${NC} — create a secure public tunnel automatically"
+  echo -e "      Best for: OpenTLC sandboxes, lab environments, firewalled machines"
+  echo -e "      No firewall changes needed — works anywhere"
+  echo ""
+  echo -e "  ${CYAN}[3]${NC} ${BOLD}Local only${NC} — no public access (use SSH tunnel manually)"
+  echo -e "      Best for: local development or internal network only"
+  echo ""
+  while true; do
+    read -rp "  Enter your choice [1/2/3]: " CHOICE
+    case "$CHOICE" in
+      1) ACCESS_MODE="nginx"; break ;;
+      2) ACCESS_MODE="ngrok"; break ;;
+      3) ACCESS_MODE="local"; break ;;
+      *) echo -e "  ${RED}Invalid choice. Please enter 1, 2, or 3.${NC}" ;;
+    esac
+  done
+
+  # If ngrok selected, ask for the token
+  if [[ "$ACCESS_MODE" == "ngrok" ]]; then
+    echo ""
+    echo -e "  ${BOLD}ngrok Auth Token${NC}"
+    echo -e "  Get your free token at: ${CYAN}https://ngrok.com${NC} → Sign up → Dashboard → Your Authtoken"
+    echo ""
+    while [[ -z "$NGROK_TOKEN" ]]; do
+      read -rp "  Paste your ngrok auth token: " NGROK_TOKEN
+      if [[ -z "$NGROK_TOKEN" ]]; then
+        echo -e "  ${RED}Token cannot be empty. Please paste your ngrok auth token.${NC}"
+      fi
+    done
+    ok "ngrok token saved"
+  fi
+
+  # If nginx selected, ask for optional domain
+  if [[ "$ACCESS_MODE" == "nginx" ]]; then
+    echo ""
+    echo -e "  ${BOLD}Domain name${NC} (optional)"
+    echo -e "  Leave blank to use the server IP address instead"
+    echo ""
+    read -rp "  Enter domain name (or press Enter to skip): " DOMAIN_INPUT
+    if [[ -n "$DOMAIN_INPUT" ]]; then
+      DOMAIN="$DOMAIN_INPUT"
+      echo ""
+      read -rp "  Set up free SSL certificate with Let's Encrypt? [y/N]: " SSL_INPUT
+      [[ "$SSL_INPUT" =~ ^[Yy]$ ]] && INSTALL_SSL=true
+    fi
+    ok "Nginx mode selected${DOMAIN:+ — domain: $DOMAIN}"
+  fi
+fi
+
 echo ""
+line
+echo -e "  Install dir  : ${BOLD}$IPTS_INSTALL_DIR${NC}"
+echo -e "  App port     : ${BOLD}$APP_PORT${NC}"
+ACCESS_MODE_LABEL="Local only (SSH tunnel)"
+[[ "$ACCESS_MODE" == "nginx" ]] && ACCESS_MODE_LABEL="Nginx on port 80${DOMAIN:+ (domain: $DOMAIN)}"
+[[ "$ACCESS_MODE" == "ngrok" ]] && ACCESS_MODE_LABEL="ngrok public tunnel"
+echo -e "  Access mode  : ${BOLD}${ACCESS_MODE_LABEL}${NC}"
+echo -e "  Ollama/LLM   : ${BOLD}$([ "$INSTALL_OLLAMA" == "true" ] && echo "Yes" || echo "No")${NC}"
+echo ""
+echo -e "  ${YELLOW}Starting installation in 5 seconds... (Ctrl+C to cancel)${NC}"
+sleep 5
 line
 
 # ── Step 1: System validation ─────────────────────────────────────────────────
@@ -521,50 +594,181 @@ fi
 # Set ownership
 chown -R "$IPTS_USER:$IPTS_USER" "$IPTS_INSTALL_DIR" "$LOG_DIR" 2>/dev/null || true
 
-# ── Nginx setup (always — not just production) ────────────────────────────────
-hdr "STEP 14 — Nginx Reverse Proxy"
+# ── Step 14: Access mode setup ────────────────────────────────────────────────
+hdr "STEP 14 — Public Access Setup (${ACCESS_MODE:-local})"
 
-cat > /etc/nginx/conf.d/ipts.conf << 'NGINXEOF'
-upstream ipts_backend { server 127.0.0.1:5001; keepalive 32; }
+if [[ "$ACCESS_MODE" == "nginx" ]]; then
+
+  info "Configuring Nginx reverse proxy..."
+  SERVER_NAME="${DOMAIN:-_}"
+
+  cat > /etc/nginx/conf.d/ipts.conf << EOF
+# IPTS Nginx Reverse Proxy — auto-generated by install_redhat.sh
+upstream ipts_backend { server 127.0.0.1:$APP_PORT; keepalive 32; }
 server {
     listen 80;
-    server_name _;
+    server_name $SERVER_NAME;
     client_max_body_size 16M;
+    add_header X-Frame-Options        "SAMEORIGIN"  always;
+    add_header X-Content-Type-Options "nosniff"     always;
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
+
+    # SSE — disable buffering for real-time events
     location /api/stream {
         proxy_pass         http://ipts_backend;
         proxy_http_version 1.1;
-        proxy_set_header   Connection "";
+        proxy_set_header   Connection        "";
         proxy_buffering    off;
         proxy_cache        off;
         proxy_read_timeout 3600s;
-        proxy_set_header   Host              $host;
-        proxy_set_header   X-Real-IP         $remote_addr;
-        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
     }
     location / {
         proxy_pass         http://ipts_backend;
         proxy_http_version 1.1;
-        proxy_set_header   Host              $host;
-        proxy_set_header   X-Real-IP         $remote_addr;
-        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
         proxy_read_timeout 120s;
     }
+    access_log /var/log/nginx/ipts_access.log;
+    error_log  /var/log/nginx/ipts_error.log;
 }
-NGINXEOF
+EOF
 
-nginx -t && ok "Nginx config valid" || warn "Nginx config error — check: nginx -t"
+  nginx -t && ok "Nginx config valid" || warn "Nginx config error — check: nginx -t"
 
-# SELinux — allow Nginx to proxy to Flask
-setsebool -P httpd_can_network_connect 1 2>/dev/null || true
+  # SELinux — allow Nginx to connect to Flask
+  setsebool -P httpd_can_network_connect 1 2>/dev/null || true
+  setsebool -P httpd_can_network_relay  1 2>/dev/null || true
 
-# Firewall — open HTTP
-systemctl enable --now firewalld 2>/dev/null || true
-firewall-cmd --permanent --add-service=http  2>/dev/null || true
-firewall-cmd --permanent --add-port=5001/tcp 2>/dev/null || true
-firewall-cmd --reload 2>/dev/null || true
+  # Firewall — open HTTP (and HTTPS if SSL requested)
+  systemctl enable --now firewalld 2>/dev/null || true
+  firewall-cmd --permanent --add-service=http  2>/dev/null || true
+  [[ "$INSTALL_SSL" == "true" ]] && firewall-cmd --permanent --add-service=https 2>/dev/null || true
+  firewall-cmd --reload 2>/dev/null || true
 
-# Start Nginx
-systemctl enable --now nginx && ok "Nginx started on port 80" || warn "Nginx failed to start"
+  # Kill anything on port 80 first (e.g. OpenShift rootlessport)
+  PIDS80=$(lsof -ti:80 2>/dev/null || true)
+  if [[ -n "$PIDS80" ]]; then
+    echo "$PIDS80" | xargs kill -9 2>/dev/null || true
+    sleep 1
+    info "Cleared processes on port 80"
+  fi
+
+  systemctl enable --now nginx \
+    && ok "Nginx started on port 80" \
+    || warn "Nginx failed to start — check: systemctl status nginx"
+
+  # Optional SSL
+  if [[ "$INSTALL_SSL" == "true" && -n "$DOMAIN" ]]; then
+    info "Obtaining Let's Encrypt certificate for $DOMAIN ..."
+    certbot --nginx -d "$DOMAIN" -d "www.$DOMAIN" \
+      --non-interactive --agree-tos \
+      --email "admin@$DOMAIN" \
+      --redirect \
+      && ok "SSL certificate installed for $DOMAIN" \
+      || warn "certbot failed — run manually: certbot --nginx -d $DOMAIN"
+    systemctl enable --now certbot-renew.timer 2>/dev/null || \
+      (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet") | crontab -
+    ok "SSL auto-renewal configured"
+  fi
+
+elif [[ "$ACCESS_MODE" == "ngrok" ]]; then
+
+  info "Installing ngrok and creating public tunnel..."
+
+  # Download ngrok binary (static Linux amd64 binary — no repo needed)
+  NGROK_ARCH="linux_amd64"
+  if [[ "$(uname -m)" == "aarch64" ]]; then
+    NGROK_ARCH="linux_arm64"
+  fi
+
+  if command -v ngrok &>/dev/null; then
+    ok "ngrok already installed: $(ngrok version 2>/dev/null | head -1)"
+  else
+    info "Downloading ngrok..."
+    NGROK_ZIP="/tmp/ngrok.zip"
+    curl -fsSL \
+      "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-${NGROK_ARCH}.zip" \
+      -o "$NGROK_ZIP" \
+      && unzip -o "$NGROK_ZIP" -d /usr/local/bin/ \
+      && chmod +x /usr/local/bin/ngrok \
+      && rm -f "$NGROK_ZIP" \
+      && ok "ngrok installed to /usr/local/bin/ngrok" \
+      || err "ngrok download failed — check your internet connection"
+  fi
+
+  # Configure auth token
+  info "Configuring ngrok auth token..."
+  ngrok config add-authtoken "$NGROK_TOKEN" \
+    && ok "ngrok auth token saved" \
+    || err "Invalid ngrok token — please re-run with a valid token from https://ngrok.com"
+
+  # Create a systemd service to keep ngrok running persistently
+  info "Creating ngrok systemd service..."
+  cat > /etc/systemd/system/ipts-ngrok.service << EOF
+[Unit]
+Description=ngrok HTTPS tunnel for IPTS
+After=network.target ipts.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/ngrok http $APP_PORT --log=stdout
+Restart=always
+RestartSec=10
+StandardOutput=append:$LOG_DIR/ngrok.log
+StandardError=append:$LOG_DIR/ngrok.log
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable ipts-ngrok
+  systemctl start  ipts-ngrok \
+    && ok "ngrok service started" \
+    || warn "ngrok service could not start — check $LOG_DIR/ngrok.log"
+
+  # Wait up to 20 seconds for ngrok to obtain a URL
+  info "Waiting for ngrok to obtain public URL..."
+  NGROK_URL=""
+  for i in $(seq 1 20); do
+    sleep 1
+    NGROK_URL=$(curl -sf http://localhost:4040/api/tunnels 2>/dev/null \
+      | grep -oP '"public_url":"https://[^"]+' \
+      | head -1 \
+      | sed 's/"public_url":"//') || true
+    [[ -n "$NGROK_URL" ]] && break
+    printf "."
+  done
+  echo ""
+
+  if [[ -n "$NGROK_URL" ]]; then
+    ok "ngrok tunnel is live: $NGROK_URL"
+    # Persist URL to a file so it can be retrieved after the script exits
+    echo "$NGROK_URL" > "$IPTS_INSTALL_DIR/.ngrok_url"
+    ok "Public URL saved to $IPTS_INSTALL_DIR/.ngrok_url"
+  else
+    warn "Could not detect ngrok URL yet — it may still be starting."
+    warn "Check with: curl -s http://localhost:4040/api/tunnels | jq '.tunnels[0].public_url'"
+    warn "Or view logs: $LOG_DIR/ngrok.log"
+  fi
+
+else
+
+  info "Local-only mode — no public access configured."
+  info "Use an SSH tunnel to access from another machine:"
+  info "  ssh -L 5001:127.0.0.1:$APP_PORT user@<server-ip>"
+
+fi
 
 # ── Step 15: Production systemd services (--prod only) ────────────────────────
 if [[ "$PROD_MODE" == "true" ]]; then
@@ -830,12 +1034,21 @@ else
   echo -e "${RED}FAIL — check $LOG_DIR/flask_stderr.log${NC}"
 fi
 
-if [[ "$PROD_MODE" == "true" ]]; then
+if [[ "$ACCESS_MODE" == "nginx" ]]; then
   printf "  %-35s" "Nginx proxy (port 80):"
   if curl -sf "http://localhost/api/health" &>/dev/null; then
     echo -e "${GREEN}PASS${NC}"
   else
     echo -e "${YELLOW}CHECK NGINX${NC}"
+  fi
+fi
+
+if [[ "$ACCESS_MODE" == "ngrok" ]]; then
+  printf "  %-35s" "ngrok tunnel:"
+  if systemctl is-active --quiet ipts-ngrok 2>/dev/null; then
+    echo -e "${GREEN}RUNNING${NC}"
+  else
+    echo -e "${YELLOW}NOT RUNNING${NC}"
   fi
 fi
 
@@ -846,16 +1059,31 @@ echo ""
 echo -e "  ${BOLD}${GREEN}Installation complete!${NC}"
 echo ""
 
-if [[ "$PROD_MODE" == "true" ]]; then
-  if [[ -n "$DOMAIN" && "$INSTALL_SSL" == "true" ]]; then
-    echo -e "  ${BOLD}Open in browser:${NC}   https://$DOMAIN"
-  else
-    SERVER_IP=$(curl -sf --max-time 3 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
-    echo -e "  ${BOLD}Open in browser:${NC}   http://$SERVER_IP"
-  fi
-else
-  echo -e "  ${BOLD}Open in browser:${NC}   http://127.0.0.1:$APP_PORT"
-fi
+case "$ACCESS_MODE" in
+  nginx)
+    if [[ -n "$DOMAIN" && "$INSTALL_SSL" == "true" ]]; then
+      echo -e "  ${BOLD}Open in browser:${NC}   https://$DOMAIN"
+    else
+      SERVER_IP=$(curl -sf --max-time 3 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+      echo -e "  ${BOLD}Open in browser:${NC}   http://$SERVER_IP"
+    fi
+    ;;
+  ngrok)
+    SAVED_URL=$(cat "$IPTS_INSTALL_DIR/.ngrok_url" 2>/dev/null || true)
+    if [[ -n "$SAVED_URL" ]]; then
+      echo -e "  ${BOLD}Open in browser:${NC}   $SAVED_URL"
+      echo -e "  ${YELLOW}(ngrok URL changes each restart unless you have a paid plan)${NC}"
+    else
+      echo -e "  ${BOLD}Open in browser:${NC}   http://127.0.0.1:$APP_PORT  (local)"
+      echo -e "  ${YELLOW}ngrok URL not yet available — check:${NC}"
+      echo -e "    curl -s http://localhost:4040/api/tunnels | grep public_url"
+    fi
+    ;;
+  *)
+    echo -e "  ${BOLD}Open in browser:${NC}   http://127.0.0.1:$APP_PORT"
+    echo -e "  ${YELLOW}(local only — use SSH tunnel for remote access)${NC}"
+    ;;
+esac
 
 echo ""
 echo -e "  ${BOLD}Login credentials:${NC}"
@@ -865,6 +1093,10 @@ echo -e "    Compliance  →  walid   / Walid@2026!"
 echo -e "    Client      →  sara    / Sara@2026!"
 echo ""
 
+echo -e "  ${BOLD}To restart IPTS after rebooting:${NC}"
+echo -e "    cd $IPTS_INSTALL_DIR && bash restart.sh"
+echo ""
+
 if [[ "$PROD_MODE" == "true" ]]; then
   echo -e "  ${BOLD}Service management:${NC}"
   echo -e "    systemctl status  ipts           # App status"
@@ -872,9 +1104,14 @@ if [[ "$PROD_MODE" == "true" ]]; then
   echo -e "    systemctl status  ipts-ganache   # Blockchain status"
   echo -e "    journalctl -u ipts -f            # Live app logs"
   echo ""
-else
-  echo -e "  ${BOLD}To restart IPTS after rebooting:${NC}"
-  echo -e "    cd $IPTS_INSTALL_DIR && bash restart.sh"
+fi
+
+if [[ "$ACCESS_MODE" == "ngrok" ]]; then
+  echo -e "  ${BOLD}ngrok management:${NC}"
+  echo -e "    systemctl status  ipts-ngrok     # Tunnel status"
+  echo -e "    systemctl restart ipts-ngrok     # Restart tunnel"
+  echo -e "    cat $IPTS_INSTALL_DIR/.ngrok_url # Saved public URL"
+  echo -e "    curl -s http://localhost:4040/api/tunnels | grep public_url"
   echo ""
 fi
 
