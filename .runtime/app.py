@@ -777,19 +777,27 @@ class AML_Risk_Engine:
 
     def _load_models(self):
         try:
-            self.iso_forest = joblib.load(os.path.join(MODELS_DIR, "isolation_forest.pkl"))
-            self.rf_clf = joblib.load(os.path.join(MODELS_DIR, "random_forest.pkl"))
-            self.xgb_clf = joblib.load(os.path.join(MODELS_DIR, "xgboost.pkl"))
-            self.autoencoder = joblib.load(os.path.join(MODELS_DIR, "autoencoder.pkl"))
+            self.iso_forest   = joblib.load(os.path.join(MODELS_DIR, "isolation_forest.pkl"))
+            self.rf_clf       = joblib.load(os.path.join(MODELS_DIR, "random_forest.pkl"))
+            self.xgb_clf      = joblib.load(os.path.join(MODELS_DIR, "xgboost.pkl"))
+            self.autoencoder  = joblib.load(os.path.join(MODELS_DIR, "autoencoder.pkl"))
             self.ae_threshold = joblib.load(os.path.join(MODELS_DIR, "ae_threshold.pkl"))
+            self.models_loaded = True
+            logger.info("Core ML models loaded successfully")
+        except Exception as e:
+            logger.error(f"Core model loading error: {e}")
+            self.models_loaded = False
+
+        # Graph models are optional — load if available, silently skip if not
+        try:
             self.pagerank = joblib.load(os.path.join(MODELS_DIR, "pagerank.pkl"))
+        except Exception:
+            self.pagerank = {}
+        try:
             with open(os.path.join(MODELS_DIR, "graph_data.json")) as f:
                 self.graph_data = json.load(f)
-            self.models_loaded = True
-            logger.info("All 4 ML models loaded successfully")
-        except Exception as e:
-            logger.error(f"Model loading error: {e}")
-            self.models_loaded = False
+        except Exception:
+            self.graph_data = {}
 
     def score_transaction(self, amount, hour, day, freq, is_round, country_risk,
                           sender, receiver, beneficiary_name=""):
@@ -980,6 +988,133 @@ class AML_Risk_Engine:
 
 # Initialize AML Engine
 aml_engine = AML_Risk_Engine()
+
+# Auto-train models on startup if not yet trained (e.g. fresh cloud deployment)
+def _auto_train_if_needed():
+    """Background thread: trains ML models if pkl files are missing."""
+    required = ["isolation_forest.pkl", "random_forest.pkl", "xgboost.pkl",
+                "autoencoder.pkl", "ae_threshold.pkl"]
+    missing = [f for f in required if not os.path.exists(os.path.join(MODELS_DIR, f))]
+    if not missing:
+        return
+    logger.info(f"Auto-training: {len(missing)} model file(s) missing — starting background training")
+    try:
+        from sklearn.ensemble import IsolationForest, RandomForestClassifier
+        from sklearn.neural_network import MLPRegressor
+        import xgboost as xgb_mod
+        import networkx as nx
+
+        np.random.seed(42)
+        N = 15000; N_F = 750; N_N = N - N_F; N_FP = 500; N_CN = N_N - N_FP
+        N_CF = int(N_F * 0.7); N_SF = N_F - N_CF
+
+        def _vel(n, lo, hi): return np.random.randint(lo, hi, n).astype(float)
+
+        def make_rows(n, is_fraud_val, amt_range, risk_range, freq_range):
+            amt = np.random.uniform(*amt_range, n)
+            return {
+                'amount':           amt,
+                'hour':             np.random.randint(0, 24, n),
+                'day_of_week':      np.random.randint(0, 7, n),
+                'freq_7d':          np.random.randint(*freq_range, n),
+                'is_round':         np.random.choice([0, 1], n, p=[0.75, 0.25]),
+                'country_risk':     np.random.uniform(*risk_range, n),
+                'sender_id':        np.random.randint(0, 500, n),
+                'receiver_id':      np.random.randint(0, 500, n),
+                'velocity_1h':      _vel(n, 0, 3 if not is_fraud_val else 8),
+                'velocity_24h':     _vel(n, 0, 15 if not is_fraud_val else 40),
+                'velocity_7d':      _vel(n, 0, 50 if not is_fraud_val else 120),
+                'avg_tx_amount':    amt * np.random.uniform(0.5, 1.5, n),
+                'std_tx_amount':    amt * np.random.uniform(0.0, 0.5, n),
+                'amount_zscore':    np.random.uniform(-1, 2, n) if not is_fraud_val else np.random.uniform(1, 6, n),
+                'unique_receivers': _vel(n, 1, 5 if not is_fraud_val else 15),
+                'is_new_receiver':  np.random.choice([0, 1], n, p=[0.8, 0.2] if not is_fraud_val else [0.4, 0.6]),
+                'is_fraud':         np.full(n, int(is_fraud_val)),
+            }
+
+        import pandas as pd
+        rows = [
+            make_rows(N_CN,  False, (100, 500000),   (0.0, 0.4), (1, 20)),
+            make_rows(N_FP,  False, (9000, 600000),  (0.4, 0.9), (10, 35)),
+            make_rows(N_CF,  True,  (9000, 2000000), (0.5, 1.0), (12, 45)),
+            make_rows(N_SF,  True,  (5000, 300000),  (0.2, 0.8), (5, 25)),
+        ]
+        df = pd.concat([pd.DataFrame(r) for r in rows], ignore_index=True).sample(frac=1).reset_index(drop=True)
+
+        FEATS = ['amount', 'hour', 'day_of_week', 'freq_7d', 'is_round', 'country_risk',
+                 'sender_id', 'receiver_id', 'velocity_1h', 'velocity_24h', 'velocity_7d',
+                 'avg_tx_amount', 'std_tx_amount', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
+        X = df[FEATS].values
+        y = df['is_fraud'].values
+
+        from sklearn.model_selection import train_test_split as tts
+        X_tr, X_te, y_tr, y_te = tts(X, y, test_size=0.2, stratify=y)
+        os.makedirs(MODELS_DIR, exist_ok=True)
+
+        iso = IsolationForest(n_estimators=100, contamination=0.05, n_jobs=-1)
+        iso.fit(X_tr)
+        joblib.dump(iso, os.path.join(MODELS_DIR, "isolation_forest.pkl"))
+
+        rf = RandomForestClassifier(n_estimators=150, max_depth=12, min_samples_leaf=10,
+                                    max_features='sqrt', class_weight='balanced', n_jobs=-1)
+        rf.fit(X_tr, y_tr)
+        joblib.dump(rf, os.path.join(MODELS_DIR, "random_forest.pkl"))
+
+        spw = (y_tr == 0).sum() / max((y_tr == 1).sum(), 1)
+        xg = xgb_mod.XGBClassifier(n_estimators=200, max_depth=6, learning_rate=0.05,
+                                    scale_pos_weight=spw, reg_alpha=1.0, reg_lambda=2.0,
+                                    subsample=0.8, colsample_bytree=0.8,
+                                    use_label_encoder=False, eval_metric='logloss', n_jobs=-1)
+        xg.fit(X_tr, y_tr)
+        joblib.dump(xg, os.path.join(MODELS_DIR, "xgboost.pkl"))
+
+        X_norm = X_tr[y_tr == 0]
+        ae = MLPRegressor(hidden_layer_sizes=(64, 32, 16, 32, 64), activation='relu', max_iter=200)
+        ae.fit(X_norm, X_norm)
+        joblib.dump(ae, os.path.join(MODELS_DIR, "autoencoder.pkl"))
+        thr = np.percentile(np.mean((X_norm - ae.predict(X_norm)) ** 2, axis=1), 97)
+        joblib.dump(thr, os.path.join(MODELS_DIR, "ae_threshold.pkl"))
+
+        # Build a small synthetic transaction graph for PageRank
+        G = nx.DiGraph()
+        n_nodes = 500
+        for _ in range(3000):
+            src = np.random.randint(0, n_nodes)
+            dst = np.random.randint(0, n_nodes)
+            if src != dst:
+                G.add_edge(src, dst, weight=float(np.random.lognormal(9, 1.5)))
+        pr = nx.pagerank(G, alpha=0.85, max_iter=100, weight='weight')
+        joblib.dump(pr, os.path.join(MODELS_DIR, "pagerank.pkl"))
+
+        nodes = [{"id": int(n), "pagerank": float(v)} for n, v in pr.items()]
+        edges = [{"source": int(u), "target": int(v)} for u, v in list(G.edges())[:500]]
+        with open(os.path.join(MODELS_DIR, "graph_data.json"), "w") as f:
+            json.dump({"nodes": nodes, "edges": edges}, f)
+
+        # Metrics + feature importance
+        from sklearn.metrics import f1_score as f1s, accuracy_score as accs
+        metrics = {}
+        for nm, mdl, inv in [("isolation_forest", iso, True), ("random_forest", rf, False), ("xgboost", xg, False)]:
+            p = (mdl.predict(X_te) == -1).astype(int) if inv else mdl.predict(X_te)
+            metrics[nm] = {"f1": float(f1s(y_te, p, zero_division=0)), "accuracy": float(accs(y_te, p))}
+        recon_e = np.mean((X_te - ae.predict(X_te)) ** 2, axis=1)
+        metrics["autoencoder"] = {"f1": float(f1s(y_te, (recon_e > thr).astype(int), zero_division=0)),
+                                  "accuracy": float(accs(y_te, (recon_e > thr).astype(int)))}
+        with open(os.path.join(MODELS_DIR, "metrics.json"), "w") as f:
+            json.dump(metrics, f, indent=2)
+        fi = dict(zip(FEATS, rf.feature_importances_.tolist()))
+        with open(os.path.join(MODELS_DIR, "feature_importance.json"), "w") as f:
+            json.dump(fi, f, indent=2)
+
+        aml_engine._load_models()
+        logger.info("Auto-training complete — models are now active")
+        push_sse("retrain", {"status": "complete", "metrics": metrics})
+    except Exception as e:
+        logger.error(f"Auto-training failed: {e}")
+
+if not aml_engine.models_loaded:
+    import threading as _threading
+    _threading.Thread(target=_auto_train_if_needed, daemon=True).start()
 
 # ============================================================
 # Blockchain Manager
@@ -3435,13 +3570,22 @@ def file_sar(case_id):
 @app.route("/api/network/graph", methods=["GET"])
 @zero_trust_required
 def network_graph():
+    graph_file = os.path.join(MODELS_DIR, "graph_data.json")
+    if not os.path.exists(graph_file):
+        # Models not yet trained — return empty graph with informative status
+        return jsonify({
+            "nodes": [], "edges": [], "cycles": [], "communities": 0,
+            "status": "training",
+            "message": "Graph data will be available after models finish training (1–3 minutes)."
+        })
     try:
-        with open(os.path.join(MODELS_DIR, "graph_data.json")) as f:
+        with open(graph_file) as f:
             data = json.load(f)
         # Limit to top 200 nodes by pagerank for visualization
-        nodes_sorted = sorted(data["nodes"], key=lambda n: n["pagerank"], reverse=True)[:200]
+        nodes_sorted = sorted(data.get("nodes", []), key=lambda n: n.get("pagerank", 0), reverse=True)[:200]
         node_ids = set(n["id"] for n in nodes_sorted)
-        edges_filtered = [e for e in data["edges"] if e["source"] in node_ids and e["target"] in node_ids]
+        edges_filtered = [e for e in data.get("edges", [])
+                          if e["source"] in node_ids and e["target"] in node_ids]
         return jsonify({
             "nodes": nodes_sorted,
             "edges": edges_filtered[:500],
@@ -3482,126 +3626,110 @@ def retrain_models():
             logger.info("Model retraining initiated")
             from sklearn.ensemble import IsolationForest, RandomForestClassifier
             from sklearn.neural_network import MLPRegressor
+            from sklearn.model_selection import train_test_split as tts
+            from sklearn.metrics import f1_score as f1s, accuracy_score as accs
             import xgboost as xgb_mod
+            import networkx as nx
+            import pandas as pd
 
             np.random.seed(int(time.time()) % 10000)
-            N = 15000
-            N_F = 750   # 5% fraud
-            N_N = N - N_F
-            N_FP = 500  # false positive bait
-            N_CN = N_N - N_FP
+            N = 15000; N_F = 750; N_N = N - N_F; N_FP = 500; N_CN = N_N - N_FP
+            N_CF = int(N_F * 0.7); N_SF = N_F - N_CF
 
-            # Clean normal
-            normal = {
-                'amount': np.random.lognormal(mean=9.5, sigma=1.2, size=N_CN).clip(100, 500000),
-                'hour': np.random.randint(0, 24, N_CN),
-                'day_of_week': np.random.randint(0, 7, N_CN),
-                'freq_7d': np.random.randint(1, 25, N_CN),
-                'is_round': np.random.choice([0, 1], N_CN, p=[0.82, 0.18]),
-                'country_risk': np.random.beta(2, 5, N_CN),
-                'sender_id': np.random.randint(0, 500, N_CN),
-                'receiver_id': np.random.randint(0, 500, N_CN),
-                'is_fraud': np.zeros(N_CN, dtype=int),
-            }
-            # FP bait — looks suspicious but is legit
-            fp_bait = {
-                'amount': np.concatenate([
-                    np.random.uniform(9000, 9999, N_FP // 4),
-                    np.random.uniform(100000, 600000, N_FP // 4),
-                    np.random.uniform(50000, 200000, N_FP // 4),
-                    np.random.uniform(5000, 50000, N_FP - 3 * (N_FP // 4)),
-                ]),
-                'hour': np.random.choice([0, 1, 2, 3, 22, 23], N_FP),
-                'day_of_week': np.random.randint(0, 7, N_FP),
-                'freq_7d': np.random.randint(10, 35, N_FP),
-                'is_round': np.random.choice([0, 1], N_FP, p=[0.5, 0.5]),
-                'country_risk': np.random.uniform(0.4, 0.9, N_FP),
-                'sender_id': np.random.randint(0, 200, N_FP),
-                'receiver_id': np.random.randint(0, 200, N_FP),
-                'is_fraud': np.zeros(N_FP, dtype=int),
-            }
-            # Fraud — 70% clear, 30% subtle
-            N_CF = int(N_F * 0.7)
-            N_SF = N_F - N_CF
-            fraud = {
-                'amount': np.concatenate([
-                    np.random.uniform(9000, 9999, N_CF // 3),
-                    np.random.uniform(300000, 2000000, N_CF // 3),
-                    np.random.uniform(15000, 150000, N_CF - 2 * (N_CF // 3)),
-                    np.random.lognormal(mean=10.0, sigma=1.0, size=N_SF).clip(5000, 300000),
-                ]),
-                'hour': np.concatenate([np.random.choice([0,1,2,3,22,23], N_CF), np.random.randint(0,24,N_SF)]),
-                'day_of_week': np.random.randint(0, 7, N_F),
-                'freq_7d': np.concatenate([np.random.randint(12, 45, N_CF), np.random.randint(5, 25, N_SF)]),
-                'is_round': np.concatenate([
-                    np.random.choice([0,1], N_CF, p=[0.35,0.65]),
-                    np.random.choice([0,1], N_SF, p=[0.75,0.25]),
-                ]),
-                'country_risk': np.concatenate([
-                    np.random.uniform(0.5, 1.0, N_CF),
-                    np.random.uniform(0.2, 0.8, N_SF),
-                ]),
-                'sender_id': np.concatenate([np.random.randint(0, 100, N_CF), np.random.randint(0, 400, N_SF)]),
-                'receiver_id': np.concatenate([np.random.randint(0, 100, N_CF), np.random.randint(0, 400, N_SF)]),
-                'is_fraud': np.ones(N_F, dtype=int),
-            }
+            # All 16 features — must match score_transaction() feature vector exactly
+            FEATS = ['amount', 'hour', 'day_of_week', 'freq_7d', 'is_round', 'country_risk',
+                     'sender_id', 'receiver_id', 'velocity_1h', 'velocity_24h', 'velocity_7d',
+                     'avg_tx_amount', 'std_tx_amount', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
 
-            import pandas as pd
-            df_rt = pd.concat([pd.DataFrame(normal), pd.DataFrame(fp_bait), pd.DataFrame(fraud)], ignore_index=True)
-            df_rt = df_rt.sample(frac=1).reset_index(drop=True)
-            feats = ['amount','hour','day_of_week','freq_7d','is_round','country_risk','sender_id','receiver_id']
-            X_rt = df_rt[feats].values
+            def _make_rows(n, is_fraud_val, amt_range, risk_range, freq_range):
+                amt = np.random.uniform(*amt_range, n)
+                avg = amt * np.random.uniform(0.6, 1.4, n)
+                std = amt * np.random.uniform(0.0, 0.4, n)
+                return {
+                    'amount':           amt,
+                    'hour':             np.random.randint(0, 24, n),
+                    'day_of_week':      np.random.randint(0, 7, n),
+                    'freq_7d':          np.random.randint(*freq_range, n),
+                    'is_round':         np.random.choice([0, 1], n, p=[0.75, 0.25]),
+                    'country_risk':     np.random.uniform(*risk_range, n),
+                    'sender_id':        np.random.randint(0, 500, n),
+                    'receiver_id':      np.random.randint(0, 500, n),
+                    'velocity_1h':      np.random.randint(0, 3 if not is_fraud_val else 8, n).astype(float),
+                    'velocity_24h':     np.random.randint(0, 15 if not is_fraud_val else 40, n).astype(float),
+                    'velocity_7d':      np.random.randint(0, 50 if not is_fraud_val else 120, n).astype(float),
+                    'avg_tx_amount':    avg,
+                    'std_tx_amount':    std,
+                    'amount_zscore':    (amt - avg) / (std + 1e-6),
+                    'unique_receivers': np.random.randint(1, 5 if not is_fraud_val else 15, n).astype(float),
+                    'is_new_receiver':  np.random.choice([0, 1], n,
+                                            p=[0.85, 0.15] if not is_fraud_val else [0.45, 0.55]),
+                    'is_fraud':         np.full(n, int(is_fraud_val)),
+                }
+
+            df_rt = pd.concat([
+                pd.DataFrame(_make_rows(N_CN,  False, (100, 500000),   (0.0, 0.4), (1, 25))),
+                pd.DataFrame(_make_rows(N_FP,  False, (9000, 600000),  (0.4, 0.9), (10, 35))),
+                pd.DataFrame(_make_rows(N_CF,  True,  (9000, 2000000), (0.5, 1.0), (12, 45))),
+                pd.DataFrame(_make_rows(N_SF,  True,  (5000, 300000),  (0.2, 0.8), (5, 25))),
+            ], ignore_index=True).sample(frac=1).reset_index(drop=True)
+
+            X_rt = df_rt[FEATS].values
             y_rt = df_rt['is_fraud'].values
-            from sklearn.model_selection import train_test_split as tts
             X_tr, X_te, y_tr, y_te = tts(X_rt, y_rt, test_size=0.2, stratify=y_rt)
 
             iso = IsolationForest(n_estimators=100, contamination=0.05, n_jobs=-1)
             iso.fit(X_tr)
             joblib.dump(iso, os.path.join(MODELS_DIR, "isolation_forest.pkl"))
 
-            rf = RandomForestClassifier(
-                n_estimators=150, max_depth=12, min_samples_leaf=10,
-                max_features='sqrt', class_weight='balanced', n_jobs=-1
-            )
+            rf = RandomForestClassifier(n_estimators=150, max_depth=12, min_samples_leaf=10,
+                                        max_features='sqrt', class_weight='balanced', n_jobs=-1)
             rf.fit(X_tr, y_tr)
             joblib.dump(rf, os.path.join(MODELS_DIR, "random_forest.pkl"))
 
             spw = (y_tr == 0).sum() / max((y_tr == 1).sum(), 1)
-            xg = xgb_mod.XGBClassifier(
-                n_estimators=200, max_depth=6, learning_rate=0.05,
-                scale_pos_weight=spw, reg_alpha=1.0, reg_lambda=2.0,
-                subsample=0.8, colsample_bytree=0.8,
-                use_label_encoder=False, eval_metric='logloss', n_jobs=-1
-            )
+            xg = xgb_mod.XGBClassifier(n_estimators=200, max_depth=6, learning_rate=0.05,
+                                        scale_pos_weight=spw, reg_alpha=1.0, reg_lambda=2.0,
+                                        subsample=0.8, colsample_bytree=0.8,
+                                        use_label_encoder=False, eval_metric='logloss', n_jobs=-1)
             xg.fit(X_tr, y_tr)
             joblib.dump(xg, os.path.join(MODELS_DIR, "xgboost.pkl"))
 
             X_norm = X_tr[y_tr == 0]
-            ae = MLPRegressor(hidden_layer_sizes=(64,32,16,32,64), activation='relu', max_iter=200)
+            ae = MLPRegressor(hidden_layer_sizes=(64, 32, 16, 32, 64), activation='relu', max_iter=200)
             ae.fit(X_norm, X_norm)
             joblib.dump(ae, os.path.join(MODELS_DIR, "autoencoder.pkl"))
-            thr = np.percentile(np.mean((X_norm - ae.predict(X_norm))**2, axis=1), 97)
+            thr = np.percentile(np.mean((X_norm - ae.predict(X_norm)) ** 2, axis=1), 97)
             joblib.dump(thr, os.path.join(MODELS_DIR, "ae_threshold.pkl"))
 
-            from sklearn.metrics import f1_score as f1s, accuracy_score as accs
+            # Build synthetic transaction graph for PageRank
+            G = nx.DiGraph()
+            n_nodes = 500
+            for _ in range(3000):
+                src = np.random.randint(0, n_nodes)
+                dst = np.random.randint(0, n_nodes)
+                if src != dst:
+                    G.add_edge(src, dst, weight=float(np.random.lognormal(9, 1.5)))
+            pr = nx.pagerank(G, alpha=0.85, max_iter=100, weight='weight')
+            joblib.dump(pr, os.path.join(MODELS_DIR, "pagerank.pkl"))
+            pr_nodes = [{"id": int(n), "pagerank": float(v)} for n, v in pr.items()]
+            pr_edges = [{"source": int(u), "target": int(v)} for u, v in list(G.edges())[:500]]
+            with open(os.path.join(MODELS_DIR, "graph_data.json"), "w") as f:
+                json.dump({"nodes": pr_nodes, "edges": pr_edges, "cycles": [], "communities": 0}, f)
+
+            # Metrics + feature importance
             new_metrics = {}
-            for name, mdl, needs_inv in [("isolation_forest", iso, True), ("random_forest", rf, False),
-                                          ("xgboost", xg, False)]:
-                if needs_inv:
-                    p = (mdl.predict(X_te) == -1).astype(int)
-                else:
-                    p = mdl.predict(X_te)
+            for name, mdl, needs_inv in [("isolation_forest", iso, True),
+                                          ("random_forest", rf, False), ("xgboost", xg, False)]:
+                p = (mdl.predict(X_te) == -1).astype(int) if needs_inv else mdl.predict(X_te)
                 new_metrics[name] = {"f1": float(f1s(y_te, p, zero_division=0)),
                                      "accuracy": float(accs(y_te, p))}
-            recon_e = np.mean((X_te - ae.predict(X_te))**2, axis=1)
+            recon_e = np.mean((X_te - ae.predict(X_te)) ** 2, axis=1)
             ae_p = (recon_e > thr).astype(int)
             new_metrics["autoencoder"] = {"f1": float(f1s(y_te, ae_p, zero_division=0)),
                                           "accuracy": float(accs(y_te, ae_p))}
-
             with open(os.path.join(MODELS_DIR, "metrics.json"), "w") as f:
                 json.dump(new_metrics, f, indent=2)
-
-            fi = dict(zip(feats, rf.feature_importances_.tolist()))
+            fi = dict(zip(FEATS, rf.feature_importances_.tolist()))
             with open(os.path.join(MODELS_DIR, "feature_importance.json"), "w") as f:
                 json.dump(fi, f, indent=2)
 

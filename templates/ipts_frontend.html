@@ -393,12 +393,29 @@ tailwind.config = {
     <!-- APPROVALS TAB -->
     <div id="tab-approvals" class="tab-content hidden fade-in">
       <div class="mb-6">
-        <h2 class="text-xl font-bold text-navy mb-1">Pending Approvals</h2>
-        <p class="text-sm text-gray-500">Payments awaiting Human-in-the-Loop (HITL) review and authorisation.</p>
+        <h2 class="text-xl font-bold text-navy mb-1">Payment Approvals</h2>
+        <p class="text-sm text-gray-500">Human-in-the-Loop (HITL) review queue — pending and completed decisions.</p>
       </div>
       <div id="approvalNotice" class="hidden mb-3 px-4 py-3 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm font-medium"></div>
-      <div id="approvals-list" class="space-y-3">
+
+      <!-- Pending Approvals section -->
+      <div class="mb-2 flex items-center gap-2">
+        <i class="fas fa-hourglass-half text-yellow-500"></i>
+        <h3 class="text-base font-semibold text-gray-800">Pending Approvals</h3>
+        <span id="pending-count-badge" class="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium hidden"></span>
+      </div>
+      <div id="approvals-list" class="space-y-3 mb-8">
         <div class="text-sm text-gray-400 italic">Loading pending approvals...</div>
+      </div>
+
+      <!-- Approved Transactions section -->
+      <div class="mb-2 flex items-center gap-2">
+        <i class="fas fa-check-circle text-green-500"></i>
+        <h3 class="text-base font-semibold text-gray-800">Approved Transactions</h3>
+        <span id="approved-count-badge" class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium hidden"></span>
+      </div>
+      <div id="approved-list" class="space-y-3">
+        <div class="text-sm text-gray-400 italic">Loading approved transactions...</div>
       </div>
     </div>
 
@@ -2986,10 +3003,26 @@ function switchGraphView(view) {
 }
 
 async function loadGraph() {
+  const container = document.getElementById('graphContainer');
   try {
     _graphData = await apiFetch('/api/network/graph');
+    // Models still training — show friendly placeholder and retry after 15 s
+    if (_graphData.status === 'training' || (_graphData.nodes && _graphData.nodes.length === 0 && _graphData.message)) {
+      container.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-64 text-center p-6">
+          <i class="fas fa-spinner fa-spin text-3xl text-indigo-400 mb-3"></i>
+          <p class="text-gray-300 font-medium">ML models are training…</p>
+          <p class="text-gray-500 text-sm mt-1">${_graphData.message || 'Graph will appear automatically once training completes.'}</p>
+          <p class="text-gray-600 text-xs mt-3">Auto-refreshing in 15 seconds</p>
+        </div>`;
+      setTimeout(() => loadGraph(), 15000);
+      return;
+    }
     renderGraph('graphContainer', _graphData, false);
-  } catch (e) { console.error('Graph error:', e); document.getElementById('graphContainer').innerHTML = '<p class="text-red-400 p-4">Failed to load graph.</p>'; }
+  } catch (e) {
+    console.error('Graph error:', e);
+    container.innerHTML = '<p class="text-red-400 p-4">Failed to load graph. Check that Flask is running and models are trained.</p>';
+  }
 }
 
 function renderGraph(containerId, data, connectedOnly) {
@@ -3091,54 +3124,108 @@ function renderGraph(containerId, data, connectedOnly) {
 // Admin - HITL
 // ============================================================
 async function loadApprovals() {
-  const container = document.getElementById('approvals-list');
+  const pendingContainer  = document.getElementById('approvals-list');
+  const approvedContainer = document.getElementById('approved-list');
   try {
     const data = await apiFetch('/api/hitl/queue');
-    if (!data.queue || data.queue.length === 0) {
-      container.innerHTML = '<div class="text-sm text-gray-400 italic">No pending approvals.</div>';
-      return;
+    const queue = data.queue || [];
+
+    const pending  = queue.filter(i => ['pending','awaiting_second_approval'].includes(i.status));
+    const approved = queue.filter(i => i.status === 'approved');
+    const rejected = queue.filter(i => i.status === 'rejected');
+
+    // Update count badges
+    const pendingBadge  = document.getElementById('pending-count-badge');
+    const approvedBadge = document.getElementById('approved-count-badge');
+    if (pending.length > 0) {
+      pendingBadge.textContent = pending.length + ' awaiting action';
+      pendingBadge.classList.remove('hidden');
+    } else {
+      pendingBadge.classList.add('hidden');
     }
-    container.innerHTML = data.queue.map(item => {
-      const needsThreeEyes = item.amount >= 150000;
+    if (approved.length > 0) {
+      approvedBadge.textContent = approved.length + ' approved';
+      approvedBadge.classList.remove('hidden');
+    } else {
+      approvedBadge.classList.add('hidden');
+    }
+
+    // ── Render a single HITL card ─────────────────────────────────────────────
+    function renderCard(item, showActions) {
+      const needsThreeEyes   = item.amount >= 150000;
       const isAwaitingSecond = item.status === 'awaiting_second_approval';
-      const statusColor = item.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : isAwaitingSecond ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700';
+      const statusColor = item.status === 'pending'
+        ? 'bg-yellow-100 text-yellow-700'
+        : isAwaitingSecond
+          ? 'bg-orange-100 text-orange-700'
+          : item.status === 'approved'
+            ? 'bg-green-100 text-green-700'
+            : 'bg-red-100 text-red-700';
       const approverInfo = item.first_approver ? ' · 1st: ' + item.first_approver : '';
+      const reviewedInfo = item.reviewed_by
+        ? `<div class="text-xs text-gray-400 mt-1"><i class="fas fa-user-check mr-1"></i>${item.reviewed_by}${item.reviewed_at ? ' · ' + item.reviewed_at.substring(0,16).replace('T',' ') : ''}</div>`
+        : '';
+
+      const caseSection = item.case_number ? (() => {
+        const cs = item.case_status || 'open';
+        const caseBlocked = !['resolved','closed'].includes(cs);
+        const caseColor = caseBlocked ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700';
+        const caseIcon  = caseBlocked ? 'fa-lock' : 'fa-check-circle';
+        return `<div class="flex items-center gap-2 mt-1.5 flex-wrap">
+          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-xs ${caseColor}"><i class="fas ${caseIcon}"></i>Case ${item.case_number} — ${cs.toUpperCase()}${caseBlocked ? ' · Resolve case to unlock approval' : ''}</div>
+          <button onclick="viewCaseFromApprovals('${item.case_number}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium ${caseBlocked ? 'border-red-300 text-red-600 hover:bg-red-50' : 'border-blue-300 text-blue-600 hover:bg-blue-50'}"><i class="fas fa-folder-open"></i>View Case</button>
+        </div>`;
+      })() : '';
+
+      const actionsHtml = (() => {
+        if (!showActions) return reviewedInfo;
+        const cs = item.case_status || 'open';
+        const caseBlocked = item.case_number && !['resolved','closed'].includes(cs);
+        return `<div class="flex gap-2 mt-2">
+          <button onclick="hitlAction('approve','${item.id}')" ${caseBlocked ? 'disabled title="Resolve compliance case first"' : ''} class="px-3 py-1 rounded text-white text-xs ${caseBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500'}">${isAwaitingSecond ? '<i class=\'fas fa-check-double mr-1\'></i>2nd Approve' : '<i class=\'fas fa-check mr-1\'></i>Approve'}</button>
+          <button onclick="hitlAction('reject','${item.id}')" ${caseBlocked ? 'disabled title="Resolve compliance case first"' : ''} class="px-3 py-1 rounded text-white text-xs ${caseBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-500'}"><i class='fas fa-times mr-1'></i>Reject</button>
+        </div>`;
+      })();
+
       return `
       <div class="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between shadow-sm">
         <div class="flex-1">
           <div class="flex items-center gap-3 mb-1">
-            <span class="font-mono text-xs text-gray-400">#${item.id.substring(0,8)}...</span>
+            <span class="font-mono text-xs text-gray-400">#${item.id.substring(0,8)}…</span>
             <span class="text-xs px-2 py-0.5 rounded-full font-medium ${statusColor}">${item.status.replace(/_/g,' ').toUpperCase()}</span>
             ${needsThreeEyes ? '<span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium"><i class="fas fa-eye mr-1"></i>3-EYES</span>' : ''}
           </div>
           <div class="text-sm font-semibold text-gray-800">${item.beneficiary_name || 'Unknown Beneficiary'}</div>
           <div class="text-xs text-gray-500 mt-0.5">${item.reason || 'Flagged for review'} &nbsp;·&nbsp; Risk Score: <span class="text-red-500 font-medium">${(item.risk_score||0).toFixed(1)}</span>${approverInfo}</div>
-          ${item.case_number ? (() => {
-            const cs = item.case_status || 'open';
-            const caseBlocked = !['resolved','closed'].includes(cs);
-            const caseColor = caseBlocked ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700';
-            const caseIcon  = caseBlocked ? 'fa-lock' : 'fa-check-circle';
-            return `<div class="flex items-center gap-2 mt-1.5 flex-wrap">
-              <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-xs ${caseColor}"><i class="fas ${caseIcon}"></i>Case ${item.case_number} — ${cs.toUpperCase()}${caseBlocked ? ' · Resolve case to unlock approval' : ''}</div>
-              <button onclick="viewCaseFromApprovals('${item.case_number}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium ${caseBlocked ? 'border-red-300 text-red-600 hover:bg-red-50' : 'border-blue-300 text-blue-600 hover:bg-blue-50'}"><i class="fas fa-folder-open"></i>View Case</button>
-            </div>`;
-          })() : ''}
+          ${caseSection}
         </div>
         <div class="text-right ml-6">
           <div class="text-lg font-bold text-gray-800">$${Number(item.amount).toLocaleString()}</div>
-          ${item.status === 'pending' || isAwaitingSecond ? (() => {
-            const cs = item.case_status || 'open';
-            const caseBlocked = item.case_number && !['resolved','closed'].includes(cs);
-            return `<div class="flex gap-2 mt-2">
-              <button onclick="hitlAction('approve','${item.id}')" ${caseBlocked ? 'disabled title="Resolve compliance case first"' : ''} class="px-3 py-1 rounded text-white text-xs ${caseBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500'}">${isAwaitingSecond ? '<i class=\'fas fa-check-double mr-1\'></i>2nd Approve' : 'Approve'}</button>
-              <button onclick="hitlAction('reject','${item.id}')" ${caseBlocked ? 'disabled title="Resolve compliance case first"' : ''} class="px-3 py-1 rounded text-white text-xs ${caseBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-500'}">Reject</button>
-            </div>`;
-          })() : `<div class="text-xs text-gray-400 mt-1">${item.reviewed_by || 'Reviewed'}</div>`}
+          ${actionsHtml}
         </div>
       </div>`;
-    }).join('');
+    }
+
+    // ── Pending section ───────────────────────────────────────────────────────
+    if (pending.length === 0) {
+      pendingContainer.innerHTML = '<div class="text-sm text-gray-400 italic py-3 px-4 bg-gray-50 rounded-lg border border-dashed border-gray-200">No payments are currently awaiting approval.</div>';
+    } else {
+      pendingContainer.innerHTML = pending.map(item => renderCard(item, true)).join('');
+    }
+
+    // ── Approved section ──────────────────────────────────────────────────────
+    const approvedAndRejected = [...approved, ...rejected].sort((a,b) =>
+      (b.reviewed_at || b.created_at || '').localeCompare(a.reviewed_at || a.created_at || ''));
+
+    if (approvedAndRejected.length === 0) {
+      approvedContainer.innerHTML = '<div class="text-sm text-gray-400 italic py-3 px-4 bg-gray-50 rounded-lg border border-dashed border-gray-200">No completed approvals yet.</div>';
+    } else {
+      approvedContainer.innerHTML = approvedAndRejected.map(item => renderCard(item, false)).join('');
+    }
+
   } catch(e) {
-    container.innerHTML = '<div class="text-sm text-red-400">Failed to load approvals.</div>';
+    pendingContainer.innerHTML  = '<div class="text-sm text-red-400">Failed to load approvals.</div>';
+    approvedContainer.innerHTML = '';
   }
 }
 
