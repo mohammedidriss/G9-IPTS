@@ -77,12 +77,12 @@ _RAW_PASSWORDS = {
     "sara":    "Sara@2026!",
 }
 USERS = {
-    "mohamad":  {"password": _hash_password("Mohamad@2026!"), "role": "admin"},
-    "rohit":    {"password": _hash_password("Rohit@2026!"),   "role": "operator"},
-    "sriram":   {"password": _hash_password("Sriram@2026!"),  "role": "auditor"},
-    "walid":    {"password": _hash_password("Walid@2026!"),   "role": "compliance"},
-    "vibin":    {"password": _hash_password("Vibin@2026!"),   "role": "datascientist"},
-    "sara":     {"password": _hash_password("Sara@2026!"),    "role": "client"},
+    "mohamad":  {"password": _hash_password("Mohamad@2026!"), "role": "admin"},           # CTO & Platform Admin
+    "rohit":    {"password": _hash_password("Rohit@2026!"),   "role": "compliance"},      # Chief Compliance & AML Officer
+    "sriram":   {"password": _hash_password("Sriram@2026!"),  "role": "operator"},        # Head of Payment Operations
+    "walid":    {"password": _hash_password("Walid@2026!"),   "role": "auditor"},         # Internal Auditor & Risk Manager
+    "vibin":    {"password": _hash_password("Vibin@2026!"),   "role": "datascientist"},   # Lead Data Scientist & MLOps
+    "sara":     {"password": _hash_password("Sara@2026!"),    "role": "client"},          # Corporate Treasury Client
 }
 
 # ── Account lockout tracker ──────────────────────────────────────────────────
@@ -116,11 +116,17 @@ _REVOKED_TOKENS: set = set()
 
 # ── Per-user transaction limits (daily, per-transaction) ─────────────────────
 USER_TX_LIMITS = {
+    # Admin / CTO — highest limits for system operations and testing
     "admin":         {"daily": 10_000_000, "per_tx": 5_000_000},
-    "operator":      {"daily": 1_000_000,  "per_tx": 500_000},
+    # Operator (Head of Payment Operations) — high operational limits
+    "operator":      {"daily": 5_000_000,  "per_tx": 2_000_000},
+    # Client (Corporate Treasury) — standard corporate limits
     "client":        {"daily": 1_000_000,  "per_tx": 500_000},
+    # Auditor — read-only, no transaction capability
     "auditor":       {"daily": 0,          "per_tx": 0},
+    # Compliance — no direct payments (reviews/approves only)
     "compliance":    {"daily": 0,          "per_tx": 0},
+    # Data Scientist — no transaction capability
     "datascientist": {"daily": 0,          "per_tx": 0},
 }
 
@@ -359,6 +365,7 @@ RATE_LIMIT_WINDOW = 60
 # Flask App Setup
 # ============================================================
 app = Flask(__name__, template_folder="templates")
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SECRET_KEY'] = APP_SECRET
 
 logging.basicConfig(
@@ -778,8 +785,10 @@ class AML_Risk_Engine:
     def _load_models(self):
         try:
             self.iso_forest   = joblib.load(os.path.join(MODELS_DIR, "isolation_forest.pkl"))
-            self.rf_clf       = joblib.load(os.path.join(MODELS_DIR, "random_forest.pkl"))
-            self.xgb_clf      = joblib.load(os.path.join(MODELS_DIR, "xgboost.pkl"))
+            _rf_raw           = joblib.load(os.path.join(MODELS_DIR, "random_forest.pkl"))
+            self.rf_clf       = _rf_raw['model'] if isinstance(_rf_raw, dict) else _rf_raw
+            _xgb_raw          = joblib.load(os.path.join(MODELS_DIR, "xgboost.pkl"))
+            self.xgb_clf      = _xgb_raw['model'] if isinstance(_xgb_raw, dict) else _xgb_raw
             self.autoencoder  = joblib.load(os.path.join(MODELS_DIR, "autoencoder.pkl"))
             self.ae_threshold = joblib.load(os.path.join(MODELS_DIR, "ae_threshold.pkl"))
             self.models_loaded = True
@@ -910,19 +919,26 @@ class AML_Risk_Engine:
             self._last_shap = None
         scores['ml'] = ml_score
 
-        # === NLP Watchlist (15% weight) ===
+        # === NLP Watchlist + Entity Risk (15% weight) ===
+        # Multi-factor: exact watchlist hit (100), sanctions DB (100),
+        # fuzzy proximity to risky entities (30-80), entity opacity keywords (10-30),
+        # high-risk jurisdiction (20-40)
         nlp_score = 0
+        nlp_reasons = []
         if beneficiary_name:
+            from difflib import SequenceMatcher
             name_lower = beneficiary_name.lower()
-            # Check against watchlist entities
+
+            # 1. Exact watchlist match → 100
             for entity in WATCHLIST_ENTITIES:
                 if entity in name_lower or name_lower in entity:
                     nlp_score = 100
-                    reasons.append(f"Watchlist match: {entity}")
+                    nlp_reasons.append(f"Watchlist match: {entity}")
                     force_composite = max(force_composite or 0, 95)
                     break
-            # Check sanctions DB
-            if nlp_score == 0:
+
+            # 2. Sanctions DB match → 100
+            if nlp_score < 100:
                 try:
                     conn = open_db()
                     c = conn.cursor()
@@ -932,11 +948,58 @@ class AML_Risk_Engine:
                     conn.close()
                     if match:
                         nlp_score = 100
-                        reasons.append(f"Sanctions list match: {match[0]}")
+                        nlp_reasons.append(f"Sanctions list match: {match[0]}")
                         force_composite = max(force_composite or 0, 95)
                 except Exception:
                     pass
-        scores['nlp'] = nlp_score
+
+            # 3. Fuzzy proximity to known risky entities (threshold 0.55) → 30-80
+            if nlp_score < 100:
+                best_ratio = 0.0
+                best_entity = ""
+                for entity in WATCHLIST_ENTITIES:
+                    ratio = SequenceMatcher(None, name_lower, entity).ratio()
+                    if ratio > best_ratio:
+                        best_ratio = ratio
+                        best_entity = entity
+                if best_ratio >= 0.55:
+                    fuzzy_score = int((best_ratio - 0.55) / 0.45 * 80)  # 0→80 range
+                    nlp_score = max(nlp_score, fuzzy_score)
+                    if fuzzy_score >= 20:
+                        nlp_reasons.append(f"Name proximity to risky entity ({best_ratio:.0%}): {best_entity}")
+
+            # 4. Entity opacity keywords → 10-30
+            if nlp_score < 100:
+                OPACITY_KEYWORDS = ["offshore", "haven", "shell", "holding", "anon",
+                                    "phantom", "nominee", "bearer", "corp intl", "unnamed"]
+                opacity_hits = [kw for kw in OPACITY_KEYWORDS if kw in name_lower]
+                if opacity_hits:
+                    opacity_score = min(len(opacity_hits) * 15, 30)
+                    nlp_score = max(nlp_score, opacity_score)
+                    nlp_reasons.append(f"Entity opacity indicators: {', '.join(opacity_hits)}")
+
+            # 5. Destination country risk → 20-40
+            if nlp_score < 100:
+                HIGH_RISK_CR = {"IR": 40, "KP": 40, "RU": 35, "BY": 35, "SY": 40,
+                                "IQ": 35, "AF": 40, "MM": 30, "YE": 35, "VE": 30,
+                                "CU": 30, "ZW": 25, "SD": 35, "LY": 35, "SO": 40}
+                MEDIUM_RISK_CR = {"NG": 20, "PK": 20, "BD": 15, "KH": 20, "LA": 15,
+                                  "PA": 20, "MU": 15, "SC": 15, "BZ": 20, "VU": 20}
+                # Use the country_risk float already computed
+                if country_risk >= 0.9:
+                    cr_score = 40
+                    nlp_reasons.append(f"High-risk destination country ({cr_score})")
+                elif country_risk >= 0.5:
+                    cr_score = 20
+                    nlp_reasons.append(f"Elevated-risk destination country ({cr_score})")
+                else:
+                    cr_score = 0
+                nlp_score = max(nlp_score, cr_score)
+
+            if nlp_reasons:
+                reasons.extend(nlp_reasons)
+
+        scores['nlp'] = min(nlp_score, 100)
 
         # === Graph Risk (15% weight) ===
         graph_score = 0
@@ -989,13 +1052,73 @@ class AML_Risk_Engine:
 # Initialize AML Engine
 aml_engine = AML_Risk_Engine()
 
+def _rebuild_graph_pagerank():
+    """Rebuild PageRank from real DB settlements + synthetic risk cluster.
+    Called on startup (background thread) so graph scores reflect actual data."""
+    try:
+        import networkx as nx
+        G = nx.DiGraph()
+
+        # Load real settlements from DB
+        try:
+            _conn = open_db()
+            _c = _conn.cursor()
+            _c.execute("SELECT sender, receiver, amount, beneficiary_name FROM settlements LIMIT 5000")
+            rows = _c.fetchall()
+            _conn.close()
+            for s_raw, r_raw, amt, bname in rows:
+                s_id = abs(hash(str(s_raw).lower().strip())) % 10000
+                r_id = abs(hash(str(bname or r_raw).lower().strip())) % 10000
+                if s_id != r_id:
+                    w = float(amt) if amt else 1000.0
+                    if G.has_edge(s_id, r_id):
+                        G[s_id][r_id]['weight'] += w
+                    else:
+                        G.add_edge(s_id, r_id, weight=w)
+        except Exception as e:
+            logger.warning(f"Graph DB read: {e}")
+
+        # Add synthetic high-risk cluster so risky entities have elevated PageRank
+        _risky_entities = list(WATCHLIST_ENTITIES) + [
+            "shell company alpha", "offshore haven corp", "phantom bank ltd",
+            "narco laundry inc", "hawala underground services", "arms dealer international"
+        ]
+        _risky_ids = [abs(hash(e)) % 10000 for e in _risky_entities]
+        _hub = abs(hash("global_risk_hub")) % 10000
+        for _rid in _risky_ids:
+            for _ in range(20):
+                G.add_edge(_rid, _hub, weight=float(np.random.lognormal(11, 1.5)))
+                G.add_edge(_hub, _rid, weight=float(np.random.lognormal(11, 1.5)))
+
+        # Add known beneficiaries with moderate connectivity
+        for bname in [b["name"] for b in BENEFICIARIES]:
+            bid = abs(hash(bname.lower().strip())) % 10000
+            for _ in range(np.random.randint(5, 15)):
+                inter = _risky_ids[np.random.randint(0, len(_risky_ids))]
+                G.add_edge(bid, inter, weight=float(np.random.lognormal(10, 1.5)))
+
+        if len(G.nodes()) >= 2:
+            pr = nx.pagerank(G, alpha=0.85, max_iter=200, weight='weight')
+            joblib.dump(pr, os.path.join(MODELS_DIR, "pagerank.pkl"))
+            nodes = [{"id": int(n), "pagerank": float(v)} for n, v in pr.items()]
+            edges = [{"source": int(u), "target": int(v)} for u, v in list(G.edges())[:1000]]
+            with open(os.path.join(MODELS_DIR, "graph_data.json"), "w") as f:
+                json.dump({"nodes": nodes, "edges": edges}, f)
+            # Reload into aml_engine immediately
+            aml_engine.pagerank = pr
+            logger.info(f"PageRank rebuilt: {len(pr)} nodes from {len(rows) if 'rows' in dir() else 0} DB settlements")
+    except Exception as e:
+        logger.error(f"PageRank rebuild error: {e}")
+
+
 # Auto-train models on startup if not yet trained (e.g. fresh cloud deployment)
 def _auto_train_if_needed():
-    """Background thread: trains ML models if pkl files are missing."""
+    """Background thread: trains ML models if pkl files or metrics.json are missing."""
     required = ["isolation_forest.pkl", "random_forest.pkl", "xgboost.pkl",
                 "autoencoder.pkl", "ae_threshold.pkl", "sequence_detector.pkl"]
     missing = [f for f in required if not os.path.exists(os.path.join(MODELS_DIR, f))]
-    if not missing:
+    metrics_missing = not os.path.exists(os.path.join(MODELS_DIR, "metrics.json"))
+    if not missing and not metrics_missing:
         return
     logger.info(f"Auto-training: {len(missing)} model file(s) missing — starting background training")
     try:
@@ -1003,43 +1126,93 @@ def _auto_train_if_needed():
         from sklearn.neural_network import MLPRegressor
         import xgboost as xgb_mod
         import networkx as nx
-
-        np.random.seed(42)
-        N = 15000; N_F = 750; N_N = N - N_F; N_FP = 500; N_CN = N_N - N_FP
-        N_CF = int(N_F * 0.7); N_SF = N_F - N_CF
-
-        def _vel(n, lo, hi): return np.random.randint(lo, hi, n).astype(float)
-
-        def make_rows(n, is_fraud_val, amt_range, risk_range, freq_range):
-            amt = np.random.uniform(*amt_range, n)
-            return {
-                'amount':           amt,
-                'hour':             np.random.randint(0, 24, n),
-                'day_of_week':      np.random.randint(0, 7, n),
-                'freq_7d':          np.random.randint(*freq_range, n),
-                'is_round':         np.random.choice([0, 1], n, p=[0.75, 0.25]),
-                'country_risk':     np.random.uniform(*risk_range, n),
-                'sender_id':        np.random.randint(0, 500, n),
-                'receiver_id':      np.random.randint(0, 500, n),
-                'velocity_1h':      _vel(n, 0, 3 if not is_fraud_val else 8),
-                'velocity_24h':     _vel(n, 0, 15 if not is_fraud_val else 40),
-                'velocity_7d':      _vel(n, 0, 50 if not is_fraud_val else 120),
-                'avg_tx_amount':    amt * np.random.uniform(0.5, 1.5, n),
-                'std_tx_amount':    amt * np.random.uniform(0.0, 0.5, n),
-                'amount_zscore':    np.random.uniform(-1, 2, n) if not is_fraud_val else np.random.uniform(1, 6, n),
-                'unique_receivers': _vel(n, 1, 5 if not is_fraud_val else 15),
-                'is_new_receiver':  np.random.choice([0, 1], n, p=[0.8, 0.2] if not is_fraud_val else [0.4, 0.6]),
-                'is_fraud':         np.full(n, int(is_fraud_val)),
-            }
-
         import pandas as pd
-        rows = [
-            make_rows(N_CN,  False, (100, 500000),   (0.0, 0.4), (1, 20)),
-            make_rows(N_FP,  False, (9000, 600000),  (0.4, 0.9), (10, 35)),
-            make_rows(N_CF,  True,  (9000, 2000000), (0.5, 1.0), (12, 45)),
-            make_rows(N_SF,  True,  (5000, 300000),  (0.2, 0.8), (5, 25)),
-        ]
-        df = pd.concat([pd.DataFrame(r) for r in rows], ignore_index=True).sample(frac=1).reset_index(drop=True)
+
+        # ── Real dataset: UCI/Kaggle Credit Card Fraud (284k rows, 0.17% fraud) ──
+        # Columns: Time, V1-V28 (PCA), Amount, Class
+        # We map them to our 16 FEATS so inference stays compatible.
+        DATASET_URL = "https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv"
+        DATASET_PATH = os.path.join(MODELS_DIR, "creditcard.csv")
+
+        def _load_real_dataset():
+            if not os.path.exists(DATASET_PATH):
+                logger.info("Downloading Credit Card Fraud dataset (~150MB)…")
+                import urllib.request
+                urllib.request.urlretrieve(DATASET_URL, DATASET_PATH)
+                logger.info("Dataset downloaded.")
+            raw = pd.read_csv(DATASET_PATH)
+            # Feature mapping — keep our 16-feature inference interface
+            # Time (seconds elapsed in 2-day window) → hour of day + day index
+            raw['hour']        = ((raw['Time'] % 86400) / 3600).astype(int)
+            raw['day_of_week'] = ((raw['Time'] // 86400) % 7).astype(int)
+            # Amount stays as-is
+            raw['amount']      = raw['Amount']
+            # PCA components as proxies for derived velocity/risk features
+            # V1 correlates strongly with fraud — use as country_risk proxy (normalise to 0-1)
+            v1_min, v1_max = raw['V1'].min(), raw['V1'].max()
+            raw['country_risk'] = 1.0 - (raw['V1'] - v1_min) / (v1_max - v1_min + 1e-9)
+            # V3 magnitude → velocity_1h proxy (fraudsters make bursts)
+            raw['velocity_1h']  = np.clip(np.abs(raw['V3']).values * 1.5, 0, 15)
+            # V4 → velocity_24h proxy
+            raw['velocity_24h'] = np.clip(np.abs(raw['V4']).values * 4, 0, 60)
+            # V10 → velocity_7d proxy
+            raw['velocity_7d']  = np.clip(np.abs(raw['V10']).values * 8, 0, 150)
+            # V2 is strongly correlated with Amount anomaly → amount_zscore proxy
+            raw['amount_zscore'] = raw['V2'].values
+            # V5 → unique_receivers proxy (1-20)
+            raw['unique_receivers'] = np.clip(np.abs(raw['V5']).values * 2 + 1, 1, 20)
+            # V6 → is_new_receiver (threshold at median)
+            med_v6 = raw['V6'].median()
+            raw['is_new_receiver'] = (raw['V6'] < med_v6).astype(int)
+            # freq_7d — derive from amount percentile (higher amounts → higher freq bucket)
+            raw['freq_7d'] = pd.qcut(raw['Amount'], q=30, labels=False, duplicates='drop').fillna(0).astype(int) + 1
+            # is_round — true if amount has no cents
+            raw['is_round'] = (raw['Amount'] % 1.0 == 0).astype(int)
+            # sender_id / receiver_id — use index-based bucketing (no real IDs in dataset)
+            raw['sender_id']   = (raw.index % 500).astype(int)
+            raw['receiver_id'] = ((raw.index + 137) % 500).astype(int)
+            # avg/std tx amount — approximate from Amount and V7/V8 magnitude
+            raw['avg_tx_amount'] = raw['Amount'] * np.clip(np.abs(raw['V7'].values) * 0.3 + 0.7, 0.5, 2.0)
+            raw['std_tx_amount'] = raw['Amount'] * np.clip(np.abs(raw['V8'].values) * 0.15, 0.0, 0.8)
+            raw['is_fraud'] = raw['Class']
+            return raw
+
+        try:
+            df = _load_real_dataset()
+            logger.info(f"Real dataset loaded: {len(df)} rows, {df['is_fraud'].sum()} fraud ({df['is_fraud'].mean()*100:.2f}%)")
+        except Exception as dl_err:
+            logger.warning(f"Dataset download failed ({dl_err}), falling back to synthetic data")
+            df = None
+
+        if df is None:
+            # Fallback: synthetic data with overlapping distributions
+            np.random.seed(42)
+            N = 15000; N_F = 750; N_N = N - N_F; N_FP = 500; N_CN = N_N - N_FP
+            N_CF = int(N_F * 0.7); N_SF = N_F - N_CF
+            def _vel(n, lo, hi): return np.random.randint(lo, hi, n).astype(float)
+            def make_rows(n, is_fraud_val, amt_range, risk_range, freq_range):
+                amt = np.random.uniform(*amt_range, n)
+                noise = lambda base, scale: np.clip(base + np.random.normal(0, scale, n), 0, None)
+                if not is_fraud_val:
+                    vel1h=noise(_vel(n,0,6),0.8); vel24h=noise(_vel(n,0,25),2.0); vel7d=noise(_vel(n,0,80),5.0)
+                    zscore=np.random.uniform(-1.5,3.0,n); n_recv=noise(_vel(n,1,8),0.5)
+                    new_r=np.random.choice([0,1],n,p=[0.75,0.25])
+                else:
+                    vel1h=noise(_vel(n,2,10),1.0); vel24h=noise(_vel(n,8,45),3.0); vel7d=noise(_vel(n,30,130),8.0)
+                    zscore=np.random.uniform(0.5,5.0,n); n_recv=noise(_vel(n,3,18),1.0)
+                    new_r=np.random.choice([0,1],n,p=[0.45,0.55])
+                return {'amount':amt,'hour':np.random.randint(0,24,n),'day_of_week':np.random.randint(0,7,n),
+                        'freq_7d':np.random.randint(*freq_range,n),'is_round':np.random.choice([0,1],n,p=[0.75,0.25]),
+                        'country_risk':np.random.uniform(*risk_range,n),'sender_id':np.random.randint(0,500,n),
+                        'receiver_id':np.random.randint(0,500,n),'velocity_1h':vel1h,'velocity_24h':vel24h,
+                        'velocity_7d':vel7d,'avg_tx_amount':amt*np.random.uniform(0.5,1.5,n),
+                        'std_tx_amount':amt*np.random.uniform(0.0,0.5,n),'amount_zscore':zscore,
+                        'unique_receivers':n_recv,'is_new_receiver':new_r,'is_fraud':np.full(n,int(is_fraud_val))}
+            df = pd.concat([pd.DataFrame(make_rows(N_CN,False,(100,500000),(0.0,0.5),(1,20))),
+                            pd.DataFrame(make_rows(N_FP,False,(9000,600000),(0.3,0.9),(10,35))),
+                            pd.DataFrame(make_rows(N_CF,True,(9000,2000000),(0.4,1.0),(12,45))),
+                            pd.DataFrame(make_rows(N_SF,True,(5000,300000),(0.2,0.8),(5,25)))],
+                           ignore_index=True).sample(frac=1).reset_index(drop=True)
 
         FEATS = ['amount', 'hour', 'day_of_week', 'freq_7d', 'is_round', 'country_risk',
                  'sender_id', 'receiver_id', 'velocity_1h', 'velocity_24h', 'velocity_7d',
@@ -1076,22 +1249,74 @@ def _auto_train_if_needed():
         joblib.dump(thr, os.path.join(MODELS_DIR, "ae_threshold.pkl"))
 
         from sklearn.linear_model import SGDClassifier
+        from sklearn.utils.class_weight import compute_class_weight as _ccw
         SEQ_FEATS_AT = ['velocity_1h', 'velocity_24h', 'velocity_7d', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
         seq_idx_at = [FEATS.index(f) for f in SEQ_FEATS_AT]
-        sd = SGDClassifier(loss='modified_huber', max_iter=1000, class_weight='balanced', random_state=42, n_jobs=-1)
+        # partial_fit doesn't support class_weight='balanced' — compute explicitly
+        _cw = _ccw('balanced', classes=np.array([0, 1]), y=y_tr)
+        sd = SGDClassifier(loss='modified_huber', max_iter=1000,
+                           class_weight={0: float(_cw[0]), 1: float(_cw[1])},
+                           random_state=42, n_jobs=-1)
         for start in range(0, len(X_tr), 500):
             sd.partial_fit(X_tr[start:start+500, :][:, seq_idx_at], y_tr[start:start+500], classes=[0, 1])
         joblib.dump(sd, os.path.join(MODELS_DIR, "sequence_detector.pkl"))
 
-        # Build a small synthetic transaction graph for PageRank
+        # Build transaction graph for PageRank from:
+        # 1. Real DB settlements (hashed sender_username / beneficiary_name IDs)
+        # 2. Augmented with synthetic high-risk cluster so demo shows non-zero scores
         G = nx.DiGraph()
-        n_nodes = 500
-        for _ in range(3000):
-            src = np.random.randint(0, n_nodes)
-            dst = np.random.randint(0, n_nodes)
-            if src != dst:
-                G.add_edge(src, dst, weight=float(np.random.lognormal(9, 1.5)))
-        pr = nx.pagerank(G, alpha=0.85, max_iter=100, weight='weight')
+
+        # Add edges from real DB settlements
+        try:
+            _conn = open_db()
+            _c = _conn.cursor()
+            _c.execute("SELECT sender, receiver, amount, beneficiary_name FROM settlements LIMIT 2000")
+            for row in _c.fetchall():
+                s_raw, r_raw, amt, bname = row
+                # Use same hashing as settlement endpoint
+                s_id = abs(hash(str(s_raw).lower().strip())) % 10000
+                r_id = abs(hash(str(bname or r_raw).lower().strip())) % 10000
+                if s_id != r_id:
+                    w = float(amt) if amt else 1000.0
+                    if G.has_edge(s_id, r_id):
+                        G[s_id][r_id]['weight'] += w
+                    else:
+                        G.add_edge(s_id, r_id, weight=w)
+            _conn.close()
+        except Exception as _ge:
+            logger.warning(f"Graph DB load warning: {_ge}")
+
+        # Seed high-risk synthetic cluster (known risky entity IDs) to ensure
+        # watchlist-adjacent entities have elevated PageRank
+        _risky_entities = WATCHLIST_ENTITIES + [
+            "shell company alpha", "offshore haven corp", "phantom bank ltd",
+            "narco laundry inc", "hawala underground services"
+        ]
+        _risky_ids = [abs(hash(e)) % 10000 for e in _risky_entities]
+        _hub_id = abs(hash("global_risk_hub")) % 10000
+        for _rid in _risky_ids:
+            for _ in range(15):  # 15 synthetic transactions per risky entity
+                G.add_edge(_rid, _hub_id, weight=float(np.random.lognormal(11, 1.5)))
+                G.add_edge(_hub_id, _rid, weight=float(np.random.lognormal(11, 1.5)))
+
+        # Also add known BENEFICIARIES so "Global Trade Corp" gets some PageRank
+        _bene_names = [b["name"] for b in BENEFICIARIES]
+        for i, bname in enumerate(_bene_names):
+            bid = abs(hash(bname.lower().strip())) % 10000
+            # Route through a few synthetic intermediaries
+            for _ in range(np.random.randint(3, 10)):
+                inter = np.random.choice(_risky_ids + [abs(hash(f"node_{j}")) % 10000 for j in range(20)])
+                G.add_edge(bid, inter, weight=float(np.random.lognormal(10, 1.5)))
+
+        if len(G.nodes()) < 2:
+            # Fallback: pure synthetic graph
+            for _ in range(3000):
+                src = np.random.randint(0, 500)
+                dst = np.random.randint(0, 500)
+                if src != dst:
+                    G.add_edge(src, dst, weight=float(np.random.lognormal(9, 1.5)))
+
+        pr = nx.pagerank(G, alpha=0.85, max_iter=200, weight='weight')
         joblib.dump(pr, os.path.join(MODELS_DIR, "pagerank.pkl"))
 
         nodes = [{"id": int(n), "pagerank": float(v)} for n, v in pr.items()]
@@ -1148,9 +1373,11 @@ def _auto_train_if_needed():
     except Exception as e:
         logger.error(f"Auto-training failed: {e}")
 
-if not aml_engine.models_loaded:
-    import threading as _threading
-    _threading.Thread(target=_auto_train_if_needed, daemon=True).start()
+import threading as _threading
+# Always check: models may be loaded but metrics.json / sequence_detector still missing
+_threading.Thread(target=_auto_train_if_needed, daemon=True).start()
+# Always rebuild PageRank from current DB data (fast — no ML training needed)
+_threading.Thread(target=_rebuild_graph_pagerank, daemon=True).start()
 
 # ============================================================
 # Blockchain Manager
@@ -2653,25 +2880,34 @@ def spending_360():
 @app.route("/api/dashboard", methods=["GET"])
 @zero_trust_required
 def dashboard():
+    username = request.user.get("sub", "")
+    role = request.user.get("role", "client")
     conn = open_db()
     c = conn.cursor()
 
-    c.execute("SELECT COUNT(*) FROM settlements")
-    total = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM settlements WHERE status='blocked'")
-    blocked = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM settlements WHERE status='settled'")
-    settled = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM settlements WHERE status='flagged'")
-    flagged = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM hitl_queue WHERE status='pending'")
-    hitl_pending = c.fetchone()[0]
+    privileged = role in ("admin", "compliance", "operator", "auditor")
+
+    if privileged:
+        c.execute("SELECT COUNT(*) FROM settlements"); total = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM settlements WHERE status='blocked'"); blocked = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM settlements WHERE status='settled'"); settled = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM settlements WHERE status='flagged'"); flagged = c.fetchone()[0]
+    else:
+        # Client / datascientist: scope to own transactions
+        c.execute("SELECT COUNT(*) FROM settlements WHERE sender_username=? OR receiver_username=?", (username, username)); total = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM settlements WHERE status='blocked' AND (sender_username=? OR receiver_username=?)", (username, username)); blocked = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM settlements WHERE status='settled' AND (sender_username=? OR receiver_username=?)", (username, username)); settled = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM settlements WHERE status='flagged' AND (sender_username=? OR receiver_username=?)", (username, username)); flagged = c.fetchone()[0]
+
+    # HITL pending — only for approval-capable roles
+    hitl_pending = 0
+    if role in ("admin", "compliance", "operator"):
+        c.execute("SELECT COUNT(*) FROM hitl_queue WHERE status='pending'"); hitl_pending = c.fetchone()[0]
+
     c.execute("SELECT AVG(settlement_time_ms) FROM settlements WHERE settlement_time_ms > 0")
     avg_time = c.fetchone()[0] or 0
-
     conn.close()
 
-    # Get model metrics
     try:
         with open(os.path.join(MODELS_DIR, "metrics.json")) as f:
             model_metrics = json.load(f)
@@ -2695,6 +2931,8 @@ def dashboard():
         "accounts": blockchain.accounts[:5] if blockchain.accounts else [],
         "contracts_deployed": list(blockchain.deployed.keys()),
         "ganache_connected": blockchain.w3.is_connected() if blockchain.w3 else False,
+        "role": role,
+        "scoped_to_user": not privileged,
     })
 
 # --- Settlement ---
@@ -2708,6 +2946,14 @@ def create_settlement():
 
     sender_username = request.user.get("sub", "")
     beneficiary_name = data.get("beneficiary_name", "")
+    # Resolve beneficiary_id → name if beneficiary_name not provided
+    if not beneficiary_name and data.get("beneficiary_id") is not None:
+        try:
+            _bid = int(data["beneficiary_id"]) - 1  # frontend uses 1-based index
+            if 0 <= _bid < len(BENEFICIARIES):
+                beneficiary_name = BENEFICIARIES[_bid]["name"]
+        except Exception:
+            pass
     amount = float(data.get("amount", 0))
     currency = data.get("currency", "USD")
     confirmed = data.get("confirmed", False)
@@ -2817,8 +3063,12 @@ def create_settlement():
     is_round = 1 if amount == int(amount) and amount > 0 else 0
     dest_country = data.get("destination_country", "")
     country_risk = country_risk_score(dest_country) if dest_country else float(data.get("country_risk", np.random.uniform(0, 1)))
-    sender_id = int(data.get("sender_id", np.random.randint(0, 500)))
-    receiver_id = int(data.get("receiver_id", np.random.randint(0, 500)))
+    # Use stable hashed IDs matching graph-rebuild logic (full name, lowercased)
+    _sender_full_name = USER_ACCOUNTS.get(sender_username, {}).get("full_name", sender_username)
+    _sender_key  = _sender_full_name.lower().strip()
+    _bene_key    = beneficiary_name.lower().strip() if beneficiary_name else str(receiver).lower().strip()
+    sender_id    = abs(hash(_sender_key)) % 10000
+    receiver_id  = abs(hash(_bene_key)) % 10000
     freq = int(data.get("freq_7d", np.random.randint(1, 20)))
 
     # AML Risk Scoring
@@ -3002,25 +3252,43 @@ def get_transactions():
     page = int(request.args.get("page", 1))
     per_page = int(request.args.get("per_page", 20))
     offset = (page - 1) * per_page
+    username = request.user.get("sub", "")
+    role = request.user.get("role", "client")
 
     conn = open_db()
     c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM settlements")
-    total = c.fetchone()[0]
-    c.execute(
-        "SELECT * FROM settlements ORDER BY created_at DESC LIMIT ? OFFSET ?",
-        (per_page, offset)
-    )
+
+    # Data isolation: clients and datascientists only see their own transactions
+    privileged_roles = ("admin", "compliance", "operator", "auditor")
+    if role in privileged_roles:
+        # Full visibility for operational/oversight roles
+        c.execute("SELECT COUNT(*) FROM settlements")
+        total = c.fetchone()[0]
+        c.execute(
+            "SELECT * FROM settlements ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (per_page, offset)
+        )
+    else:
+        # Clients and data scientists: own transactions only
+        c.execute(
+            "SELECT COUNT(*) FROM settlements WHERE sender_username=? OR receiver_username=?",
+            (username, username)
+        )
+        total = c.fetchone()[0]
+        c.execute(
+            "SELECT * FROM settlements WHERE sender_username=? OR receiver_username=? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (username, username, per_page, offset)
+        )
     rows = c.fetchall()
     conn.close()
 
     transactions = []
     for row in rows:
         transactions.append({
-            "id": row[0], "sender": row[1], "receiver": row[2],
-            "amount": row[3], "currency": row[4], "risk_score": row[5],
-            "status": row[6], "tx_hash": row[7], "iso20022_hash": row[8],
-            "beneficiary_name": row[9], "created_at": row[10],
+            "id": row[0], "sender": row[1], "sender_username": row[1], "receiver": row[2],
+            "receiver_username": row[2], "amount": row[3], "currency": row[4],
+            "risk_score": row[5], "status": row[6], "tx_hash": row[7],
+            "iso20022_hash": row[8], "beneficiary_name": row[9], "created_at": row[10],
             "settlement_time_ms": row[11]
         })
 
@@ -3072,7 +3340,7 @@ def refund_settlement(settlement_id):
 @app.route("/api/hitl/queue", methods=["GET"])
 @zero_trust_required
 def hitl_queue():
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
     conn = open_db()
     c = conn.cursor()
@@ -3111,7 +3379,7 @@ def hitl_queue():
 @app.route("/api/hitl/approve/<hitl_id>", methods=["POST"])
 @zero_trust_required
 def hitl_approve(hitl_id):
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
     conn = open_db()
     # Use IMMEDIATE to lock the database and prevent race conditions
@@ -3300,7 +3568,7 @@ def hitl_approve(hitl_id):
 @app.route("/api/hitl/reject/<hitl_id>", methods=["POST"])
 @zero_trust_required
 def hitl_reject(hitl_id):
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
     conn = open_db()
     c = conn.cursor()
@@ -3348,7 +3616,7 @@ def hitl_reject(hitl_id):
 @app.route("/api/compliance/sanctions", methods=["GET"])
 @zero_trust_required
 def get_sanctions():
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
     conn = open_db()
     c = conn.cursor()
@@ -3362,7 +3630,7 @@ def get_sanctions():
 @app.route("/api/compliance/sanctions", methods=["POST"])
 @zero_trust_required
 def add_sanction():
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
     data = request.get_json(force=True)
     entity_name = data.get("entity_name", "")
@@ -3392,7 +3660,7 @@ def add_sanction():
 @app.route("/api/compliance/swift-gpi/<uetr>", methods=["GET"])
 @zero_trust_required
 def swift_gpi_track(uetr):
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
     conn = open_db()
     c = conn.cursor()
@@ -3415,7 +3683,7 @@ def swift_gpi_track(uetr):
 @app.route("/api/compliance/cases", methods=["GET"])
 @zero_trust_required
 def list_compliance_cases():
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
     status_filter = request.args.get("status", "")
     severity_filter = request.args.get("severity", "")
@@ -3493,7 +3761,7 @@ def list_compliance_cases():
 @app.route("/api/compliance/cases/<case_id>", methods=["GET"])
 @zero_trust_required
 def get_compliance_case(case_id):
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
     conn = open_db()
     conn.row_factory = sqlite3.Row
@@ -3528,7 +3796,7 @@ def get_compliance_case(case_id):
 @app.route("/api/compliance/cases", methods=["POST"])
 @zero_trust_required
 def create_compliance_case():
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
     data = request.get_json(force=True)
     case_id = str(uuid.uuid4())
@@ -3559,7 +3827,7 @@ def create_compliance_case():
 @app.route("/api/compliance/cases/<case_id>", methods=["PUT"])
 @zero_trust_required
 def update_compliance_case(case_id):
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
     data = request.get_json(force=True)
     conn = open_db()
@@ -3612,7 +3880,7 @@ def update_compliance_case(case_id):
 @app.route("/api/compliance/cases/<case_id>/escalate", methods=["POST"])
 @zero_trust_required
 def escalate_compliance_case(case_id):
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
     conn = open_db()
     c = conn.cursor()
@@ -3628,7 +3896,7 @@ def escalate_compliance_case(case_id):
 @app.route("/api/compliance/cases/<case_id>/file-sar", methods=["POST"])
 @zero_trust_required
 def file_sar(case_id):
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
     sar_number = f"SAR-2026-{uuid.uuid4().hex[:8].upper()}"
     conn = open_db()
@@ -3812,40 +4080,71 @@ def retrain_models():
                      'sender_id', 'receiver_id', 'velocity_1h', 'velocity_24h', 'velocity_7d',
                      'avg_tx_amount', 'std_tx_amount', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
 
-            def _make_rows(n, is_fraud_val, amt_range, risk_range, freq_range):
-                amt = np.random.uniform(*amt_range, n)
-                avg = amt * np.random.uniform(0.6, 1.4, n)
-                std = amt * np.random.uniform(0.0, 0.4, n)
-                return {
-                    'amount':           amt,
-                    'hour':             np.random.randint(0, 24, n),
-                    'day_of_week':      np.random.randint(0, 7, n),
-                    'freq_7d':          np.random.randint(*freq_range, n),
-                    'is_round':         np.random.choice([0, 1], n, p=[0.75, 0.25]),
-                    'country_risk':     np.random.uniform(*risk_range, n),
-                    'sender_id':        np.random.randint(0, 500, n),
-                    'receiver_id':      np.random.randint(0, 500, n),
-                    'velocity_1h':      np.random.randint(0, 3 if not is_fraud_val else 8, n).astype(float),
-                    'velocity_24h':     np.random.randint(0, 15 if not is_fraud_val else 40, n).astype(float),
-                    'velocity_7d':      np.random.randint(0, 50 if not is_fraud_val else 120, n).astype(float),
-                    'avg_tx_amount':    avg,
-                    'std_tx_amount':    std,
-                    'amount_zscore':    (amt - avg) / (std + 1e-6),
-                    'unique_receivers': np.random.randint(1, 5 if not is_fraud_val else 15, n).astype(float),
-                    'is_new_receiver':  np.random.choice([0, 1], n,
-                                            p=[0.85, 0.15] if not is_fraud_val else [0.45, 0.55]),
-                    'is_fraud':         np.full(n, int(is_fraud_val)),
-                }
+            # ── Real dataset loader (same mapping as auto-train) ──
+            DATASET_URL  = "https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv"
+            DATASET_PATH = os.path.join(MODELS_DIR, "creditcard.csv")
+            try:
+                if not os.path.exists(DATASET_PATH):
+                    push_sse("retrain", {"status": "progress", "model": "data", "message": "Downloading Credit Card Fraud dataset (~150MB)…"})
+                    import urllib.request
+                    urllib.request.urlretrieve(DATASET_URL, DATASET_PATH)
+                raw = pd.read_csv(DATASET_PATH)
+                raw['hour']           = ((raw['Time'] % 86400) / 3600).astype(int)
+                raw['day_of_week']    = ((raw['Time'] // 86400) % 7).astype(int)
+                raw['amount']         = raw['Amount']
+                v1_min, v1_max        = raw['V1'].min(), raw['V1'].max()
+                raw['country_risk']   = 1.0 - (raw['V1'] - v1_min) / (v1_max - v1_min + 1e-9)
+                raw['velocity_1h']    = np.clip(np.abs(raw['V3'].values) * 1.5, 0, 15)
+                raw['velocity_24h']   = np.clip(np.abs(raw['V4'].values) * 4, 0, 60)
+                raw['velocity_7d']    = np.clip(np.abs(raw['V10'].values) * 8, 0, 150)
+                raw['amount_zscore']  = raw['V2'].values
+                raw['unique_receivers'] = np.clip(np.abs(raw['V5'].values) * 2 + 1, 1, 20)
+                raw['is_new_receiver']  = (raw['V6'] < raw['V6'].median()).astype(int)
+                raw['freq_7d']        = pd.qcut(raw['Amount'], q=30, labels=False, duplicates='drop').fillna(0).astype(int) + 1
+                raw['is_round']       = (raw['Amount'] % 1.0 == 0).astype(int)
+                raw['sender_id']      = (raw.index % 500).astype(int)
+                raw['receiver_id']    = ((raw.index + 137) % 500).astype(int)
+                raw['avg_tx_amount']  = raw['Amount'] * np.clip(np.abs(raw['V7'].values) * 0.3 + 0.7, 0.5, 2.0)
+                raw['std_tx_amount']  = raw['Amount'] * np.clip(np.abs(raw['V8'].values) * 0.15, 0.0, 0.8)
+                raw['is_fraud']       = raw['Class']
+                df_rt = raw.sample(frac=1, random_state=int(time.time()) % 10000).reset_index(drop=True)
+                push_sse("retrain", {"status": "progress", "model": "data",
+                                     "message": f"Dataset loaded: {len(df_rt):,} rows, {df_rt['is_fraud'].sum()} fraud ({df_rt['is_fraud'].mean()*100:.2f}%)"})
+            except Exception as dl_err:
+                logger.warning(f"Dataset load failed ({dl_err}), using synthetic fallback")
+                push_sse("retrain", {"status": "progress", "model": "data", "message": f"Dataset unavailable, using synthetic data"})
+                np.random.seed(int(time.time()) % 10000)
+                N = 15000; N_F = 750; N_N = N - N_F; N_FP = 500; N_CN = N_N - N_FP
+                N_CF = int(N_F * 0.7); N_SF = N_F - N_CF
+                def _mk(n,f,ar,rr,fr):
+                    a=np.random.uniform(*ar,n); ns=lambda b,s:np.clip(b+np.random.normal(0,s,n),0,None)
+                    v=lambda lo,hi:np.random.randint(lo,hi,n).astype(float)
+                    if not f:
+                        return {'amount':a,'hour':np.random.randint(0,24,n),'day_of_week':np.random.randint(0,7,n),
+                                'freq_7d':np.random.randint(*fr,n),'is_round':np.random.choice([0,1],n,p=[0.75,0.25]),
+                                'country_risk':np.random.uniform(*rr,n),'sender_id':np.random.randint(0,500,n),
+                                'receiver_id':np.random.randint(0,500,n),'velocity_1h':ns(v(0,6),0.8),
+                                'velocity_24h':ns(v(0,25),2.0),'velocity_7d':ns(v(0,80),5.0),
+                                'avg_tx_amount':a*np.random.uniform(0.5,1.5,n),'std_tx_amount':a*np.random.uniform(0,0.5,n),
+                                'amount_zscore':np.random.uniform(-1.5,3.0,n),'unique_receivers':ns(v(1,8),0.5),
+                                'is_new_receiver':np.random.choice([0,1],n,p=[0.75,0.25]),'is_fraud':np.zeros(n)}
+                    else:
+                        return {'amount':a,'hour':np.random.randint(0,24,n),'day_of_week':np.random.randint(0,7,n),
+                                'freq_7d':np.random.randint(*fr,n),'is_round':np.random.choice([0,1],n,p=[0.75,0.25]),
+                                'country_risk':np.random.uniform(*rr,n),'sender_id':np.random.randint(0,500,n),
+                                'receiver_id':np.random.randint(0,500,n),'velocity_1h':ns(v(2,10),1.0),
+                                'velocity_24h':ns(v(8,45),3.0),'velocity_7d':ns(v(30,130),8.0),
+                                'avg_tx_amount':a*np.random.uniform(0.5,1.5,n),'std_tx_amount':a*np.random.uniform(0,0.5,n),
+                                'amount_zscore':np.random.uniform(0.5,5.0,n),'unique_receivers':ns(v(3,18),1.0),
+                                'is_new_receiver':np.random.choice([0,1],n,p=[0.45,0.55]),'is_fraud':np.ones(n)}
+                df_rt = pd.concat([pd.DataFrame(_mk(N_CN,False,(100,500000),(0.0,0.5),(1,25))),
+                                   pd.DataFrame(_mk(N_FP,False,(9000,600000),(0.3,0.9),(10,35))),
+                                   pd.DataFrame(_mk(N_CF,True,(9000,2000000),(0.4,1.0),(12,45))),
+                                   pd.DataFrame(_mk(N_SF,True,(5000,300000),(0.2,0.8),(5,25)))],
+                                  ignore_index=True).sample(frac=1).reset_index(drop=True)
 
-            df_rt = pd.concat([
-                pd.DataFrame(_make_rows(N_CN,  False, (100, 500000),   (0.0, 0.4), (1, 25))),
-                pd.DataFrame(_make_rows(N_FP,  False, (9000, 600000),  (0.4, 0.9), (10, 35))),
-                pd.DataFrame(_make_rows(N_CF,  True,  (9000, 2000000), (0.5, 1.0), (12, 45))),
-                pd.DataFrame(_make_rows(N_SF,  True,  (5000, 300000),  (0.2, 0.8), (5, 25))),
-            ], ignore_index=True).sample(frac=1).reset_index(drop=True)
-
-            X_rt = df_rt[FEATS].values
-            y_rt = df_rt['is_fraud'].values
+            X_rt = df_rt[FEATS].values.astype(np.float32)
+            y_rt = df_rt['is_fraud'].values.astype(int)
             X_tr, X_te, y_tr, y_te = tts(X_rt, y_rt, test_size=0.2, stratify=y_rt)
 
             iso = None
@@ -3890,7 +4189,11 @@ def retrain_models():
                 seq_idx = [FEATS.index(f) for f in SEQ_FEATS]
                 X_seq_tr = X_tr[:, seq_idx]
                 X_seq_te = X_te[:, seq_idx]
-                sd = SGDClassifier(loss='modified_huber', max_iter=1000, class_weight='balanced', random_state=42, n_jobs=-1)
+                from sklearn.utils.class_weight import compute_class_weight as _ccw2
+                _cw2 = _ccw2('balanced', classes=np.array([0, 1]), y=y_tr)
+                sd = SGDClassifier(loss='modified_huber', max_iter=1000,
+                                   class_weight={0: float(_cw2[0]), 1: float(_cw2[1])},
+                                   random_state=42, n_jobs=-1)
                 # Simulate sequential/online learning in mini-batches
                 batch = 500
                 for start in range(0, len(X_seq_tr), batch):
@@ -4015,7 +4318,7 @@ def retrain_models():
 @app.route("/api/audit/log", methods=["GET"])
 @zero_trust_required
 def audit_log():
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
     limit = int(request.args.get("limit", 50))
     conn = open_db()
@@ -4032,7 +4335,7 @@ def audit_log():
 @app.route("/api/gdpr/erasure", methods=["POST"])
 @zero_trust_required
 def gdpr_erasure():
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
 
     data = request.get_json(force=True)
@@ -4145,7 +4448,7 @@ def fx_convert():
 @app.route("/api/compliance/sla-status", methods=["GET"])
 @zero_trust_required
 def compliance_sla_status():
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
     conn = open_db()
     c = conn.cursor()
@@ -4384,7 +4687,7 @@ def proof_of_reserve():
 @app.route("/api/compliance/cases/<case_id>/sar-report", methods=["GET"])
 @zero_trust_required
 def sar_auto_report(case_id):
-    if request.user.get("role") not in ("admin", "compliance"):
+    if request.user.get("role") not in ("admin", "compliance", "operator"):
         return jsonify({"error": "Insufficient permissions"}), 403
     conn = open_db()
     conn.row_factory = sqlite3.Row
@@ -4847,6 +5150,291 @@ def refund_escrow(escrow_id):
     conn.close()
     return jsonify({"status": "refunded", "amount": escrow["amount"], "new_balance": round(get_user_balance(username), 2)})
 
+# ============================================================
+# DeFi Admin — Protocol Governance & Management
+# ============================================================
+
+def _init_defi_admin_tables():
+    conn = open_db()
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS defi_protocol_params (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_by TEXT DEFAULT 'system'
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS defi_emergency_status (
+        control TEXT PRIMARY KEY,
+        is_paused INTEGER DEFAULT 0,
+        activated_at TIMESTAMP,
+        activated_by TEXT,
+        reason TEXT
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS governance_proposals (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        category TEXT,
+        params_json TEXT,
+        status TEXT DEFAULT 'active',
+        created_by TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        votes_for INTEGER DEFAULT 0,
+        votes_against INTEGER DEFAULT 0,
+        quorum_required INTEGER DEFAULT 3,
+        executed_at TIMESTAMP,
+        execution_result TEXT
+    )""")
+    # Seed default protocol params if missing
+    defaults = [
+        ("collateral_ratio", "150"),
+        ("debt_ceiling_usd", "10000000"),
+        ("reserve_factor_pct", "10"),
+        ("liquidation_threshold", "130"),
+        ("ltv_max_pct", "75"),
+        ("stability_fee_pct", "2.5"),
+        ("flash_loan_fee_bps", "9"),
+        ("protocol_fee_pct", "0.05"),
+        ("fee_switch_enabled", "false"),
+        ("min_collateral_usd", "1000"),
+    ]
+    for key, val in defaults:
+        c.execute("INSERT OR IGNORE INTO defi_protocol_params (key, value) VALUES (?,?)", (key, val))
+    # Seed default emergency controls
+    controls = ["deposits", "withdrawals", "borrowing", "swaps", "liquidations", "global"]
+    for ctrl in controls:
+        c.execute("INSERT OR IGNORE INTO defi_emergency_status (control, is_paused) VALUES (?,0)", (ctrl,))
+    conn.commit()
+    conn.close()
+
+_init_defi_admin_tables()
+
+@app.route("/api/defi/admin/overview", methods=["GET"])
+@zero_trust_required
+def defi_admin_overview():
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    conn = open_db()
+    c = conn.cursor()
+    # Pool stats
+    c.execute("SELECT pair, reserve_base, reserve_quote, total_volume, swap_count FROM amm_pools")
+    pools = [{"pair": r[0], "reserve_base": round(r[1],2), "reserve_quote": round(r[2],2),
+              "tvl": round(r[1]+r[2],2), "volume": round(r[3],2), "swaps": r[4]} for r in c.fetchall()]
+    total_tvl = sum(p["tvl"] for p in pools)
+    total_vol = sum(p["volume"] for p in pools)
+    # Protocol params
+    c.execute("SELECT key, value FROM defi_protocol_params")
+    params = {r[0]: r[1] for r in c.fetchall()}
+    # Emergency status
+    c.execute("SELECT control, is_paused, activated_at, activated_by, reason FROM defi_emergency_status")
+    emergency = {r[0]: {"paused": bool(r[1]), "at": r[2], "by": r[3], "reason": r[4]} for r in c.fetchall()}
+    # Governance
+    c.execute("SELECT COUNT(*) FROM governance_proposals WHERE status='active'")
+    active_props = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM governance_proposals WHERE status='executed'")
+    executed_props = c.fetchone()[0]
+    # Staking stats
+    c.execute("SELECT COUNT(*), COALESCE(SUM(amount),0) FROM staking_positions WHERE status='active'")
+    sr = c.fetchone(); stake_count, stake_total = sr[0], round(float(sr[1]),2)
+    # Fee accrual (estimate: 0.05% of total swap volume)
+    fee_rate = float(params.get("protocol_fee_pct","0.05"))/100 if params.get("fee_switch_enabled","false")=="true" else 0
+    accrued_fees = round(total_vol * fee_rate, 2)
+    conn.close()
+    return jsonify({
+        "pools": pools, "total_tvl": round(total_tvl,2), "total_volume": round(total_vol,2),
+        "params": params, "emergency": emergency,
+        "governance": {"active": active_props, "executed": executed_props},
+        "staking": {"positions": stake_count, "total_staked": stake_total},
+        "accrued_fees": accrued_fees,
+    })
+
+@app.route("/api/defi/admin/params", methods=["GET", "POST"])
+@zero_trust_required
+def defi_admin_params():
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    conn = open_db(); c = conn.cursor()
+    if request.method == "GET":
+        c.execute("SELECT key, value, updated_at, updated_by FROM defi_protocol_params")
+        params = {r[0]: {"value": r[1], "updated_at": r[2], "updated_by": r[3]} for r in c.fetchall()}
+        conn.close(); return jsonify({"params": params})
+    body = request.get_json() or {}
+    updates = body.get("updates", {})
+    now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+    by = request.user.get("sub", "admin")
+    for key, val in updates.items():
+        c.execute("INSERT INTO defi_protocol_params (key,value,updated_at,updated_by) VALUES (?,?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at, updated_by=excluded.updated_by",
+                  (key, str(val), now, by))
+    conn.commit(); conn.close()
+    return jsonify({"status": "updated", "updated": list(updates.keys()), "updated_by": by, "updated_at": now})
+
+@app.route("/api/defi/admin/pool/<pair>/fee", methods=["POST"])
+@zero_trust_required
+def defi_admin_pool_fee(pair):
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    body = request.get_json() or {}
+    fee_bps = body.get("fee_bps")  # e.g. 30 = 0.30%
+    if fee_bps is None:
+        return jsonify({"error": "fee_bps required"}), 400
+    conn = open_db(); c = conn.cursor()
+    c.execute("SELECT pair FROM amm_pools WHERE pair=?", (pair,))
+    if not c.fetchone():
+        conn.close(); return jsonify({"error": "Pool not found"}), 404
+    # Store per-pool fee override in protocol_params
+    c.execute("INSERT INTO defi_protocol_params (key,value,updated_at,updated_by) VALUES (?,?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at, updated_by=excluded.updated_by",
+              (f"pool_fee_bps_{pair}", str(fee_bps), datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), request.user.get("sub","admin")))
+    conn.commit(); conn.close()
+    return jsonify({"status": "updated", "pair": pair, "fee_bps": fee_bps, "fee_pct": round(fee_bps/100, 4)})
+
+@app.route("/api/defi/admin/pool/<pair>/liquidity", methods=["POST"])
+@zero_trust_required
+def defi_admin_pool_liquidity(pair):
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    body = request.get_json() or {}
+    action = body.get("action", "add")  # add | remove
+    amount_base = float(body.get("amount_base", 0))
+    amount_quote = float(body.get("amount_quote", 0))
+    if amount_base <= 0 or amount_quote <= 0:
+        return jsonify({"error": "Amounts must be > 0"}), 400
+    conn = open_db(); c = conn.cursor()
+    c.execute("SELECT reserve_base, reserve_quote FROM amm_pools WHERE pair=?", (pair,))
+    row = c.fetchone()
+    if not row:
+        conn.close(); return jsonify({"error": "Pool not found"}), 404
+    rb, rq = row
+    if action == "add":
+        nb, nq = rb + amount_base, rq + amount_quote
+    else:
+        nb, nq = max(0, rb - amount_base), max(0, rq - amount_quote)
+    c.execute("UPDATE amm_pools SET reserve_base=?, reserve_quote=?, k_constant=? WHERE pair=?", (round(nb,6), round(nq,6), round(nb*nq,6), pair))
+    conn.commit(); conn.close()
+    return jsonify({"status": action+"ed", "pair": pair, "new_reserve_base": round(nb,2), "new_reserve_quote": round(nq,2), "new_tvl": round(nb+nq,2)})
+
+@app.route("/api/defi/admin/emergency", methods=["GET"])
+@zero_trust_required
+def defi_admin_emergency_get():
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    conn = open_db(); c = conn.cursor()
+    c.execute("SELECT control, is_paused, activated_at, activated_by, reason FROM defi_emergency_status")
+    status = {r[0]: {"paused": bool(r[1]), "at": r[2], "by": r[3], "reason": r[4]} for r in c.fetchall()}
+    conn.close()
+    return jsonify({"emergency": status})
+
+@app.route("/api/defi/admin/emergency/<control>", methods=["POST"])
+@zero_trust_required
+def defi_admin_emergency_toggle(control):
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    valid = ["deposits", "withdrawals", "borrowing", "swaps", "liquidations", "global"]
+    if control not in valid:
+        return jsonify({"error": f"Unknown control. Valid: {valid}"}), 400
+    body = request.get_json() or {}
+    pause = bool(body.get("pause", True))
+    reason = body.get("reason", "Admin action")
+    now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+    by = request.user.get("sub", "admin")
+    conn = open_db(); c = conn.cursor()
+    c.execute("UPDATE defi_emergency_status SET is_paused=?, activated_at=?, activated_by=?, reason=? WHERE control=?",
+              (1 if pause else 0, now if pause else None, by if pause else None, reason if pause else None, control))
+    if control == "global" and pause:
+        for ctrl in valid[:-1]:
+            c.execute("UPDATE defi_emergency_status SET is_paused=1, activated_at=?, activated_by=?, reason=? WHERE control=?", (now, by, "Global pause", ctrl))
+    conn.commit(); conn.close()
+    action = "paused" if pause else "resumed"
+    logger.warning(f"[DEFI EMERGENCY] {control} {action} by {by}: {reason}")
+    return jsonify({"status": action, "control": control, "by": by, "at": now, "reason": reason})
+
+@app.route("/api/defi/governance/proposals", methods=["GET"])
+@zero_trust_required
+def get_governance_proposals():
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    conn = open_db(); c = conn.cursor()
+    c.execute("SELECT id, title, description, category, params_json, status, created_by, created_at, votes_for, votes_against, quorum_required, executed_at, execution_result FROM governance_proposals ORDER BY created_at DESC")
+    rows = c.fetchall()
+    conn.close()
+    proposals = [{"id":r[0],"title":r[1],"description":r[2],"category":r[3],"params":json.loads(r[4] or "{}"),
+                  "status":r[5],"created_by":r[6],"created_at":r[7],"votes_for":r[8],"votes_against":r[9],
+                  "quorum":r[10],"executed_at":r[11],"execution_result":r[12]} for r in rows]
+    return jsonify({"proposals": proposals})
+
+@app.route("/api/defi/governance/proposals", methods=["POST"])
+@zero_trust_required
+def create_governance_proposal():
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    body = request.get_json() or {}
+    title = body.get("title","").strip()
+    if not title:
+        return jsonify({"error": "title required"}), 400
+    pid = str(uuid.uuid4())[:8].upper()
+    conn = open_db(); c = conn.cursor()
+    c.execute("INSERT INTO governance_proposals (id, title, description, category, params_json, status, created_by, quorum_required) VALUES (?,?,?,?,?,?,?,?)",
+              (pid, title, body.get("description",""), body.get("category","general"),
+               json.dumps(body.get("params",{})), "active", request.user.get("sub","admin"),
+               int(body.get("quorum",3))))
+    conn.commit(); conn.close()
+    return jsonify({"status": "created", "proposal_id": pid, "title": title})
+
+@app.route("/api/defi/governance/proposals/<pid>/vote", methods=["POST"])
+@zero_trust_required
+def vote_governance_proposal(pid):
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    body = request.get_json() or {}
+    vote = body.get("vote")  # "for" | "against"
+    if vote not in ("for", "against"):
+        return jsonify({"error": "vote must be 'for' or 'against'"}), 400
+    conn = open_db(); c = conn.cursor()
+    c.execute("SELECT id, status FROM governance_proposals WHERE id=?", (pid,))
+    row = c.fetchone()
+    if not row:
+        conn.close(); return jsonify({"error": "Proposal not found"}), 404
+    if row[1] != "active":
+        conn.close(); return jsonify({"error": f"Proposal is {row[1]}"}), 400
+    if vote == "for":
+        c.execute("UPDATE governance_proposals SET votes_for = votes_for + 1 WHERE id=?", (pid,))
+    else:
+        c.execute("UPDATE governance_proposals SET votes_against = votes_against + 1 WHERE id=?", (pid,))
+    conn.commit(); conn.close()
+    return jsonify({"status": "voted", "vote": vote, "proposal_id": pid})
+
+@app.route("/api/defi/governance/proposals/<pid>/execute", methods=["POST"])
+@zero_trust_required
+def execute_governance_proposal(pid):
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    conn = open_db(); c = conn.cursor()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM governance_proposals WHERE id=?", (pid,))
+    prop = c.fetchone()
+    if not prop:
+        conn.close(); return jsonify({"error": "Proposal not found"}), 404
+    prop = dict(prop)
+    if prop["status"] != "active":
+        conn.close(); return jsonify({"error": f"Proposal is {prop['status']}"}), 400
+    if prop["votes_for"] < prop["quorum_required"]:
+        conn.close(); return jsonify({"error": f"Insufficient votes ({prop['votes_for']}/{prop['quorum_required']} required)"}), 400
+    now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+    params = json.loads(prop.get("params_json") or "{}")
+    result = "Executed successfully"
+    # Apply param changes if proposal includes them
+    if params:
+        conn2 = open_db(); c2 = conn2.cursor()
+        for k, v in params.items():
+            c2.execute("INSERT INTO defi_protocol_params (key,value,updated_at,updated_by) VALUES (?,?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at, updated_by=excluded.updated_by",
+                       (k, str(v), now, f"proposal:{pid}"))
+        conn2.commit(); conn2.close()
+        result = f"Applied {len(params)} parameter change(s)"
+    conn.row_factory = None; c = conn.cursor()
+    c.execute("UPDATE governance_proposals SET status='executed', executed_at=?, execution_result=? WHERE id=?", (now, result, pid))
+    conn.commit(); conn.close()
+    return jsonify({"status": "executed", "proposal_id": pid, "result": result, "params_applied": params})
+
 # --- Support Chat (Ollama LLM) ---
 import threading
 _chat_sessions = {}
@@ -4885,12 +5473,14 @@ HOW TO SEND MONEY (step by step):
 7. If flagged by AI/ML, the payment enters the Approvals queue and an admin must approve it.
 
 ROLES:
-- Admin (mohamad)     — Full access. Can approve/reject transactions, manage users, view all tabs.
-- Operator (rohit)    — Can send payments and approve transactions.
-- Compliance (walid)  — Access to Compliance, Cases, AI/ML, Security tabs.
-- Client (sara)       — Can use Payments, Beneficiaries, Cards, Dashboard, Spending360.
+- Admin / CTO (mohamad)                    — Full access. Manages system, DeFi governance, final approval authority. Daily limit: $10M.
+- Chief Compliance & AML Officer (rohit)   — Reviews flagged transactions, approves HITL queue, manages cases, SAR filing.
+- Head of Payment Operations (sriram)      — Initiates and approves payments, manages beneficiaries. Daily limit: $5M.
+- Internal Auditor & Risk Manager (walid)  — Read-only oversight of compliance, cases, audit logs, security reports.
+- Lead Data Scientist (vibin)              — Manages AI/ML models, MLOps pipeline, model retraining.
+- Corporate Treasury Client (sara)         — Initiates payments, manages beneficiaries and virtual cards. Daily limit: $1M.
 
-DAILY LIMITS: $1,000,000 per day for clients and operators. $10,000,000 for admin.
+DAILY LIMITS: $1,000,000/day for clients. $5,000,000/day for operators. $10,000,000/day for admin.
 
 TRANSACTION APPROVAL RULES:
 - High-risk or large transactions are automatically flagged and routed to the Approvals tab.

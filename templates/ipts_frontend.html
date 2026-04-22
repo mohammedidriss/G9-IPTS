@@ -88,12 +88,12 @@ tailwind.config = {
     <div class="mt-6 pt-4 border-t border-gray-200">
       <p class="text-xs text-gray-400 text-center mb-3">Available Test Accounts</p>
       <table class="w-full text-xs text-gray-500">
-        <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">mohamad</td><td>Mohamad@2026!</td><td class="text-right">Admin</td><td class="text-right text-accent font-semibold">$1,000,000</td></tr>
-        <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">rohit</td><td>Rohit@2026!</td><td class="text-right">Operator</td><td class="text-right text-accent font-semibold">$750,000</td></tr>
-        <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">sriram</td><td>Sriram@2026!</td><td class="text-right">Auditor</td><td class="text-right text-accent font-semibold">$500,000</td></tr>
-        <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">walid</td><td>Walid@2026!</td><td class="text-right">Compliance</td><td class="text-right text-accent font-semibold">$350,000</td></tr>
-        <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">vibin</td><td>Vibin@2026!</td><td class="text-right">Data Scientist</td><td class="text-right text-accent font-semibold">$150,000</td></tr>
-        <tr><td class="py-1 font-mono text-accent">sara</td><td>Sara@2026!</td><td class="text-right">Client</td><td class="text-right text-accent font-semibold">$50,000</td></tr>
+        <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">mohamad</td><td>Mohamad@2026!</td><td class="text-right">Admin</td><td class="text-right text-xs text-gray-400">CTO &amp; Platform Admin</td></tr>
+        <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">rohit</td><td>Rohit@2026!</td><td class="text-right">Compliance</td><td class="text-right text-xs text-gray-400">Chief Compliance Officer</td></tr>
+        <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">sriram</td><td>Sriram@2026!</td><td class="text-right">Operator</td><td class="text-right text-xs text-gray-400">Head of Payment Operations</td></tr>
+        <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">walid</td><td>Walid@2026!</td><td class="text-right">Auditor</td><td class="text-right text-xs text-gray-400">Internal Auditor &amp; Risk Mgr</td></tr>
+        <tr class="border-b border-gray-100"><td class="py-1 font-mono text-accent">vibin</td><td>Vibin@2026!</td><td class="text-right">Data Scientist</td><td class="text-right text-xs text-gray-400">Lead Data Scientist &amp; MLOps</td></tr>
+        <tr><td class="py-1 font-mono text-accent">sara</td><td>Sara@2026!</td><td class="text-right">Client</td><td class="text-right text-xs text-gray-400">Corporate Treasury Client</td></tr>
       </table>
     </div>
     <div class="mt-4 text-center text-xs text-gray-400">
@@ -187,7 +187,7 @@ tailwind.config = {
       <i class="fas fa-credit-card mr-1"></i>Cards
     </button>
     <button onclick="switchTab('defi')" data-tab="defi" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
-      <i class="fas fa-cubes mr-1"></i>DeFi
+      <i class="fas fa-shield-halved mr-1"></i>DeFi Admin
     </button>
     <button onclick="switchTab('admin')" data-tab="admin" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-user-shield mr-1"></i>Admin
@@ -293,8 +293,8 @@ tailwind.config = {
         </div>
       </div>
 
-      <!-- Sub-Accounts Switcher -->
-      <div class="glass rounded-xl p-4 mb-6">
+      <!-- Sub-Accounts Switcher (client/operator only) -->
+      <div id="subAccountsSection" class="glass rounded-xl p-4 mb-6">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2">
             <i class="fas fa-wallet text-accent text-xs"></i>
@@ -1736,12 +1736,239 @@ tailwind.config = {
 
     <!-- DEFI TAB -->
     <div id="tab-defi" class="tab-content hidden fade-in">
-      <!-- DeFi Sub-tabs -->
-      <div class="flex gap-2 mb-4">
-        <button onclick="showDefiSub('swap')" id="defiSubSwap" class="px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-white">Swap (AMM)</button>
-        <button onclick="showDefiSub('stake')" id="defiSubStake" class="px-4 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 hover:text-gray-800">Staking</button>
-        <button onclick="showDefiSub('escrow')" id="defiSubEscrow" class="px-4 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 hover:text-gray-800">Escrow (HTLC)</button>
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-shield-halved mr-2 text-accent"></i>DeFi Admin</h2>
+          <p class="text-xs text-gray-500 mt-0.5">Protocol governance, pool management, emergency controls &amp; treasury</p>
+        </div>
+        <button onclick="loadDefiAdmin()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium hover:bg-gray-200 transition">
+          <i class="fas fa-rotate-right"></i> Refresh
+        </button>
       </div>
+
+      <!-- KPI Row -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+        <div class="glass rounded-xl p-4 border border-white/5">
+          <p class="text-xs text-gray-500 mb-1">Total TVL</p>
+          <p id="defiAdminTVL" class="text-xl font-bold text-gray-800">—</p>
+        </div>
+        <div class="glass rounded-xl p-4 border border-white/5">
+          <p class="text-xs text-gray-500 mb-1">24h Volume</p>
+          <p id="defiAdminVol" class="text-xl font-bold text-gray-800">—</p>
+        </div>
+        <div class="glass rounded-xl p-4 border border-white/5">
+          <p class="text-xs text-gray-500 mb-1">Accrued Fees</p>
+          <p id="defiAdminFees" class="text-xl font-bold text-green-600">—</p>
+        </div>
+        <div class="glass rounded-xl p-4 border border-white/5">
+          <p class="text-xs text-gray-500 mb-1">Active Stakes</p>
+          <p id="defiAdminStakes" class="text-xl font-bold text-gray-800">—</p>
+        </div>
+      </div>
+
+      <!-- Sub-tabs -->
+      <div class="flex flex-wrap gap-2 mb-5" id="defiAdminTabs">
+        <button onclick="showDefiAdminSection('pools')" data-section="pools"
+          class="defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white transition">
+          <i class="fas fa-water mr-1"></i>Pool Management
+        </button>
+        <button onclick="showDefiAdminSection('params')" data-section="params"
+          class="defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+          <i class="fas fa-sliders mr-1"></i>Protocol Parameters
+        </button>
+        <button onclick="showDefiAdminSection('fees')" data-section="fees"
+          class="defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+          <i class="fas fa-percentage mr-1"></i>Fee Management
+        </button>
+        <button onclick="showDefiAdminSection('emergency')" data-section="emergency"
+          class="defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+          <i class="fas fa-triangle-exclamation mr-1"></i>Emergency Controls
+        </button>
+        <button onclick="showDefiAdminSection('governance')" data-section="governance"
+          class="defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+          <i class="fas fa-landmark mr-1"></i>Governance
+        </button>
+      </div>
+
+      <!-- POOL MANAGEMENT -->
+      <div id="defiAdminPools" class="defi-admin-section">
+        <div class="glass rounded-xl p-5 border border-white/5">
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-water mr-2 text-blue-400"></i>Liquidity Pool Management</h3>
+          <div id="defiAdminPoolTable" class="space-y-3">
+            <p class="text-gray-400 text-sm text-center py-4">Loading pools…</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROTOCOL PARAMETERS -->
+      <div id="defiAdminParams" class="defi-admin-section hidden">
+        <div class="glass rounded-xl p-5 border border-white/5">
+          <h3 class="text-sm font-semibold text-gray-800 mb-1"><i class="fas fa-sliders mr-2 text-purple-400"></i>Protocol Parameters</h3>
+          <p class="text-xs text-gray-500 mb-5">Changes are applied immediately and logged to audit trail.</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="defiParamForm">
+            <!-- Populated by JS -->
+          </div>
+          <div class="mt-5 flex items-center gap-3">
+            <button onclick="saveDefiParams()" class="px-5 py-2 rounded-lg bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition">
+              <i class="fas fa-save mr-2"></i>Save Parameters
+            </button>
+            <span id="defiParamMsg" class="text-xs text-gray-500"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- FEE MANAGEMENT -->
+      <div id="defiAdminFeesMgmt" class="defi-admin-section hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Fee Switch -->
+          <div class="glass rounded-xl p-5 border border-white/5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-toggle-on mr-2 text-green-500"></i>Fee Switch</h3>
+            <p class="text-xs text-gray-500 mb-4">When enabled, a protocol fee is deducted from every swap and routed to treasury.</p>
+            <div class="flex items-center justify-between bg-gray-50 rounded-lg p-4">
+              <div>
+                <p class="text-sm font-medium text-gray-800">Protocol Fee Collection</p>
+                <p class="text-xs text-gray-500 mt-0.5" id="feeSwitchStatus">Loading…</p>
+              </div>
+              <button id="feeSwitchBtn" onclick="toggleFeeSwitch()"
+                class="px-4 py-1.5 rounded-lg text-xs font-semibold transition">
+                —
+              </button>
+            </div>
+          </div>
+          <!-- Fee Config -->
+          <div class="glass rounded-xl p-5 border border-white/5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-percentage mr-2 text-orange-400"></i>Fee Configuration</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-gray-500">Protocol Fee % (of swap revenue)</label>
+                <input id="feeProtocolPct" type="number" step="0.01" min="0" max="5"
+                  class="w-full mt-1 px-3 py-2 rounded-lg text-sm" placeholder="0.05">
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">Flash Loan Fee (basis points)</label>
+                <input id="feeFlashLoanBps" type="number" step="1" min="0" max="100"
+                  class="w-full mt-1 px-3 py-2 rounded-lg text-sm" placeholder="9">
+              </div>
+              <button onclick="saveFeeConfig()" class="w-full py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-400 transition">
+                <i class="fas fa-save mr-2"></i>Update Fee Config
+              </button>
+              <div id="feeConfigMsg" class="hidden text-xs rounded px-2 py-1"></div>
+            </div>
+          </div>
+          <!-- Pool Fee Override -->
+          <div class="glass rounded-xl p-5 border border-white/5 md:col-span-2">
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-layer-group mr-2 text-blue-400"></i>Per-Pool Fee Override</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label class="text-xs text-gray-500">Pool Pair</label>
+                <select id="poolFeeSelect" class="w-full mt-1 px-3 py-2 rounded-lg text-sm">
+                  <option value="USD/EUR">USD/EUR</option><option value="USD/GBP">USD/GBP</option>
+                  <option value="USD/JPY">USD/JPY</option><option value="USD/CHF">USD/CHF</option>
+                  <option value="USD/AED">USD/AED</option><option value="USD/ETH">USD/ETH</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">New Fee (basis points, e.g. 30 = 0.30%)</label>
+                <input id="poolFeeBps" type="number" min="1" max="1000" placeholder="30"
+                  class="w-full mt-1 px-3 py-2 rounded-lg text-sm">
+              </div>
+              <div class="flex items-end">
+                <button onclick="updatePoolFee()" class="w-full py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-500 transition">
+                  <i class="fas fa-pen mr-1"></i>Set Fee
+                </button>
+              </div>
+            </div>
+            <div id="poolFeeMsg" class="hidden text-xs rounded px-2 py-1 mt-2"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EMERGENCY CONTROLS -->
+      <div id="defiAdminEmergency" class="defi-admin-section hidden">
+        <div class="glass rounded-xl p-5 border border-red-200 bg-red-50/30 mb-4">
+          <div class="flex items-center gap-2 mb-1">
+            <i class="fas fa-triangle-exclamation text-red-500 text-lg"></i>
+            <h3 class="text-sm font-semibold text-red-700">Emergency Controls</h3>
+          </div>
+          <p class="text-xs text-red-600">These controls immediately halt protocol operations. Actions are logged and auditable. Use only in security incidents or extreme market events.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="emergencyControlGrid">
+          <!-- Populated by JS -->
+        </div>
+        <div class="glass rounded-xl p-5 border border-white/5 mt-4">
+          <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-bolt mr-2 text-yellow-500"></i>Global Circuit Breaker</h3>
+          <p class="text-xs text-gray-500 mb-4">Pauses ALL protocol operations simultaneously. Use for critical security incidents only.</p>
+          <div class="flex gap-3">
+            <button onclick="triggerGlobalPause(true)"
+              class="flex-1 py-2.5 rounded-lg bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition">
+              <i class="fas fa-power-off mr-2"></i>GLOBAL PAUSE
+            </button>
+            <button onclick="triggerGlobalPause(false)"
+              class="flex-1 py-2.5 rounded-lg bg-green-600 text-white font-bold text-sm hover:bg-green-700 transition">
+              <i class="fas fa-play mr-2"></i>RESUME ALL
+            </button>
+          </div>
+          <div class="mt-3">
+            <label class="text-xs text-gray-500">Reason / Incident Reference</label>
+            <input id="emergencyReason" type="text" placeholder="e.g. SEC-2026-01 — oracle manipulation detected"
+              class="w-full mt-1 px-3 py-2 rounded-lg text-sm">
+          </div>
+        </div>
+      </div>
+
+      <!-- GOVERNANCE -->
+      <div id="defiAdminGovernance" class="defi-admin-section hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <!-- Create Proposal -->
+          <div class="lg:col-span-2 glass rounded-xl p-5 border border-white/5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-file-pen mr-2 text-accent"></i>New Proposal</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-gray-500">Title</label>
+                <input id="propTitle" type="text" placeholder="e.g. Reduce stability fee to 2%" class="w-full mt-1 px-3 py-2 rounded-lg text-sm">
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">Category</label>
+                <select id="propCategory" class="w-full mt-1 px-3 py-2 rounded-lg text-sm">
+                  <option value="fee">Fee Change</option>
+                  <option value="param">Parameter Update</option>
+                  <option value="pool">Pool Management</option>
+                  <option value="emergency">Emergency Protocol</option>
+                  <option value="governance">Governance</option>
+                  <option value="general">General</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">Description</label>
+                <textarea id="propDesc" rows="3" placeholder="Describe the proposal and rationale…"
+                  class="w-full mt-1 px-3 py-2 rounded-lg text-sm resize-none"></textarea>
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">Parameter Changes (JSON, optional)</label>
+                <textarea id="propParams" rows="2" placeholder='{"stability_fee_pct": "2.0"}'
+                  class="w-full mt-1 px-3 py-2 rounded-lg text-xs font-mono resize-none"></textarea>
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">Quorum Required</label>
+                <input id="propQuorum" type="number" value="3" min="1" class="w-full mt-1 px-3 py-2 rounded-lg text-sm">
+              </div>
+              <button onclick="submitProposal()" class="w-full py-2.5 rounded-lg bg-accent text-white font-semibold text-sm hover:bg-accent/90 transition">
+                <i class="fas fa-file-pen mr-2"></i>Submit Proposal
+              </button>
+              <div id="propResult" class="hidden text-xs rounded px-2 py-1"></div>
+            </div>
+          </div>
+          <!-- Proposals List -->
+          <div class="lg:col-span-3 glass rounded-xl p-5 border border-white/5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-list-check mr-2 text-purple-400"></i>Proposals</h3>
+            <div id="proposalsList" class="space-y-3">
+              <p class="text-gray-400 text-sm text-center py-4">Loading proposals…</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
 
       <!-- SWAP SUB-TAB -->
       <div id="defiSwap" class="defi-sub">
@@ -2031,19 +2258,32 @@ function updateHeaderInfo() {
   const badge = document.getElementById('headerRoleBadge');
   badge.textContent = ROLE.toUpperCase();
   badge.className = `badge role-badge-${ROLE}`;
-  document.getElementById('headerBalance').textContent = `$${Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  const balEl = document.getElementById('headerBalance');
+  const rolesWithBalance = ['client', 'operator'];
+  if (rolesWithBalance.includes(ROLE)) {
+    balEl.textContent = `$${Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    balEl.parentElement.style.display = '';
+  } else {
+    balEl.textContent = '';
+    balEl.parentElement.style.display = 'none';
+  }
 }
 
 function configureUIForRole() {
   // Tab visibility map: role -> array of tab data-tab values to SHOW
   const tabAccess = {
-    // Admin: full system oversight — no personal payments/beneficiaries/spending
+    // Admin / CTO — full system access, DeFi governance, all oversight
     admin:         ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'security', 'cards', 'defi', 'admin', 'graph', 'mlops'],
-    operator:      ['dashboard', 'payments', 'beneficiaries', 'aiml', 'security', 'cards', 'defi', 'documents', 'spending360'],
-    compliance:    ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'graph', 'admin'],
+    // Head of Payment Operations — initiates payments, approves transactions, manages operations
+    operator:      ['dashboard', 'payments', 'beneficiaries', 'approvals', 'security', 'cards'],
+    // Chief Compliance & AML Officer — HITL approvals, case management, AML, compliance reporting
+    compliance:    ['dashboard', 'approvals', 'compliance', 'cases', 'aiml', 'security', 'graph', 'mlops'],
+    // Corporate Treasury Client — payments, beneficiaries, cards, spending analytics
     client:        ['dashboard', 'payments', 'beneficiaries', 'cards', 'documents', 'spending360', 'security', 'aiml'],
-    auditor:       ['dashboard', 'aiml', 'compliance', 'cases', 'admin', 'graph'],
-    datascientist: ['dashboard', 'aiml', 'compliance', 'cases', 'graph'],
+    // Internal Auditor & Risk Manager — read-only oversight across all risk/compliance areas
+    auditor:       ['dashboard', 'compliance', 'cases', 'security', 'graph', 'admin'],
+    // Lead Data Scientist — AI/ML models, MLOps pipeline, compliance data analysis
+    datascientist: ['dashboard', 'aiml', 'mlops', 'compliance', 'graph'],
   };
 
   const allowed = tabAccess[ROLE] || null;
@@ -2152,10 +2392,8 @@ function showApp() {
   if (ROLE === 'admin') loadCardRequests();
   // Show/hide retrain button based on role
   const retrainSection = document.getElementById('retrainSection');
-  if (ROLE === 'admin' || ROLE === 'datascientist') {
-    retrainSection.style.display = '';
-  } else {
-    retrainSection.style.display = 'none';
+  if (retrainSection) {
+    retrainSection.style.display = (ROLE === 'admin' || ROLE === 'datascientist') ? '' : 'none';
   }
   loadDashboard();
   loadFXRates();
@@ -2166,6 +2404,7 @@ function showApp() {
   setInterval(loadNotifications, 30000);
   connectSSE();
   startSessionTimer();
+  switchTab('dashboard');
 }
 
 // ============================================================
@@ -2201,7 +2440,7 @@ function switchTab(tab) {
   if (tab === 'cards') { loadCards(); if (ROLE === 'admin') loadCardRequests(); }
   if (tab === 'security') { loadKYCStatus(); loadFraudAlerts(); }
   if (tab === 'documents') { loadDocuments(); initStatementMonthPicker(); }
-  if (tab === 'defi') { loadPools(); loadStaking(); loadEscrows(); }
+  if (tab === 'defi') { loadDefiAdmin(); }
 }
 
 // ============================================================
@@ -2250,8 +2489,14 @@ async function loadDashboard() {
     document.getElementById('kpiFlagged').textContent = data.flagged || 0;
     document.getElementById('kpiLiquidity').textContent = '$' + Number(data.nostro_liquidity_usd || 0).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
     ACCOUNTS = data.accounts || [];
+    // My Accounts section only for transactional roles (client, operator)
+    // Admin, Compliance, Auditor, DataScientist are institutional roles — no personal accounts shown
+    const subAccSection = document.getElementById('subAccountsSection');
+    if (subAccSection) {
+      subAccSection.style.display = ['client', 'operator'].includes(ROLE) ? '' : 'none';
+    }
     loadTransactions();
-    loadSubAccounts();
+    if (['client', 'operator'].includes(ROLE)) loadSubAccounts();
     loadLedger();
     loadProofOfReserve();
     loadVolumeChart();
@@ -5693,7 +5938,327 @@ function buildEntityCard(entity, level) {
 }
 
 // ============================================================
-// DeFi — Sub-tab Navigation
+// DeFi Admin — Protocol Governance & Management
+// ============================================================
+let _defiAdminData = null;
+
+function showDefiAdminSection(section) {
+  document.querySelectorAll('.defi-admin-section').forEach(el => el.classList.add('hidden'));
+  const map = { pools:'defiAdminPools', params:'defiAdminParams', fees:'defiAdminFeesMgmt', emergency:'defiAdminEmergency', governance:'defiAdminGovernance' };
+  const el = document.getElementById(map[section]);
+  if (el) el.classList.remove('hidden');
+  document.querySelectorAll('.defi-admin-tab').forEach(btn => {
+    if (btn.dataset.section === section) {
+      btn.className = 'defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white transition';
+    } else {
+      btn.className = 'defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
+    }
+  });
+}
+
+async function loadDefiAdmin() {
+  try {
+    const d = await apiFetch('/api/defi/admin/overview');
+    _defiAdminData = d;
+    // KPIs
+    document.getElementById('defiAdminTVL').textContent = '$' + Number(d.total_tvl).toLocaleString('en-US', {minimumFractionDigits:2});
+    document.getElementById('defiAdminVol').textContent = '$' + Number(d.total_volume).toLocaleString('en-US', {minimumFractionDigits:2});
+    document.getElementById('defiAdminFees').textContent = '$' + Number(d.accrued_fees).toLocaleString('en-US', {minimumFractionDigits:2});
+    document.getElementById('defiAdminStakes').textContent = d.staking.positions + ' ($' + Number(d.staking.total_staked).toLocaleString('en-US', {minimumFractionDigits:0}) + ')';
+    // Render pools
+    renderDefiAdminPools(d.pools);
+    // Render params
+    renderDefiAdminParams(d.params);
+    // Render fee switch
+    renderFeeSwitch(d.params);
+    // Render emergency
+    renderEmergencyControls(d.emergency);
+  } catch(e) { console.error('DeFi Admin load error:', e); }
+  // Load proposals separately
+  loadProposals();
+}
+
+function renderDefiAdminPools(pools) {
+  const el = document.getElementById('defiAdminPoolTable');
+  if (!pools || !pools.length) { el.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">No pools found.</p>'; return; }
+  el.innerHTML = `
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs">
+        <thead><tr class="text-gray-400 border-b border-gray-100">
+          <th class="text-left py-2 font-medium">Pair</th>
+          <th class="text-right py-2 font-medium">Reserve Base</th>
+          <th class="text-right py-2 font-medium">Reserve Quote</th>
+          <th class="text-right py-2 font-medium">TVL</th>
+          <th class="text-right py-2 font-medium">Volume</th>
+          <th class="text-right py-2 font-medium">Swaps</th>
+          <th class="text-center py-2 font-medium">Liquidity</th>
+        </tr></thead>
+        <tbody>
+          ${pools.map(p => `
+            <tr class="border-b border-gray-50 hover:bg-gray-50/50">
+              <td class="py-2 font-mono font-semibold text-accent">${p.pair}</td>
+              <td class="py-2 text-right text-gray-600">${Number(p.reserve_base).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
+              <td class="py-2 text-right text-gray-600">${Number(p.reserve_quote).toLocaleString('en-US', {minimumFractionDigits:4})}</td>
+              <td class="py-2 text-right font-semibold text-gray-800">$${Number(p.tvl).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
+              <td class="py-2 text-right text-gray-600">$${Number(p.volume).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
+              <td class="py-2 text-right text-gray-600">${p.swaps}</td>
+              <td class="py-2 text-center">
+                <button onclick="showLiquidityModal('${p.pair}')" class="px-2 py-1 rounded bg-blue-50 text-blue-600 text-xs hover:bg-blue-100 transition">
+                  <i class="fas fa-plus-minus mr-1"></i>Adjust
+                </button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function showLiquidityModal(pair) {
+  const r = prompt(`Adjust liquidity for ${pair}\nFormat: action,base_amount,quote_amount\nExample: add,50000,45000\nor: remove,10000,9000`);
+  if (!r) return;
+  const parts = r.split(',');
+  if (parts.length !== 3) { alert('Invalid format'); return; }
+  const [action, ab, aq] = parts;
+  apiFetch(`/api/defi/admin/pool/${encodeURIComponent(pair)}/liquidity`, {
+    method: 'POST',
+    body: JSON.stringify({ action: action.trim(), amount_base: parseFloat(ab), amount_quote: parseFloat(aq) })
+  }).then(d => { alert(`✓ ${d.status} — New TVL: $${Number(d.new_tvl).toLocaleString('en-US',{minimumFractionDigits:2})}`); loadDefiAdmin(); })
+    .catch(e => alert('Error: ' + (e.message || e)));
+}
+
+const _paramMeta = {
+  collateral_ratio:       { label: 'Collateral Ratio (%)', hint: 'Min collateral as % of debt. Default: 150%' },
+  debt_ceiling_usd:       { label: 'Debt Ceiling (USD)', hint: 'Max total borrowing protocol-wide' },
+  reserve_factor_pct:     { label: 'Reserve Factor (%)', hint: '% of interest directed to treasury. Default: 10%' },
+  liquidation_threshold:  { label: 'Liquidation Threshold (%)', hint: 'Position liquidated below this collateral %. Default: 130%' },
+  ltv_max_pct:            { label: 'Max LTV (%)', hint: 'Max loan-to-value per collateral unit. Default: 75%' },
+  stability_fee_pct:      { label: 'Stability Fee (% APY)', hint: 'Annual borrowing cost. Default: 2.5%' },
+  min_collateral_usd:     { label: 'Min Collateral (USD)', hint: 'Minimum collateral required to open position' },
+};
+
+function renderDefiAdminParams(params) {
+  const el = document.getElementById('defiParamForm');
+  if (!el) return;
+  el.innerHTML = Object.entries(_paramMeta).map(([key, meta]) => `
+    <div class="bg-gray-50 rounded-lg p-3">
+      <label class="text-xs font-medium text-gray-700">${meta.label}</label>
+      <p class="text-xs text-gray-400 mb-1">${meta.hint}</p>
+      <input id="param_${key}" type="number" step="0.01" value="${params[key] || ''}"
+        class="w-full px-3 py-2 rounded-lg text-sm mt-1">
+    </div>
+  `).join('');
+  // Pre-fill fee inputs
+  const pp = document.getElementById('feeProtocolPct');
+  const pf = document.getElementById('feeFlashLoanBps');
+  if (pp) pp.value = params.protocol_fee_pct || '0.05';
+  if (pf) pf.value = params.flash_loan_fee_bps || '9';
+}
+
+async function saveDefiParams() {
+  const updates = {};
+  Object.keys(_paramMeta).forEach(key => {
+    const el = document.getElementById('param_' + key);
+    if (el && el.value !== '') updates[key] = el.value;
+  });
+  try {
+    await apiFetch('/api/defi/admin/params', { method: 'POST', body: JSON.stringify({ updates }) });
+    const msg = document.getElementById('defiParamMsg');
+    msg.textContent = '✓ Saved at ' + new Date().toLocaleTimeString();
+    msg.className = 'text-xs text-green-600';
+    setTimeout(() => { msg.textContent = ''; }, 4000);
+    loadDefiAdmin();
+  } catch(e) { const msg = document.getElementById('defiParamMsg'); msg.textContent = 'Error: ' + e.message; msg.className = 'text-xs text-red-500'; }
+}
+
+function renderFeeSwitch(params) {
+  const enabled = params.fee_switch_enabled === 'true';
+  const btn = document.getElementById('feeSwitchBtn');
+  const status = document.getElementById('feeSwitchStatus');
+  if (!btn || !status) return;
+  if (enabled) {
+    btn.textContent = 'Disable Fee Collection';
+    btn.className = 'px-4 py-1.5 rounded-lg text-xs font-semibold bg-red-100 text-red-600 hover:bg-red-200 transition';
+    status.textContent = `Enabled — ${params.protocol_fee_pct || '0.05'}% of swap fees → treasury`;
+    status.className = 'text-xs text-green-600 mt-0.5';
+  } else {
+    btn.textContent = 'Enable Fee Collection';
+    btn.className = 'px-4 py-1.5 rounded-lg text-xs font-semibold bg-green-100 text-green-600 hover:bg-green-200 transition';
+    status.textContent = 'Disabled — no protocol fees collected';
+    status.className = 'text-xs text-gray-400 mt-0.5';
+  }
+}
+
+async function toggleFeeSwitch() {
+  const current = _defiAdminData?.params?.fee_switch_enabled === 'true';
+  const newVal = (!current).toString();
+  try {
+    await apiFetch('/api/defi/admin/params', { method: 'POST', body: JSON.stringify({ updates: { fee_switch_enabled: newVal } }) });
+    loadDefiAdmin();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function saveFeeConfig() {
+  const pct = document.getElementById('feeProtocolPct').value;
+  const bps = document.getElementById('feeFlashLoanBps').value;
+  const msg = document.getElementById('feeConfigMsg');
+  try {
+    await apiFetch('/api/defi/admin/params', { method: 'POST', body: JSON.stringify({ updates: { protocol_fee_pct: pct, flash_loan_fee_bps: bps } }) });
+    msg.textContent = '✓ Saved'; msg.className = 'text-xs text-green-600 rounded px-2 py-1'; msg.classList.remove('hidden');
+    setTimeout(() => msg.classList.add('hidden'), 3000);
+    loadDefiAdmin();
+  } catch(e) { msg.textContent = 'Error: ' + e.message; msg.className = 'text-xs text-red-500 rounded px-2 py-1'; msg.classList.remove('hidden'); }
+}
+
+async function updatePoolFee() {
+  const pair = document.getElementById('poolFeeSelect').value;
+  const bps  = parseInt(document.getElementById('poolFeeBps').value);
+  const msg  = document.getElementById('poolFeeMsg');
+  if (!bps || bps < 1) { msg.textContent = 'Enter valid basis points'; msg.className='text-xs text-red-500 rounded px-2 py-1'; msg.classList.remove('hidden'); return; }
+  try {
+    const d = await apiFetch(`/api/defi/admin/pool/${encodeURIComponent(pair)}/fee`, { method: 'POST', body: JSON.stringify({ fee_bps: bps }) });
+    msg.textContent = `✓ ${pair} fee set to ${d.fee_pct}% (${bps} bps)`;
+    msg.className = 'text-xs text-green-600 rounded px-2 py-1'; msg.classList.remove('hidden');
+    setTimeout(() => msg.classList.add('hidden'), 4000);
+  } catch(e) { msg.textContent = 'Error: ' + e.message; msg.className='text-xs text-red-500 rounded px-2 py-1'; msg.classList.remove('hidden'); }
+}
+
+const _controlMeta = {
+  deposits:    { label: 'Deposits',     icon: 'fa-arrow-down-to-line', color: 'blue',   desc: 'Halt new capital inflow to all pools' },
+  withdrawals: { label: 'Withdrawals',  icon: 'fa-arrow-up-from-line', color: 'orange', desc: 'Prevent capital outflow from protocol' },
+  borrowing:   { label: 'Borrowing',    icon: 'fa-hand-holding-dollar', color: 'yellow', desc: 'Stop new loan origination' },
+  swaps:       { label: 'Swaps',        icon: 'fa-exchange-alt',       color: 'purple', desc: 'Pause all DEX swap operations' },
+  liquidations:{ label: 'Liquidations', icon: 'fa-gavel',              color: 'red',    desc: 'Halt liquidation engine (flash crash protection)' },
+};
+
+function renderEmergencyControls(emergency) {
+  const el = document.getElementById('emergencyControlGrid');
+  if (!el) return;
+  el.innerHTML = Object.entries(_controlMeta).map(([ctrl, meta]) => {
+    const state = emergency?.[ctrl] || {};
+    const paused = state.paused;
+    return `
+      <div class="glass rounded-xl p-4 border ${paused ? 'border-red-300 bg-red-50/40' : 'border-white/5'}">
+        <div class="flex items-center gap-2 mb-2">
+          <i class="fas ${meta.icon} text-${meta.color}-500"></i>
+          <span class="text-sm font-semibold text-gray-800">${meta.label}</span>
+          <span class="ml-auto px-2 py-0.5 rounded-full text-xs font-bold ${paused ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">
+            ${paused ? 'PAUSED' : 'ACTIVE'}
+          </span>
+        </div>
+        <p class="text-xs text-gray-500 mb-3">${meta.desc}</p>
+        ${paused ? `<p class="text-xs text-red-500 mb-2">By: ${state.by || '—'} · ${state.reason || ''}</p>` : ''}
+        <button onclick="toggleEmergencyControl('${ctrl}', ${!paused})"
+          class="w-full py-1.5 rounded-lg text-xs font-semibold transition ${paused
+            ? 'bg-green-100 text-green-700 hover:bg-green-200'
+            : 'bg-red-100 text-red-700 hover:bg-red-200'}">
+          <i class="fas ${paused ? 'fa-play' : 'fa-pause'} mr-1"></i>${paused ? 'Resume' : 'Pause'} ${meta.label}
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+async function toggleEmergencyControl(control, pause) {
+  const reason = pause ? (prompt(`Reason for pausing ${control}:`) || 'Admin action') : 'Admin resumed';
+  if (pause && !reason) return;
+  try {
+    await apiFetch(`/api/defi/admin/emergency/${control}`, { method: 'POST', body: JSON.stringify({ pause, reason }) });
+    loadDefiAdmin();
+    showDefiAdminSection('emergency');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function triggerGlobalPause(pause) {
+  const reason = document.getElementById('emergencyReason').value.trim() || (pause ? 'Global circuit breaker activated' : 'Admin resumed all operations');
+  try {
+    await apiFetch('/api/defi/admin/emergency/global', { method: 'POST', body: JSON.stringify({ pause, reason }) });
+    loadDefiAdmin();
+    showDefiAdminSection('emergency');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function loadProposals() {
+  try {
+    const d = await apiFetch('/api/defi/governance/proposals');
+    renderProposals(d.proposals);
+  } catch(e) { console.error('proposals error:', e); }
+}
+
+const _propCategoryColors = { fee:'blue', param:'purple', pool:'cyan', emergency:'red', governance:'orange', general:'gray' };
+function renderProposals(proposals) {
+  const el = document.getElementById('proposalsList');
+  if (!el) return;
+  if (!proposals || !proposals.length) { el.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">No proposals yet.</p>'; return; }
+  el.innerHTML = proposals.map(p => {
+    const col = _propCategoryColors[p.category] || 'gray';
+    const votePct = p.votes_for + p.votes_against > 0 ? Math.round(p.votes_for / (p.votes_for + p.votes_against) * 100) : 0;
+    const quorumMet = p.votes_for >= p.quorum;
+    return `
+      <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <div>
+            <span class="inline-block px-2 py-0.5 rounded text-xs bg-${col}-100 text-${col}-700 font-semibold mb-1">${p.category.toUpperCase()}</span>
+            <p class="text-sm font-semibold text-gray-800">${p.title}</p>
+            ${p.description ? `<p class="text-xs text-gray-500 mt-0.5">${p.description}</p>` : ''}
+          </div>
+          <span class="shrink-0 px-2 py-0.5 rounded-full text-xs font-bold ${p.status==='active'?'bg-blue-100 text-blue-700':p.status==='executed'?'bg-green-100 text-green-700':'bg-gray-100 text-gray-500'}">
+            ${p.status.toUpperCase()}
+          </span>
+        </div>
+        <div class="flex items-center gap-3 mb-3">
+          <div class="flex-1 bg-gray-200 rounded-full h-1.5">
+            <div class="h-1.5 rounded-full bg-accent transition-all" style="width:${votePct}%"></div>
+          </div>
+          <span class="text-xs text-gray-500">${p.votes_for}✓ / ${p.votes_against}✗ (quorum: ${p.quorum})</span>
+        </div>
+        ${p.status === 'active' ? `
+          <div class="flex gap-2">
+            <button onclick="voteProposal('${p.id}','for')" class="flex-1 py-1 rounded-lg bg-green-50 text-green-700 text-xs font-semibold hover:bg-green-100 transition"><i class="fas fa-check mr-1"></i>Vote For</button>
+            <button onclick="voteProposal('${p.id}','against')" class="flex-1 py-1 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition"><i class="fas fa-times mr-1"></i>Vote Against</button>
+            ${quorumMet ? `<button onclick="executeProposal('${p.id}')" class="flex-1 py-1 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent/90 transition"><i class="fas fa-bolt mr-1"></i>Execute</button>` : ''}
+          </div>` : p.execution_result ? `<p class="text-xs text-green-600 mt-1"><i class="fas fa-check-circle mr-1"></i>${p.execution_result}</p>` : ''}
+        <p class="text-xs text-gray-400 mt-2">By ${p.created_by} · ${p.created_at?.slice(0,16) || ''}</p>
+      </div>
+    `;
+  }).join('');
+}
+
+async function submitProposal() {
+  const title = document.getElementById('propTitle').value.trim();
+  if (!title) { alert('Title required'); return; }
+  let params = {};
+  const pRaw = document.getElementById('propParams').value.trim();
+  if (pRaw) { try { params = JSON.parse(pRaw); } catch(e) { alert('Invalid JSON in parameters field'); return; } }
+  const msg = document.getElementById('propResult');
+  try {
+    const d = await apiFetch('/api/defi/governance/proposals', { method: 'POST', body: JSON.stringify({
+      title, description: document.getElementById('propDesc').value, category: document.getElementById('propCategory').value,
+      params, quorum: parseInt(document.getElementById('propQuorum').value) || 3
+    })});
+    msg.textContent = `✓ Proposal ${d.proposal_id} created`; msg.className='text-xs text-green-600 rounded px-2 py-1'; msg.classList.remove('hidden');
+    document.getElementById('propTitle').value = ''; document.getElementById('propDesc').value = ''; document.getElementById('propParams').value = '';
+    loadProposals();
+  } catch(e) { msg.textContent = 'Error: ' + e.message; msg.className='text-xs text-red-500 rounded px-2 py-1'; msg.classList.remove('hidden'); }
+}
+
+async function voteProposal(id, vote) {
+  try {
+    await apiFetch(`/api/defi/governance/proposals/${id}/vote`, { method: 'POST', body: JSON.stringify({ vote }) });
+    loadProposals();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function executeProposal(id) {
+  try {
+    const d = await apiFetch(`/api/defi/governance/proposals/${id}/execute`, { method: 'POST' });
+    alert(`✓ Executed: ${d.result}`); loadProposals(); loadDefiAdmin();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ============================================================
+// DeFi — Sub-tab Navigation (legacy, kept for compatibility)
 // ============================================================
 function showDefiSub(sub) {
   document.querySelectorAll('.defi-sub').forEach(el => el.classList.add('hidden'));
