@@ -260,7 +260,7 @@ class FXEngine:
             if ccy != base:
                 rate = cls.get_rate(base, ccy, include_spread=False)
                 if rate:
-                    rates[f"{base}/{ccy}"] = round(rate, 4)
+                    rates[ccy] = round(rate, 4)
         return rates
 
 fx_engine = FXEngine()
@@ -993,7 +993,7 @@ aml_engine = AML_Risk_Engine()
 def _auto_train_if_needed():
     """Background thread: trains ML models if pkl files are missing."""
     required = ["isolation_forest.pkl", "random_forest.pkl", "xgboost.pkl",
-                "autoencoder.pkl", "ae_threshold.pkl"]
+                "autoencoder.pkl", "ae_threshold.pkl", "sequence_detector.pkl"]
     missing = [f for f in required if not os.path.exists(os.path.join(MODELS_DIR, f))]
     if not missing:
         return
@@ -2954,6 +2954,46 @@ def create_settlement():
         _risk_score = result.get("risk_score", 0)
         push_notification("admin", "Payment Needs Review", f"${amount:,.2f} from {sender_username} — risk score {_risk_score:.0f}", notif_type="warning", link_tab="approvals", is_role=True)
     return jsonify(result)
+
+# --- Ledger (per-user debit/credit view) ---
+@app.route("/api/ledger", methods=["GET"])
+@zero_trust_required
+def get_ledger():
+    username = request.user.get("sub")
+    page = int(request.args.get("page", 1))
+    per_page = int(request.args.get("per_page", 10))
+    offset = (page - 1) * per_page
+    conn = open_db()
+    c = conn.cursor()
+    c.execute(
+        """SELECT id, sender_username, receiver_username, amount, currency,
+                  risk_score, status, tx_hash, beneficiary_name, created_at
+           FROM settlements
+           WHERE sender_username=? OR receiver_username=?
+           ORDER BY created_at DESC LIMIT ? OFFSET ?""",
+        (username, username, per_page, offset)
+    )
+    rows = c.fetchall()
+    c.execute("SELECT balance FROM user_accounts WHERE username=?", (username,))
+    bal_row = c.fetchone()
+    conn.close()
+    balance = float(bal_row[0]) if bal_row else 0.0
+    entries = []
+    for r in rows:
+        is_sender = r[1] == username
+        counterparty = r[8] or r[2] or r[1]   # beneficiary_name → receiver → sender
+        entries.append({
+            "id": r[0],
+            "direction": "debit" if is_sender else "credit",
+            "counterparty": counterparty,
+            "amount": r[3],
+            "currency": r[4],
+            "risk_score": r[5],
+            "status": r[6],
+            "tx_hash": r[7],
+            "created_at": r[9],
+        })
+    return jsonify({"transactions": entries, "balance_current": balance, "page": page, "per_page": per_page})
 
 # --- Transactions ---
 @app.route("/api/transactions", methods=["GET"])
