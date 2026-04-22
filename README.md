@@ -42,20 +42,21 @@ The system integrates:
 - **SHAP Explainability** — Per-transaction explainable AI using TreeExplainer with RF fallback, providing 16-feature contribution breakdowns
 - **Four-Eyes Dual Approval** — Two independent compliance officers required for transactions >= $100K
 - **Multi-Currency FX Engine** — 13 currencies with live rates, FX preview, and AML jurisdiction warnings
-- **Zero Trust Architecture** — JWT-based session management with RBAC and rate limiting
+- **Zero Trust Architecture** — JWT-based session management with RBAC (6 roles) and rate limiting
 - **GDPR-Compliant Data Sovereignty** — Off-chain PII vaulting with on-chain hash anchoring
 - **SLA Tracking** — Severity-based countdown timers (Critical 4h, High 24h, Medium 72h, Low 7d)
 - **Health Monitoring** — 30-second polling of all system components with visual status indicator
-- **Real-Time Dashboard** — SSE-powered live telemetry with 13 functional tabs and Proof of Reserve indicator
+- **Real-Time Dashboard** — SSE-powered live telemetry with 14 functional tabs and Proof of Reserve indicator
 - **Notification Center** — Real-time push notifications via SSE with bell badge and dropdown panel
 - **Support Chat Bot (LLM)** — AI-powered chat using local Ollama/Llama 3.2 with user context injection
 - **Virtual Card Services** — Generate, freeze, cancel, and provision Visa/MC cards to digital wallets
 - **Spending 360 Analytics** — Comprehensive spending reports with charts, trends, and beneficiary rankings
 - **E-KYC Verification** — Animated 3-phase identity verification with confidence scoring
-- **DeFi Hub** — DEX/AMM with constant-product pricing across 6 liquidity pools, 3-tier yield staking (3.5-8.1% APY), and HTLC programmable escrow
+- **DeFi Hub** — DEX/AMM with constant-product pricing across 6 liquidity pools, 3-tier yield staking (3.5–8.1% APY), and HTLC programmable escrow
 - **7 Payment Channels** — Settlement, P2P, ACH/Wire/SEPA, Scheduled, QR Pay, AMM Swap, HTLC Escrow
 - **Fraud Heatmap** — Global risk hotspot visualization with country-level analytics
 - **SAR Auto-Generation** — Automated FinCEN-format Suspicious Activity Reports from compliance cases
+- **MLOps Center** — Admin-only model performance monitoring, per-model interpretability charts, and selective retraining
 - **ML Model Caching** — Models persist to disk; skip training on subsequent startups
 
 ---
@@ -104,13 +105,14 @@ IPTS implements a **7-Layer Convergent Architecture**, where each layer handles 
 |  Multi-Currency Forms, SHAP Charts, SLA Tracking, Health     |
 +-------------------------------------------------------------+
 |  LAYER 2 - Zero Trust Security Perimeter                    |
-|  JWT HS256 Auth, Rate Limiting, RBAC (5 roles)              |
+|  JWT HS256 Auth, Rate Limiting, RBAC (6 roles)              |
 |  Four-Eyes Dual Approval, Security Headers, CORS            |
 +-------------------------------------------------------------+
 |  LAYER 3 - Cognitive Intelligence (AI/ML)                   |
 |  5-Model Ensemble: IF, RF, XGB, AE, Sequence Detector      |
 |  16-Feature Vector, VelocityTracker, SHAP Explainability    |
 |  NLP Watchlist Screening, Graph Centrality Analysis          |
+|  MLOps Center: Per-model interpretability + selective retrain|
 +-------------------------------------------------------------+
 |  LAYER 4 - Compliance & Regulatory Engine                   |
 |  AML/KYC Screening, HITL Triage with SLA, Case Management  |
@@ -121,7 +123,7 @@ IPTS implements a **7-Layer Convergent Architecture**, where each layer handles 
 |  Atomic Swaps, Nostro/Vostro, Multi-Sig, Compliance Oracle  |
 +-------------------------------------------------------------+
 |  LAYER 6 - Data Sovereignty & Privacy                       |
-|  SQLite Off-Chain Vault (17 tables), GDPR Right to Erasure  |
+|  SQLite Off-Chain Vault (26 tables), GDPR Right to Erasure  |
 |  PII Encryption, Keccak256 Hash Anchoring                   |
 |  Four-Eyes Approvals Table, ISO 20022 Payload Separation    |
 +-------------------------------------------------------------+
@@ -156,17 +158,17 @@ Architecture SVG diagrams are available in [`docs/architecture/`](docs/architect
 
 ```mermaid
 flowchart TD
-    L1["🖥️ PRESENTATION LAYER\nTailwind CSS · Chart.js · D3.js · Vanilla JS ES6 · SSE EventSource"]
-    L2["🔌 API GATEWAY LAYER\nFlask 3.0 · PyJWT HS256 · RBAC Middleware · 75+ REST Endpoints · CORS"]
-    L3["🧠 INTELLIGENCE LAYER\nXGBoost · scikit-learn · IsolationForest · SHAP · NetworkX · Ollama llama3.2"]
-    L4["⛓️ BLOCKCHAIN LAYER\nSolidity 0.8 · Ganache · Web3.py 6.15 · py-solc-x · 7 Smart Contracts"]
-    L5["🗄️ PERSISTENCE LAYER\nSQLite 3 · 22 Tables · joblib model cache · Fernet encryption · Pillow"]
+    L1["🖥️ PRESENTATION LAYER\nTailwind CSS · Chart.js · D3.js · Vanilla JS ES6 · SSE EventSource\n14 Role-Based Tabs · MLOps Center · DeFi Hub"]
+    L2["🔌 API GATEWAY LAYER\nFlask 3.0 · PyJWT HS256 · RBAC Middleware (6 roles) · 90+ REST Endpoints · CORS\nSSE Stream · Rate Limiting · Zero Trust @zero_trust_required"]
+    L3["🧠 INTELLIGENCE LAYER\nXGBoost · scikit-learn · IsolationForest · SHAP · NetworkX · Ollama llama3.2\n5-Model Ensemble · SGD Sequence Detector · Per-Model Interpretability Charts\nSelective Retraining · model_insights.json · Auto-Train on Startup"]
+    L4["⛓️ BLOCKCHAIN LAYER\nSolidity 0.8 · Ganache · Web3.py 6.15 · py-solc-x · 7 Smart Contracts\nAMM LiquidityPool · HTLC · ComplianceOracle · MultiSig"]
+    L5["🗄️ PERSISTENCE LAYER\nSQLite 3 · 26 Tables · joblib model cache · Fernet encryption · Pillow\nstaking_positions · escrow_contracts · amm_pools · swap_history"]
 
     L1 <-->|"JWT Bearer Token\nHTTP/SSE"| L2
     L2 <-->|"Python calls"| L3
     L2 <-->|"Python calls"| L4
     L2 <-->|"SQL queries"| L5
-    L3 <-->|"Feature vectors\nSHAP scores"| L5
+    L3 <-->|"Feature vectors\nSHAP scores\nmodel_insights"| L5
     L4 <-->|"tx_hash anchoring"| L5
 
     style L1 fill:#003366,color:#fff,stroke:#0D47A1
@@ -178,7 +180,7 @@ flowchart TD
 
 ---
 
-### 2 · Authentication & Authorization Flow
+### 2 · Authentication & Role-Based Access Flow
 
 ```mermaid
 flowchart TD
@@ -189,19 +191,22 @@ flowchart TD
     E -->|Invalid| F[❌ 401 Unauthorized\nError shown]
     E -->|Valid| G["Generate JWT Token\nPyJWT HS256 · 8h expiry\npayload: username, role"]
     G --> H[Return token + role\n+ balance + full_name]
-    H --> I["Store in JS globals\nTOKEN, ROLE, USERNAME"]
+    H --> I["Store in JS globals\nTOKEN, ROLE, USERNAME\ntabAccess filter applied"]
     I --> J{Role check}
-    J -->|admin| K[13 tabs + admin controls\nAll 75+ endpoints]
-    J -->|supervisor| L[HITL queue visible\nApproval endpoints]
-    J -->|user| M[Standard 11 tabs\nPayments + DeFi]
-    K & L & M --> N["Every request:\nAuthorization: Bearer TOKEN"]
-    N --> O["@require_auth decorator\nFlask RBAC middleware"]
-    O -->|Valid token| P[✅ Endpoint executes]
-    O -->|Expired / tampered| Q[❌ 401 → Force logout]
+    J -->|admin| K["11 tabs: Dashboard · Approvals\nAI/ML · Compliance · Cases\nSecurity · Cards · DeFi\nAdmin · Network · MLOps"]
+    J -->|operator| L["9 tabs: Dashboard · Payments\nBeneficiaries · AI/ML · Security\nCards · DeFi · Documents · Spending360"]
+    J -->|compliance| M["7 tabs: Dashboard · Approvals\nAI/ML · Compliance · Cases\nNetwork · Admin"]
+    J -->|client| N["8 tabs: Dashboard · Payments\nBeneficiaries · Cards · Documents\nSpending360 · Security · AI/ML"]
+    J -->|auditor| O["6 tabs: Dashboard · AI/ML\nCompliance · Cases · Admin · Network"]
+    J -->|datascientist| P["5 tabs: Dashboard · AI/ML\nCompliance · Cases · Network"]
+    K & L & M & N & O & P --> Q["Every request:\nAuthorization: Bearer TOKEN"]
+    Q --> R["@zero_trust_required decorator\nFlask RBAC middleware"]
+    R -->|Valid token| S[✅ Endpoint executes]
+    R -->|Expired / tampered| T[❌ 401 → Force logout]
 
     style A fill:#003366,color:#fff
-    style P fill:#1B5E20,color:#fff
-    style Q fill:#B71C1C,color:#fff
+    style S fill:#1B5E20,color:#fff
+    style T fill:#B71C1C,color:#fff
     style F fill:#B71C1C,color:#fff
 ```
 
@@ -211,27 +216,27 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A([User submits\nSettlement Form]) --> B["POST /api/payments/settle\nFlask — JWT validated"]
+    A([User submits\nSettlement Form]) --> B["POST /api/settlement\nFlask — JWT validated"]
     B --> C[Input validation\nbeneficiary · amount · currency]
-    C --> D["Build 16-Feature Vector\namount · velocity_1h/24h/7d\ncountry_risk · is_round · freq_7d\namount_zscore · unique_receivers"]
-    D --> E["AML_Risk_Engine.score()\n5-model ensemble\nXGBoost + RF + IF +\nAutoencoder + Sequence"]
+    C --> D["Build 16-Feature Vector\namount · velocity_1h/24h/7d\ncountry_risk · is_round · freq_7d\namount_zscore · unique_receivers · is_new_receiver"]
+    D --> E["AML_Risk_Engine.score_transaction()\n5-model ensemble\nXGBoost + RF + IF +\nAutoencoder + Sequence Detector"]
     E --> F["Composite risk_score 0–100\nSHAP values computed\nper-feature contributions"]
     F --> G{Risk Threshold}
-    G -->|score < 30| H[✅ AUTO-APPROVED]
-    G -->|30–70| I[⚠️ HITL REVIEW QUEUE]
-    G -->|score ≥ 70| J[🚫 AUTO-BLOCKED]
+    G -->|score < 60| H[✅ AUTO-APPROVED]
+    G -->|60–79| I[⚠️ FLAGGED — settled\nbut logged for review]
+    G -->|score ≥ 80| J[🚫 BLOCKED → HITL Queue]
     H --> K["Web3.py → Ganache\nIPTS_Settlement.settle()\nAtomic on-chain tx"]
-    I --> L["SQLite: pending_approvals\nstatus = pending\nSSE → supervisors"]
-    J --> M["SQLite: transactions\nstatus = blocked\nCompliance case created"]
-    K -->|tx_hash returned| N["Deduct sender balance\nCredit receiver balance\nInsert audit_trail"]
-    N --> O["SSE push notification\n/api/stream\nReal-time UI update"]
-    L --> O
-    M --> O
+    I --> K
+    J --> L["SQLite: pending_approvals\nstatus = pending\nSSE → compliance officers"]
+    K -->|tx_hash returned| M["Deduct sender balance\nCredit receiver balance\nInsert audit_trail"]
+    M --> N["SSE push notification\n/api/stream\nReal-time UI update"]
+    L --> N
 
     style A fill:#003366,color:#fff
     style H fill:#1B5E20,color:#fff
+    style I fill:#E65100,color:#fff
     style J fill:#B71C1C,color:#fff
-    style N fill:#1B5E20,color:#fff
+    style M fill:#1B5E20,color:#fff
 ```
 
 ---
@@ -242,35 +247,46 @@ flowchart TD
 flowchart LR
     subgraph FE["🔢 16-Feature Vector"]
         direction TB
-        F1["Static: amount · hour · day_of_week\nfreq_7d · is_round · country_risk"]
-        F2["Real-time: velocity_1h/24h/7d\navg_amount · std_amount · z-score\nunique_receivers · is_new_receiver"]
+        F1["Static: amount · hour · day_of_week\nfreq_7d · is_round · country_risk\nsender_id · receiver_id"]
+        F2["Real-time (VelocityTracker):\nvelocity_1h/24h/7d · avg_tx_amount\nstd_tx_amount · amount_zscore\nunique_receivers · is_new_receiver"]
     end
 
     subgraph EN["🤖 5-Model Ensemble"]
         direction TB
-        M1["IsolationForest\nunsupervised anomaly\n100 estimators"]
-        M2["RandomForest\n200 estimators\nSMOTE-balanced"]
-        M3["XGBoost\n300 estimators\nprimary classifier"]
-        M4["Autoencoder\n64-32-16-32-64 MLP\nreconstruction error"]
-        M5["SequenceDetector\nvelocity window\ntemporal patterns"]
+        M1["IsolationForest\nunsupervised anomaly\n100 estimators, contamination=0.05"]
+        M2["RandomForest\n150 estimators, max_depth=12\nclass_weight=balanced"]
+        M3["XGBoost\n200 estimators, max_depth=6\nlr=0.05, scale_pos_weight"]
+        M4["Autoencoder\n64→32→16→32→64 MLP relu\nreconstruction error, 97th pctl threshold"]
+        M5["SequenceDetector\nSGD modified_huber\nonline mini-batch, 6 velocity features"]
     end
 
     subgraph OUT["📊 Output"]
         direction TB
-        O1["Composite Score 0–100\nweighted average"]
-        O2["SHAP Values\nper-feature impact\nTreeExplainer / RF fallback"]
-        O3["Decision\nAPPROVE / REVIEW / BLOCK"]
+        O1["Composite Score 0–100\nweighted ensemble average"]
+        O2["SHAP Values\nTreeExplainer (XGBoost)\nRF feature_importances_ fallback"]
+        O3["Decision\nAPPROVED / FLAGGED / BLOCKED"]
+    end
+
+    subgraph INS["🔬 MLOps Insights"]
+        direction TB
+        I1["RF: Feature Importance (MDI)"]
+        I2["XGB: Feature Importance (Gain)"]
+        I3["IF: Permutation Anomaly Scores"]
+        I4["AE: Per-Feature Recon Error"]
+        I5["SD: SGD Feature Coefficients"]
     end
 
     FE --> EN
     EN --> OUT
+    EN --> INS
 
     style FE fill:#EEF2F7,stroke:#0D47A1
     style EN fill:#EEF2F7,stroke:#0D47A1
     style OUT fill:#E8F5E9,stroke:#2E7D32
+    style INS fill:#FFF8E1,stroke:#F9A825
 ```
 
-**Model persistence:** On startup, `IPTS_deploy.py` checks for 8 saved model files (`*.pkl`). If all exist, training is skipped and models are loaded via `joblib.load()` — cutting startup time from ~90s to ~5s.
+**Model persistence:** On startup, Flask checks for 5 required `.pkl` files. If all exist, training is skipped and models loaded via `joblib.load()` — cutting startup from ~90s to ~5s. If missing, `_auto_train_if_needed()` trains all 5 models in a background thread.
 
 ---
 
@@ -281,27 +297,30 @@ sequenceDiagram
     participant U as 👤 Sender
     participant API as 🔌 Flask API
     participant DB as 🗄️ SQLite
-    participant S1 as 👔 Supervisor 1
-    participant S2 as 👔 Supervisor 2
+    participant C1 as 👔 Compliance Officer 1
+    participant C2 as 👔 Compliance Officer 2
     participant BC as ⛓️ Ganache EVM
 
-    U->>API: POST /api/payments/settle {amount: $850K}
-    API->>API: AML Score = 55 → REVIEW
+    U->>API: POST /api/settlement {amount: $850K}
+    API->>API: AML Score = 82 → BLOCKED
     API->>DB: INSERT pending_approvals status=pending
     API-->>U: {status: "pending", message: "Under review"}
-    Note over S1,S2: SSE event pushed to all supervisors
+    Note over C1,C2: SSE event pushed to all compliance officers
 
-    S1->>API: POST /api/admin/approve/42 {action: approve}
-    API->>DB: UPDATE status=partially_approved, approver1=S1
-    API-->>S1: {status: "partially_approved"}
+    C1->>API: POST /api/hitl/approve/42 {action: approve}
+    API->>DB: UPDATE status=awaiting_second_approval, approver1=C1
+    API-->>C1: {status: "awaiting_second_approval"}
+    Note over C1,C2: Approvals tab shows item under Pending
 
-    S2->>API: POST /api/admin/approve/42 {action: approve}
-    Note over API: Four-eyes: S2 ≠ S1 ≠ Sender ✓
+    C2->>API: POST /api/hitl/approve/42 {action: approve}
+    Note over API: Four-eyes: C2 ≠ C1 ≠ Sender ✓
     API->>BC: Web3.py → IPTS_Settlement.settle()
     BC-->>API: tx_hash = 0xabc...
     API->>DB: INSERT transactions(settled), deduct/credit balances
-    API-->>S2: {status: "approved", tx_hash: "0xabc..."}
-    Note over U: SSE push: "Payment settled ✓" 
+    API->>DB: Move to approved_approvals section
+    API-->>C2: {status: "approved", tx_hash: "0xabc..."}
+    Note over U: SSE push: "Payment settled ✓"
+    Note over C1,C2: Approvals tab moves item to Approved Transactions
 ```
 
 ---
@@ -312,7 +331,7 @@ sequenceDiagram
 flowchart TD
     subgraph SWAP["6a · AMM Swap  x·y = k"]
         A1([User: swap USD→EUR]) --> A2["GET /api/defi/pools\nfetch reserve_a, reserve_b"]
-        A2 --> A3["out = reserve_b × in ÷ reserve_a+in × 0.997\nConstant-product formula\nPrice impact = in ÷ reserve_a × 100"]
+        A2 --> A3["out = reserve_b × in ÷ (reserve_a+in) × 0.997\nConstant-product formula\nPrice impact = in ÷ reserve_a × 100"]
         A3 --> A4{impact > 5%?}
         A4 -->|Yes| A5[⚠️ High impact warning]
         A4 -->|No| A6[Show preview & confirm]
@@ -352,7 +371,7 @@ flowchart TD
     B --> C{On sanctions list?}
     C -->|Yes| D["🚫 BLOCKED\nauto-create compliance case\nalert compliance officer via SSE"]
     C -->|No| E[AML risk score computed]
-    E --> F{Score ≥ 70?}
+    E --> F{Score ≥ 80?}
     F -->|Yes| G["compliance_cases INSERT\nstatus: open · priority: high\nassigned to compliance officer"]
     F -->|No| H[Normal processing]
     D --> G
@@ -362,7 +381,7 @@ flowchart TD
     K --> L["Download JSON attachment\nContent-Disposition: attachment\nCase status: reported"]
 
     subgraph GDPR["GDPR Right to Erasure"]
-        M["POST /api/admin/gdpr/erasure"] --> N["Anonymize PII across\nall 22 SQLite tables\nAdmin role only"]
+        M["POST /api/gdpr/erasure"] --> N["Anonymize PII across\nall 26 SQLite tables\nAdmin role only"]
         N --> O["INSERT audit_trail\nirreversible log entry"]
     end
 
@@ -377,9 +396,9 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A([User types in\nchat widget]) --> B["POST /api/support/chat\n{message, history[]}"]
+    A([User types in\nchat widget]) --> B["POST /api/support/message\n{message, history[]}"]
     B --> C["Inject user context\ninto system prompt:\nname · balance · role\nlast 3 transactions"]
-    C --> D["POST localhost:11434/api/chat\nOllama REST API\nmodel: llama3.2:3b\n3B-parameter local LLM"]
+    C --> D["POST localhost:11434/api/chat\nOllama REST API\nmodel: llama3.2\nlocal LLM — no external API"]
     D --> E{Ollama\nrunning?}
     E -->|Yes| F["LLM generates response\nContext-aware reply\nStreamed tokens"]
     E -->|No| G["Fallback message:\nAI assistant unavailable"]
@@ -401,12 +420,12 @@ flowchart TD
 ```mermaid
 flowchart TD
     subgraph GRAPH["Transaction Network Graph"]
-        A["GET /api/graph/data"] --> B["NetworkX DiGraph\nNodes = entities\nEdges = transactions"]
-        B --> C["Graph metrics:\nbetweenness_centrality()\nclustering_coefficient()\ndegree_centrality()"]
-        C --> D["Flag high-risk nodes:\ncentrality > 0.5\n→ potential hubs / rings"]
-        D --> E["D3.js force-directed render\nnode size ∝ centrality\nred = high risk"]
+        A["GET /api/network/graph"] --> B["NetworkX DiGraph\nNodes = entities (up to 200 by PageRank)\nEdges = transactions (top 500)"]
+        B --> C["Graph metrics:\nPageRank centrality\ncommunity detection\ncycle detection"]
+        C --> D["Flag high-risk nodes:\nhigh PageRank = potential hub\nred = high risk, sized by centrality"]
+        D --> E["D3.js force-directed render\nnode size ∝ PageRank score\ncolor = risk level"]
         E --> F{View mode}
-        F -->|Full Network| G["All entities + edges\ncolor by risk score"]
+        F -->|Full Network| G["All 200 nodes + edges\ncolor by risk score"]
         F -->|Connected Only| H["≥2 connections\nhighlights rings"]
     end
 
@@ -421,7 +440,40 @@ flowchart TD
 
 ---
 
-### 10 · Database Entity Map — 22 Tables
+### 10 · MLOps Center — Model Monitoring & Selective Retraining
+
+```mermaid
+flowchart TD
+    A([Admin opens\nMLOps tab]) --> B["GET /api/models/metrics\n5 model cards:\nAccuracy + F1 + config params"]
+    A --> C["GET /api/models/insights\nPer-model interpretability charts"]
+
+    C --> D{model_insights.json\nexists?}
+    D -->|Yes| E["Serve cached\nmodel_insights.json"]
+    D -->|No| F["Generate on-the-fly\nfrom existing .pkl files\nCache result to disk"]
+    E & F --> G["5 chart types rendered:\nRF → Feature Importance MDI\nXGB → Feature Importance Gain\nIF → Permutation Anomaly Scores\nAE → Per-Feature Recon Error\nSD → SGD Feature Coefficients"]
+
+    A --> H[Admin selects models\nvia checkboxes]
+    H --> I["POST /api/models/retrain\n{models: ['xgboost', 'random_forest']}"]
+    I --> J["Background thread _retrain()\nOnly selected models trained\nSkipped models loaded from disk"]
+
+    J --> K1["isolation_forest.pkl"]
+    J --> K2["random_forest.pkl"]
+    J --> K3["xgboost.pkl"]
+    J --> K4["autoencoder.pkl + ae_threshold.pkl"]
+    J --> K5["sequence_detector.pkl"]
+
+    K1 & K2 & K3 & K4 & K5 --> L["SSE retrain events\n{status: progress, model: ...}\nLive log in Training Log panel"]
+    L --> M["metrics.json updated\nmodel_insights.json regenerated\nfeature_importance.json updated"]
+    M --> N["SSE retrain complete\nUI auto-refreshes\nmodel cards + charts reload"]
+
+    style A fill:#003366,color:#fff
+    style N fill:#1B5E20,color:#fff
+    style F fill:#E65100,color:#fff
+```
+
+---
+
+### 11 · Database Entity Map — 26 Tables
 
 ```mermaid
 erDiagram
@@ -472,6 +524,14 @@ erDiagram
         float reserve_b
         float fee_rate
     }
+    swap_history {
+        int id PK
+        string username FK
+        string pair
+        float amount_in
+        float amount_out
+        datetime created_at
+    }
     compliance_cases {
         int id PK
         string related_tx FK
@@ -489,6 +549,7 @@ erDiagram
     user_accounts ||--o{ pending_approvals : "initiates"
     user_accounts ||--o{ staking_positions : "stakes"
     user_accounts ||--o{ escrow_contracts : "creates"
+    user_accounts ||--o{ swap_history : "swaps"
     user_accounts ||--o{ audit_trail : "logged"
     transactions ||--o| compliance_cases : "triggers"
     pending_approvals ||--|| transactions : "resolves to"
@@ -522,10 +583,18 @@ erDiagram
 - **SHAP Explainability** — Per-transaction TreeExplainer (XGBoost) with RF feature_importances_ fallback
 - **Real-Time Velocity Tracking** — Per-sender sliding windows for 1h/24h/7d volume, average amount, z-score, unique receivers
 - **Real-Time Scoring** — Sub-second risk assessment on every transaction
-- **Automated AML Blocking** — Transactions over $100,000 are automatically flagged for AML review
+- **Automated AML Blocking** — Transactions scoring ≥ 80 are blocked and routed to HITL queue
 - **Watchlist Screening** — NLP-based beneficiary name matching against sanctions databases
 - **Graph Analytics** — PageRank centrality analysis to detect money laundering networks
-- **Model Retraining** — On-demand retraining with fresh synthetic data on all 5 models
+- **Auto-Training** — Models auto-train in background on startup if `.pkl` files are missing
+
+### MLOps Center (Admin only)
+- **5 Model Performance Cards** — Accuracy %, F1 Score %, config parameters, and progress bar per model
+- **Per-Model Interpretability Charts** — Tabbed chart panel with model-appropriate visualization per model
+- **Selective Retraining** — Admin selects which models to retrain via checkboxes; unselected models preserved
+- **Live Training Log** — Terminal-style SSE-powered log showing per-model progress in real time
+- **Refresh Controls** — Independent refresh buttons for performance cards and interpretability charts
+- **On-Demand Insights** — Charts generated from existing `.pkl` files without requiring a retrain
 
 ### Card Services
 - **Virtual Card Generation** — Issue Visa/Mastercard virtual cards with masked numbers, expiry, and hashed CVV
@@ -551,9 +620,10 @@ erDiagram
 
 ### Compliance & Regulation
 - **Four-Eyes Dual Approval** — Transactions >= $100K require two independent compliance officer approvals
+- **Approvals Tab** — Split into **Pending Approvals** (with action buttons) and **Approved Transactions** (history)
 - **Human-in-the-Loop (HITL)** — Blocked transactions routed to compliance officers with four-eyes badges
 - **SLA Tracking** — Severity-based countdown timers (Critical 4h, High 24h, Medium 72h, Low 7d)
-- **Case Management** — Full lifecycle case tracking (open -> investigating -> escalated -> resolved)
+- **Case Management** — Full lifecycle case tracking (open → investigating → escalated → resolved)
 - **SAR Filing** — Suspicious Activity Report generation with case linkage
 - **SAR Auto-Generation** — Automated FinCEN-format SAR report download (JSON) from compliance cases
 - **Sanctions Database** — Maintainable sanctions list with entity screening
@@ -564,7 +634,7 @@ erDiagram
 - **E-KYC Verification** — 3-phase animated verification flow (document upload, AI processing, identity verified) with confidence scoring
 - **Biometric Controls** — Toggles for Face ID, fingerprint authentication, and biometric payment authorization
 - **Fraud Alert Monitoring** — Real-time fraud alert feed with severity levels and acknowledgment controls
-- **Role-Based Access Control (RBAC)** — 5 distinct roles with granular permissions
+- **Role-Based Access Control (RBAC)** — 6 distinct roles with granular tab and endpoint permissions
 - **GDPR Compliance** — Right to erasure, PII vaulting, data minimization
 - **Hash Anchoring** — Only SHA-256 hashes stored on-chain; raw PII stays off-chain
 - **Security Headers** — HSTS, X-Frame-Options, XSS Protection, Content-Type sniffing prevention
@@ -572,17 +642,15 @@ erDiagram
 
 ### Dashboard & UI
 - **Health Monitoring** — /api/health polled every 30 seconds with green/yellow/red status dot
-- **12-Tab Interface** — Dashboard, Payments, AI/ML, Network Graph, Admin, Compliance, Case Management, Beneficiaries, Spending 360, Cards, Security, Documents
+- **Role-Filtered Tab Interface** — Up to 14 tabs depending on role (Admin: 11, Operator: 9, Compliance: 7, Client: 8, Auditor: 6, Data Scientist: 5)
 - **Notification Center** — Real-time notification bell with badge count, dropdown panel, and mark-as-read functionality (SSE-powered)
-- **Support Chat Widget** — Floating AI-powered chat bot with keyword-matching responses for account, payment, and security queries
+- **Support Chat Widget** — Floating AI-powered chat bot powered by local Ollama/llama3.2
 - **Multi-Account Dashboard** — Sub-account cards (Checking, Savings, Business) with balances displayed on the Dashboard
 - **Real-Time Ledger** — Live transaction feed on Dashboard showing debit/credit direction, counterparty, and status
-- **Document Center** — Auto-generated monthly statements with download buttons and date filtering
 - **SHAP Visualization** — Inline feature contributions + horizontal bar chart in AI/ML tab
 - **FX Converter** — Standalone currency conversion tool in Compliance tab
-- **Professional Dark Theme** — Fintech-grade UI with Tailwind CSS
-- **Interactive Charts** — Chart.js for volume analytics, D3.js for network visualization
-- **Risk Visualization** — Color-coded risk scores, breakdown bars, and status indicators
+- **Professional Dark Theme** — Fintech-grade UI with Tailwind CSS glassmorphism design
+- **Interactive Charts** — Chart.js for volume analytics, D3.js for network visualization and fraud heatmap
 
 ---
 
@@ -609,6 +677,16 @@ sudo bash install_redhat.sh --prod
 
 # Production with SSL
 sudo bash install_redhat.sh --prod --domain yourdomain.com
+```
+
+#### Windows
+```powershell
+# Run as Administrator
+Set-ExecutionPolicy Bypass -Scope Process -Force
+.\install_windows.ps1
+
+# With ngrok for public access
+.\install_windows.ps1 -Ngrok "YOUR_NGROK_TOKEN"
 ```
 
 See the full [Installation](#-installation) section for a step-by-step breakdown of what each script does.
@@ -660,7 +738,7 @@ IPTS is made up of **5 components** that must all be running:
 | **Python 3.12 + Flask** | Backend API server — all business logic, ML, endpoints | `pip install -r requirements.txt` |
 | **Ganache** | Local Ethereum blockchain — smart contract execution | `npm install -g ganache` |
 | **Ollama + Llama 3.2** | Local AI model — powers the support chat bot | `brew install ollama` + `ollama pull llama3.2` |
-| **Trained ML models** | Fraud detection `.pkl` files — 7 models, pre-trained | Auto-generated on first run via `run_local.sh` |
+| **Trained ML models** | Fraud detection `.pkl` files — 5 models, auto-trained on first startup | Auto-generated on first run |
 | **SQLite database** | All users, transactions, compliance cases, cards | Auto-created on first run |
 
 ---
@@ -830,10 +908,11 @@ bash run_local.sh
 
 The first run takes **5–10 minutes** and performs these steps automatically:
 1. Creates the SQLite database (`ipts.db`) and seeds all users, accounts, and sample data
-2. Trains and saves all **7 ML models** to `models/` (XGBoost, Random Forest, Isolation Forest, Autoencoder, Sequence Detector, PageRank, SHAP)
-3. Compiles and deploys **7 Solidity smart contracts** to Ganache
-4. Syncs the frontend template to the runtime directory
-5. Starts the Flask API server at `http://127.0.0.1:5001`
+2. Trains and saves all **5 ML models** to `models/` (Isolation Forest, Random Forest, XGBoost, Autoencoder, Sequence Detector) plus PageRank and SHAP data
+3. Generates `metrics.json`, `feature_importance.json`, and `model_insights.json`
+4. Compiles and deploys **7 Solidity smart contracts** to Ganache
+5. Syncs the frontend template to the runtime directory
+6. Starts the Flask API server at `http://127.0.0.1:5001`
 
 **Every subsequent restart** (after the first), use the faster script:
 ```bash
@@ -852,7 +931,7 @@ Log in with any of these accounts:
 
 | Username | Password | Role | Access |
 |---|---|---|---|
-| `mohamad` | `Mohamad@2026!` | Admin | Full system access |
+| `mohamad` | `Mohamad@2026!` | Admin | Full system access + MLOps |
 | `rohit` | `Rohit@2026!` | Operator | Payments, Approvals |
 | `walid` | `Walid@2026!` | Compliance | Cases, AML, Security |
 | `sara` | `Sara@2026!` | Client | Payments, Cards, Dashboard |
@@ -898,10 +977,9 @@ These items should **not** be copied — they are either platform-specific or re
 | Auth | cryptography | 42.0.8 | Encryption utilities |
 | Blockchain | web3 | 6.15.1 | Ethereum interaction |
 | Blockchain | py-solc-x | 2.1.1 | Solidity compiler |
-| ML | scikit-learn | 1.4.2 | Isolation Forest, Random Forest |
+| ML | scikit-learn | 1.4.2 | Isolation Forest, Random Forest, SGD |
 | ML | xgboost | 2.0.3 | Gradient boosting classifier |
 | ML | shap | 0.44.1 | SHAP TreeExplainer |
-| ML | imbalanced-learn | 0.12.3 | SMOTE oversampling |
 | ML | numpy | 1.26.4 | Numerical computing |
 | ML | pandas | 2.2.2 | Data processing |
 | Graph | networkx | 3.2.1 | PageRank, graph analytics |
@@ -941,42 +1019,45 @@ Use this checklist to confirm everything is in place before first launch:
 
 | Username | Password | Role | Balance (USD) | Permissions |
 |----------|----------|------|---------------|-------------|
-| `mohamad` | `Mohamad@2026!` | **Admin** | $1,000,000 | Full access to all features |
-| `rohit` | `Rohit@2026!` | **Operator** | $750,000 | Settlements, Dashboard |
+| `mohamad` | `Mohamad@2026!` | **Admin** | $1,000,000 | Full access including MLOps Center |
+| `rohit` | `Rohit@2026!` | **Operator** | $750,000 | Settlements, Payments, DeFi, Cards |
 | `sriram` | `Sriram@2026!` | **Auditor** | $500,000 | Read-only access to all data |
-| `walid` | `Walid@2026!` | **Compliance** | $350,000 | HITL review, Case management |
+| `walid` | `Walid@2026!` | **Compliance** | $350,000 | HITL review, Case management, Approvals |
 | `vibin` | `Vibin@2026!` | **Data Scientist** | $150,000 | AI/ML metrics, Retraining |
 
 ### Role Permissions Matrix
 
-| Feature | Admin | Operator | Auditor | Compliance | Data Scientist |
-|---------|:-----:|:--------:|:-------:|:----------:|:--------------:|
-| Dashboard | Y | Y | Y | Y | Y |
-| Execute Payments | Y | Y | - | - | - |
-| P2P / ACH / Scheduled / QR | Y | Y | - | - | - |
-| View Transactions | Y | Y | Y | Y | Y |
-| Beneficiary Management | Y | Y | - | - | - |
-| Spending 360 | Y | Y | Y | Y | Y |
-| Virtual Cards | Y | Y | - | - | - |
-| E-KYC / Security | Y | Y | Y | Y | Y |
-| Documents | Y | Y | Y | Y | Y |
-| HITL Approve/Reject | Y | - | - | Y | - |
-| Four-Eyes Approval | Y | - | - | Y | - |
-| Case Management | Y | - | Y | Y | - |
-| Retrain Models | Y | - | - | - | Y |
-| GDPR Erasure | Y | - | - | Y | - |
-| Sanctions Mgmt. | Y | - | - | Y | - |
-| Audit Logs | Y | - | Y | Y | - |
-| FX Converter | Y | Y | Y | Y | Y |
-| Notifications | Y | Y | Y | Y | Y |
-| Support Chat | Y | Y | Y | Y | Y |
+| Feature | Admin | Operator | Auditor | Compliance | Data Scientist | Client |
+|---------|:-----:|:--------:|:-------:|:----------:|:--------------:|:------:|
+| Dashboard | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Execute Payments | ✓ | ✓ | — | — | — | ✓ |
+| P2P / ACH / Scheduled / QR | ✓ | ✓ | — | — | — | ✓ |
+| Beneficiary Management | ✓ | ✓ | — | — | — | ✓ |
+| Spending 360 | ✓ | ✓ | — | — | — | ✓ |
+| Virtual Cards | ✓ | ✓ | — | — | — | ✓ |
+| E-KYC / Security | ✓ | ✓ | ✓ | — | — | ✓ |
+| Documents | — | ✓ | — | — | — | ✓ |
+| Approvals (Pending + Approved) | ✓ | — | — | ✓ | — | — |
+| HITL Approve/Reject | ✓ | — | — | ✓ | — | — |
+| Four-Eyes Approval | ✓ | — | — | ✓ | — | — |
+| Compliance Tab | ✓ | — | ✓ | ✓ | ✓ | — |
+| Case Management | ✓ | — | ✓ | ✓ | ✓ | — |
+| Network Graph | ✓ | — | ✓ | ✓ | ✓ | — |
+| Admin Panel | ✓ | — | ✓ | ✓ | — | — |
+| MLOps Center | ✓ | — | — | — | — | — |
+| Retrain Models | ✓ | — | — | — | ✓ | — |
+| GDPR Erasure | ✓ | — | — | ✓ | — | — |
+| Sanctions Mgmt. | ✓ | — | — | ✓ | — | — |
+| Audit Logs | ✓ | — | ✓ | ✓ | — | — |
+| DeFi Hub | ✓ | ✓ | — | — | — | — |
+| AI/ML Tab | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ---
 
 ## User Guide
 
 ### Tab 1: Dashboard
-- **KPI Cards** — Total Settlements, Blocked, Flagged, Nostro Liquidity
+- **KPI Cards** — Total Settlements, Blocked, Flagged, Nostro Liquidity, Proof of Reserve
 - **My Accounts** — Sub-account cards for Checking, Savings, and Business with live balances
 - **Real-Time Ledger** — Latest 10 transactions with direction (debit/credit), counterparty, and status
 - **FX Rates Ticker** — Live rates for all 13 supported currencies
@@ -992,65 +1073,85 @@ Use this checklist to confirm everything is in place before first launch:
 - **Scheduled Payments** — Create recurring payments (daily/weekly/bi-weekly/monthly) with date picker and description
 - **QR Pay** — Generate QR codes for receiving payments and scan/paste QR data for instant payment
 
-### Tab 3: AI/ML
-- **5 Model Cards** — Isolation Forest, Random Forest, XGBoost, Autoencoder, Sequence Detector
-- **SHAP Explainability Chart** — Horizontal bar chart showing feature impact on risk score
-- **Feature Importance** — Relative contribution of each of the 16 features
-- **Model Retraining** — Admin and Data Scientist roles can trigger on-demand retraining
+### Tab 3: Approvals *(Admin & Compliance only)*
+- **Pending Approvals** — Active items awaiting action with Approve/Reject buttons and four-eyes status badge
+- **Approved Transactions** — Historical record of all approved payments with reviewer names and timestamps
 
-### Tab 4: Network Graph
-- Interactive D3.js force-directed graph with PageRank-sized nodes, color-coded communities, and cycle highlighting
+### Tab 4: AI/ML
+- **5 Model Cards** — Isolation Forest, Random Forest, XGBoost, Autoencoder, Sequence Detector with accuracy and F1
+- **SHAP Explainability Chart** — Horizontal bar chart showing feature impact on the last scored transaction
+- **Feature Importance** — Relative contribution of each of the 16 features (Random Forest)
+- **Risk Score Trend** — 30-day risk score trend chart
+- **Fraud Heatmap** — Global risk visualization with D3.js world SVG
+- **AI-Identified Risk Entities** — Counterparties flagged as high/critical risk by the ensemble
 
-### Tab 5: Admin
+### Tab 5: Network Graph
+- Interactive D3.js force-directed graph with PageRank-sized nodes
+- **Full Network** view and **Connected Nodes** view (≥2 connections)
+- Auto-retries with spinner if models are still training on first load
+
+### Tab 6: Admin *(Admin & Compliance & Auditor)*
 - **HITL Queue** — Four-eyes approval badges (Required/1 of 2/2 of 2), approve/reject controls
 - **Audit Log** — Complete trail of all system actions
 - **GDPR Erasure** — Right to erasure compliance tool
+- **System Overview** — Live service health for Flask, Ganache, Ollama
+- **User Management** — View and manage user accounts *(Admin only)*
 
-### Tab 6: Compliance
+### Tab 7: Compliance *(Admin, Compliance, Auditor, Data Scientist)*
 - **Sanctions Management** — Add/remove entities from screening list
 - **SWIFT GPI Tracking** — Search transactions by UETR
 - **FX Converter** — Multi-currency conversion tool (13 currencies)
 - **Nostro Position** — Current liquidity positions
 
-### Tab 7: Case Management
+### Tab 8: Case Management *(Admin, Compliance, Auditor, Data Scientist)*
 - **SLA Countdown** — Color-coded timers per case (Critical 4h, High 24h, Medium 72h, Low 7d)
 - **Summary Cards** — Open, Investigating, Escalated, Resolved counts
-- **Case Actions** — Investigate, Escalate, Resolve, Assign, Add Findings, File SAR
+- **Case Actions** — Investigate, Escalate, Resolve, Assign, Add Findings, File SAR, Download SAR Report
 - **Case Types** — AML, Sanctions, Fraud, Structuring, PEP, Terrorist Financing
 
-### Tab 8: Beneficiaries
-- **Add Beneficiary** — Form with name, nickname, account number, bank name, SWIFT code, country, currency, type (individual/corporate), and risk level
+### Tab 9: Beneficiaries *(Admin & Operator & Client)*
+- **Add Beneficiary** — Form with name, nickname, account number, bank name, SWIFT code, country, currency, type, and risk level
 - **Beneficiary List** — Searchable table with edit and delete actions
 - **Risk Color Coding** — Visual indicators for low, medium, high, and critical risk beneficiaries
-- **Payment Integration** — Added beneficiaries automatically appear in the Settlement payment dropdown
 
-### Tab 9: Spending 360
+### Tab 10: Spending 360 *(Admin & Operator & Client)*
 - **KPI Summary** — Total Sent, Total Received, Average Risk Score, Highest Transaction, Account Balance
 - **Monthly Spending Trend** — Dual-axis chart (spending amount + transaction count) over time
 - **Risk Distribution** — Bar chart categorizing transactions by risk level
 - **Spending by Currency** — Doughnut chart showing currency distribution
 - **Activity by Hour** — Bar chart revealing transaction patterns by time of day
 - **Top Beneficiaries** — Ranked table with transaction counts, total amounts, avg risk, and risk badges
-- **Recent Transactions** — Complete transaction log with date, beneficiary, amount, risk, and status
 
-### Tab 10: Cards
+### Tab 11: Cards *(Admin & Operator & Client)*
 - **Generate Card** — Issue Visa or Mastercard virtual cards with custom spending limits
 - **Card Gallery** — Visual card tiles with masked numbers, expiry dates, and gradient styling
 - **Card Actions** — Freeze/Unfreeze toggle, Apple/Google/Samsung wallet provisioning, and permanent cancellation
-- **Spending Controls** — Per-card spending limits and merchant category restrictions
 
-### Tab 11: Security
+### Tab 12: Security *(Admin, Operator, Auditor, Client)*
 - **E-KYC Verification** — 3-phase animated flow: document upload, AI verification spinner, identity confirmed with confidence score
 - **Biometric Settings** — Toggle switches for Face ID, fingerprint, and biometric payment authorization
-- **Fraud Alerts** — Real-time feed of fraud alerts with severity levels (critical/high/medium/low) and acknowledge buttons
+- **Fraud Alerts** — Real-time feed of fraud alerts with severity levels and acknowledge buttons
 
-### Tab 12: Documents
-- **Statement List** — Auto-generated monthly account statements with document type and date
-- **Download** — One-click download for any statement
-- **Date Filter** — Filter statements by date range
+### Tab 13: DeFi *(Admin & Operator)*
+- **Swap** — AMM token swap with price impact preview and slippage display
+- **Liquidity Pools** — 6 pools showing reserves, current price, TVL
+- **Staking** — 3-tier yield farming with projected earnings calculator and active positions
+- **Escrow** — HTLC contract creation, claim with pre-image, refund after timelock
+
+### Tab 14: MLOps *(Admin only)*
+- **Model Performance Cards** — 5 cards showing Accuracy %, F1 %, config parameters, and progress bar
+- **Selective Retraining** — Select any combination of the 5 models to retrain; unselected models are preserved
+- **Live Training Log** — Terminal-style log showing per-model progress via SSE in real time
+- **Model Interpretability Charts** — Tabbed panel showing the appropriate chart per model:
+  - Random Forest → Feature Importance (MDI)
+  - XGBoost → Feature Importance (Gain)
+  - Isolation Forest → Anomaly Feature Contribution (permutation)
+  - Autoencoder → Per-Feature Reconstruction Error
+  - Sequence Detector → SGD Feature Coefficients
+- **Refresh Controls** — Independent refresh buttons for performance cards and interpretability charts
 
 ### Floating Widgets
-- **Support Chat** — Expandable chat panel (bottom-right) with AI-powered bot that responds to payment, account, security, and card queries
+- **Support Chat** — Expandable chat panel (bottom-right) with AI-powered bot using local Ollama/llama3.2
 - **Notification Center** — Bell icon with unread count badge, dropdown panel with mark-as-read and mark-all-read actions
 
 ---
@@ -1070,11 +1171,11 @@ All endpoints (except `/api/login`) require JWT authentication via `Authorizatio
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/accounts/me` | Current user's account info and balance |
-| GET | `/api/accounts/beneficiaries` | List available beneficiaries (hardcoded + user-added) |
-| GET | `/api/accounts/sub-accounts` | List user's sub-accounts (Checking, Savings, Business) |
+| GET | `/api/accounts/beneficiaries` | List available beneficiaries |
+| GET | `/api/accounts/sub-accounts` | List user's sub-accounts |
 | POST | `/api/accounts/sub-accounts` | Create a new sub-account |
 | POST | `/api/accounts/transfer-internal` | Transfer funds between sub-accounts |
-| GET | `/api/ledger` | Paginated transaction ledger for current user |
+| GET | `/api/ledger` | Paginated transaction ledger |
 
 ### Beneficiary Management
 
@@ -1092,7 +1193,7 @@ All endpoints (except `/api/login`) require JWT authentication via `Authorizatio
 | POST | `/api/settlement` | Execute settlement (returns shap_values) |
 | GET | `/api/transactions` | List transactions (paginated) |
 | GET | `/api/dashboard` | Real-time dashboard metrics |
-| POST | `/api/p2p/send` | Send P2P transfer (by username/email/phone) |
+| POST | `/api/p2p/send` | Send P2P transfer |
 | GET | `/api/p2p/history` | P2P transfer history |
 | POST | `/api/transfers/external` | ACH/Wire/SEPA external transfer |
 | GET | `/api/payments/scheduled` | List scheduled payments |
@@ -1106,17 +1207,17 @@ All endpoints (except `/api/login`) require JWT authentication via `Authorizatio
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/cards` | List user's virtual cards |
-| POST | `/api/cards/generate` | Generate a new virtual card (Visa/MC) |
-| POST | `/api/cards/<id>/freeze` | Toggle freeze/unfreeze on a card |
+| POST | `/api/cards/generate` | Generate a new virtual card |
+| POST | `/api/cards/<id>/freeze` | Toggle freeze/unfreeze |
 | PUT | `/api/cards/<id>/controls` | Update card spending controls |
-| DELETE | `/api/cards/<id>` | Cancel (permanently deactivate) a card |
+| DELETE | `/api/cards/<id>` | Cancel a card permanently |
 | POST | `/api/cards/<id>/provision` | Provision card to digital wallet |
 
-### HITL Review
+### Approvals & HITL Review
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/hitl/queue` | List HITL items (includes four_eyes_status) |
+| GET | `/api/hitl/queue` | List all approvals — pending and approved |
 | POST | `/api/hitl/approve/<id>` | Approve (four-eyes enforced for >= $100K) |
 | POST | `/api/hitl/reject/<id>` | Reject blocked transaction |
 
@@ -1130,23 +1231,40 @@ All endpoints (except `/api/login`) require JWT authentication via `Authorizatio
 | PUT | `/api/compliance/cases/<id>` | Update case |
 | POST | `/api/compliance/cases/<id>/escalate` | Escalate case |
 | POST | `/api/compliance/cases/<id>/file-sar` | File SAR |
+| GET | `/api/compliance/cases/<id>/sar-report` | Download FinCEN-format SAR JSON |
 | GET | `/api/compliance/sanctions` | List sanctions |
 | POST | `/api/compliance/sanctions` | Add to sanctions list |
 | GET | `/api/compliance/swift-gpi/<uetr>` | Track SWIFT payment |
+
+### DeFi
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/defi/pools` | List all AMM liquidity pools |
+| GET | `/api/defi/pool/<pair>` | Single pool details |
+| POST | `/api/defi/swap` | Execute token swap |
+| POST | `/api/defi/stake` | Stake funds in a yield pool |
+| POST | `/api/defi/unstake/<id>` | Unstake and claim yield |
+| GET | `/api/defi/staking` | List user's staking positions |
+| POST | `/api/defi/escrow/create` | Create HTLC escrow contract |
+| POST | `/api/defi/escrow/<id>/claim` | Claim escrow with pre-image |
+| POST | `/api/defi/escrow/<id>/refund` | Refund escrow after timelock |
+| GET | `/api/defi/escrow` | List user's escrow contracts |
+| GET | `/api/defi/proof-of-reserve` | Off-chain vs on-chain reserve totals |
 
 ### Security & Identity
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/kyc/status` | Get current E-KYC verification status |
-| POST | `/api/kyc/submit` | Submit KYC verification (passport/ID/license) |
+| POST | `/api/kyc/submit` | Submit KYC verification |
 | GET | `/api/fraud/alerts` | List fraud alerts for current user |
 
 ### Notifications & Support
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/notifications` | List user's notifications (unread count) |
+| GET | `/api/notifications` | List user's notifications |
 | POST | `/api/notifications/read` | Mark notification(s) as read |
 | POST | `/api/support/message` | Send message to support chat bot |
 | GET | `/api/support/history` | Get support chat history |
@@ -1163,15 +1281,16 @@ All endpoints (except `/api/login`) require JWT authentication via `Authorizatio
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/reporting/spending-360` | Comprehensive spending analytics |
+| GET | `/api/analytics/fraud-heatmap` | Fraud hotspot data by country |
 
-### AI/ML & System
+### AI/ML & MLOps
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/models/metrics` | Model performance for all 5 models |
-| POST | `/api/models/retrain` | Trigger retraining (admin/datascientist) |
-| GET | `/api/network/graph` | Transaction graph data |
-| GET | `/api/shap/test` | Debug: test SHAP computation |
+| GET | `/api/models/metrics` | Performance metrics for all 5 models |
+| GET | `/api/models/insights` | Per-model interpretability chart data |
+| POST | `/api/models/retrain` | Selective retrain — body: `{"models": [...]}` |
+| GET | `/api/network/graph` | Transaction graph data (PageRank nodes + edges) |
 | GET | `/api/fx/rates` | Live FX rates (13 currencies) |
 | GET | `/api/health` | System health status |
 | GET | `/api/audit/log` | Audit trail entries |
@@ -1207,7 +1326,7 @@ All endpoints (except `/api/login`) require JWT authentication via `Authorizatio
 | Composite Score | Decision | Action |
 |----------------|----------|--------|
 | >= 80 | **Blocked** | HITL queue + compliance case + four-eyes if >= $100K |
-| >= 60 | **Flagged** | Settled but logged for review |
+| 60–79 | **Flagged** | Settled but logged for review |
 | < 60 | **Approved** | Settled normally |
 
 ---
@@ -1218,11 +1337,11 @@ All endpoints (except `/api/login`) require JWT authentication via `Authorizatio
 
 | Model | Type | Purpose | Configuration |
 |-------|------|---------|---------------|
-| Isolation Forest | Unsupervised | Anomaly detection | 100 estimators, 3% contamination |
-| Random Forest | Supervised | Classification + SHAP fallback | 200 estimators, SMOTE-resampled |
-| XGBoost | Supervised | Primary classifier + SHAP source | 300 estimators, class-weighted |
-| Autoencoder | Semi-supervised | Reconstruction error anomaly | 64-32-16-32-64 MLP, 97th pctl threshold |
-| Sequence Detector | Pattern-based | Temporal pattern detection | Sliding window, velocity rules |
+| Isolation Forest | Unsupervised | Anomaly detection | 100 estimators, contamination=0.05, all 16 features |
+| Random Forest | Supervised | Classification + SHAP fallback | 150 estimators, max_depth=12, class_weight=balanced |
+| XGBoost | Supervised | Primary classifier + SHAP source | 200 estimators, max_depth=6, lr=0.05, scale_pos_weight |
+| Autoencoder | Semi-supervised | Reconstruction error anomaly | MLP 64→32→16→32→64 relu, 97th percentile threshold |
+| Sequence Detector | Pattern-based | Temporal velocity pattern detection | SGDClassifier modified_huber, online mini-batch, 6 velocity features |
 
 ### 16-Feature Vector
 
@@ -1242,15 +1361,25 @@ All endpoints (except `/api/login`) require JWT authentication via `Authorizatio
 | 12 | avg_tx_amount | Real-time | Running average amount |
 | 13 | std_tx_amount | Real-time | Amount standard deviation |
 | 14 | amount_zscore | Real-time | Z-score vs historical mean |
-| 15 | unique_receivers_7d | Real-time | Unique receivers in 7 days |
+| 15 | unique_receivers | Real-time | Unique receivers in 7 days |
 | 16 | is_new_receiver | Real-time | First-time receiver flag |
 
 ### SHAP Explainability
 
 Every transaction returns per-feature SHAP contribution scores:
 - **Primary:** `shap.TreeExplainer(xgb_clf)` computes exact Shapley values
-- **Fallback:** RF `feature_importances_` * deviations from population means
+- **Fallback:** RF `feature_importances_` × deviations from population means
 - **Display:** Inline in settlement result + horizontal bar chart in AI/ML tab
+
+### Per-Model Interpretability (MLOps)
+
+| Model | Chart Type | Data Source |
+|-------|-----------|------------|
+| Random Forest | Feature Importance (MDI) | `rf.feature_importances_` — all 16 features |
+| XGBoost | Feature Importance (Gain) | `xg.feature_importances_` — all 16 features |
+| Isolation Forest | Anomaly Feature Contribution | Permutation importance on `decision_function()` |
+| Autoencoder | Per-Feature Reconstruction Error | Mean squared error per feature: `(X - X̂)²` |
+| Sequence Detector | Feature Coefficients | Absolute SGD weights from `coef_[0]` — 6 features |
 
 ---
 
@@ -1265,8 +1394,8 @@ Seven Solidity contracts are compiled and deployed to the local Ganache blockcha
 | `MultiSigApproval` | Multi-signature approval for high-value settlements |
 | `AuditTrail` | Immutable on-chain audit event logging |
 | `NostroVostro` | Nostro/Vostro account balance management |
-| `CrossBorderBridge` | Cross-border settlement bridge |
-| `FeeManager` | Fee calculation and distribution |
+| `LiquidityPool` | AMM pool state and swap execution |
+| `HTLC` | Hash Time-Locked Contract for programmable escrow |
 
 ---
 
@@ -1274,9 +1403,9 @@ Seven Solidity contracts are compiled and deployed to the local Ganache blockcha
 
 ### Zero Trust Implementation
 
-- **No implicit trust** — Every API request requires a valid JWT
-- **Four-Eyes Dual Approval** — Transactions >= $100K need two independent approvers
-- **Short-lived tokens** — 1-hour expiry with HS256 signing
+- **No implicit trust** — Every API request requires a valid JWT via `@zero_trust_required`
+- **Four-Eyes Dual Approval** — Transactions >= $100K need two independent approvers; enforced server-side
+- **Short-lived tokens** — 8-hour expiry with HS256 signing
 - **Rate limiting** — 100 requests per minute per IP
 - **Security headers** — HSTS, X-Frame-Options: DENY, X-XSS-Protection, X-Content-Type-Options: nosniff
 - **CORS policy** — Configurable allowed origins
@@ -1294,15 +1423,16 @@ Seven Solidity contracts are compiled and deployed to the local Ganache blockcha
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | HTML5, Tailwind CSS, Chart.js, D3.js, Font Awesome (13 tabs) |
-| API | Python Flask 3.0, JWT, SSE, 75+ REST endpoints |
+| Frontend | HTML5, Tailwind CSS, Chart.js, D3.js, Font Awesome (14 role-filtered tabs) |
+| API | Python Flask 3.0, JWT, SSE, 90+ REST endpoints |
 | Blockchain | Solidity ^0.8.0, Web3.py 6.15, Ganache, py-solc-x |
-| AI/ML | scikit-learn, XGBoost, SHAP, NetworkX, Model Caching |
-| LLM | Ollama + Llama 3.2 (3B) for support chat |
+| AI/ML | scikit-learn, XGBoost, SHAP, NetworkX, SGDClassifier, Model Caching |
+| MLOps | Selective retraining, per-model interpretability, auto-train on startup |
+| LLM | Ollama + Llama 3.2 for support chat |
 | DeFi | Constant-Product AMM, HTLC Escrow, Yield Staking |
-| Database | SQLite (off-chain vault, 22 tables) |
-| Security | JWT HS256, RBAC, Four-Eyes, HSTS, Rate Limiting |
-| Infrastructure | Local macOS (run_local.sh) or Google Colab |
+| Database | SQLite (off-chain vault, 26 tables) |
+| Security | JWT HS256, RBAC (6 roles), Four-Eyes, HSTS, Rate Limiting |
+| Infrastructure | Local macOS / Red Hat Linux / Windows / Google Colab |
 
 ---
 
@@ -1314,22 +1444,41 @@ IPTS/
 ├── LICENSE                             # MIT License
 ├── requirements.txt                    # Python dependencies
 ├── run_local.sh                        # Local macOS deployment script
+├── restart.sh                          # Fast restart script (skips training)
+├── install_macos.sh                    # macOS one-command installer
+├── install_redhat.sh                   # Red Hat Linux installer
+├── install_windows.ps1                 # Windows PowerShell installer
 ├── .gitignore                          # Git ignore rules
 │
-├── src/
-│   └── IPTS_deploy.py           # Main deployment script (3,100+ lines)
-│                                       #   Phase 0: Environment cleanup
-│                                       #   Phase 1: Dependency installation
-│                                       #   Phase 2: Directory structure
-│                                       #   Phase 3: ML model training (5 models, 16 features)
-│                                       #   Phase 4: Solidity contract compilation (7 contracts)
-│                                       #   Phase 5: Frontend deployment
-│                                       #   Phase 6: Flask backend (SHAP, four-eyes, FX, health)
-│                                       #   Phase 7: Service orchestration
-│                                       #   Phase 8: Status reporting
+├── .runtime/
+│   ├── app.py                          # Flask backend (4,000+ lines)
+│   │                                   #   JWT auth, 90+ endpoints, ML scoring
+│   │                                   #   HITL, DeFi, MLOps, SSE stream
+│   ├── templates/
+│   │   └── index.html                  # Synced frontend (runtime copy)
+│   ├── ipts.db                         # SQLite database (generated)
+│   └── models/                         # Trained ML models (generated)
+│       ├── isolation_forest.pkl
+│       ├── random_forest.pkl
+│       ├── xgboost.pkl
+│       ├── autoencoder.pkl + ae_threshold.pkl
+│       ├── sequence_detector.pkl
+│       ├── pagerank.pkl
+│       ├── metrics.json
+│       ├── feature_importance.json
+│       └── model_insights.json
 │
 ├── templates/
-│   └── ipts_frontend.html              # Single-page frontend (3,500+ lines, 13 tabs)
+│   └── ipts_frontend.html              # Source frontend (3,500+ lines, 14 tabs)
+│
+├── contracts/                          # Solidity source files
+│   ├── IPTS_Enterprise_Settlement.sol
+│   ├── ComplianceOracle.sol
+│   ├── MultiSigApproval.sol
+│   ├── AuditTrail.sol
+│   ├── NostroVostro.sol
+│   ├── LiquidityPool.sol
+│   └── HTLC.sol
 │
 ├── docs/
 │   ├── generate_report.js              # Technical report DOCX generator
@@ -1340,10 +1489,8 @@ IPTS/
 │   ├── G9-IPTS_Executive_Briefing.docx # Generated executive briefing
 │   ├── G9-IPTS_Demo_Walkthrough.pptx   # Generated demo walkthrough presentation
 │   ├── architecture/                   # Architecture diagrams (SVG + PNG)
-│   └── screenshots/                    # UI screenshots (57 PNGs)
+│   └── screenshots/                    # UI screenshots
 │
-├── contracts/                          # Compiled contract artifacts (generated)
-├── models/                             # Trained ML models (generated)
 ├── logs/                               # Application logs (generated)
 └── tests/                              # Test suite
 ```
@@ -1367,19 +1514,19 @@ IPTS/
 
 | Problem | Fix |
 |---|---|
-| `ModuleNotFoundError` for any package | Make sure the virtual environment is active: `source .venv/bin/activate`, then `pip install -r requirements.txt` |
-| `pip install` fails on a package | Try upgrading pip first: `pip install --upgrade pip`, then retry |
+| `ModuleNotFoundError` for any package | Activate venv: `source .venv/bin/activate`, then `pip install -r requirements.txt` |
+| `pip install` fails on a package | `pip install --upgrade pip`, then retry |
 | `web3` or `solc` errors | `pip install web3==6.15.1 py-solc-x==2.1.1` |
-| `ImportError: cannot import name 'X' from sklearn` | Reinstall: `pip install scikit-learn==1.4.2 --force-reinstall` |
+| `ImportError: cannot import name 'X' from sklearn` | `pip install scikit-learn==1.4.2 --force-reinstall` |
 
 ### AI / ML Issues
 
 | Problem | Fix |
 |---|---|
-| ML models not found | Run `bash run_local.sh` once — it trains and saves all models to `models/` |
+| ML models not found | Flask auto-trains on startup — wait ~90s; or check `logs/flask_stderr.log` |
 | SHAP chart not showing | Check `/api/shap/test` endpoint; models must be trained on exactly 16 features |
+| MLOps charts show no data | Hit the **Refresh** button — insights are generated on-demand from existing `.pkl` files |
 | Support chat says "I'm offline" | Ollama is not running — run `ollama serve` in a terminal |
-| Support chat gives wrong tab names | System prompt out of date — update `SUPPORT_SYSTEM_PROMPT` in `app.py` |
 | `ollama pull llama3.2` fails | Check internet connection; the model is ~2 GB |
 
 ### Blockchain Issues
@@ -1396,20 +1543,20 @@ IPTS/
 |---|---|
 | Blank white page | Python error in backend — check `logs/flask_stderr.log` |
 | Old version showing after edit | Frontend not synced to runtime — run: `cp templates/ipts_frontend.html .runtime/templates/index.html` |
-| Charts not rendering | Chart.js CDN blocked — check network/firewall; IPTS loads Chart.js from CDN |
+| Charts not rendering | Chart.js CDN blocked — check network/firewall |
 | Tab not visible after login | Role does not have access to that tab — check role permissions matrix |
+| MLOps tab not visible | Only visible for `admin` role — log in as `mohamad` |
 
 ### Database Issues
 
 | Problem | Fix |
 |---|---|
-| `no such table` errors | Database schema is outdated — run `python reset_db.py` to recreate (⚠️ clears all data) |
-| `no such column` errors | A new column was added to the schema — restart Flask; it applies `ALTER TABLE` migrations on startup |
-| Login fails for all users | Database corrupted — restore from `ipts_vault_backup_*.db` in `.runtime/` |
+| `no such table` errors | Schema outdated — restart Flask; it applies `ALTER TABLE` migrations on startup |
+| `no such column` errors | New column added — same fix: restart Flask |
+| Login fails for all users | Database corrupted — restore from backup or re-run `bash run_local.sh` |
 
 ### Kill Everything and Start Fresh
 
-If something is badly broken, this resets all running processes:
 ```bash
 # Kill Flask and Ganache
 lsof -ti:5001 | xargs kill -9 2>/dev/null
@@ -1437,32 +1584,6 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 ## Author
 
 **Mohamad Idriss** — Lead Architect & Full-Stack Engineer
-
----
-
-### Screenshots
-
-All feature screenshots are available in [`docs/screenshots/`](docs/screenshots/):
-
-| Screenshot | Feature |
-|------------|---------|
-| `Dashboard_MultiAccount.png` | Dashboard with sub-accounts, KPIs, and notification bell |
-| `Dashboard_Ledger.png` | Real-time ledger panel on Dashboard |
-| `Notifications_Panel.png` | Notification dropdown with unread alerts |
-| `Payment_Settlement.png` | Settlement form with FX preview |
-| `Payment_P2P.png` | P2P Transfer sub-tab |
-| `Payment_ACH_Wire_SEPA.png` | External bank transfer with fee calculation |
-| `Payment_Scheduled.png` | Scheduled payment creation form |
-| `Payment_QR_Pay.png` | QR code generation and scan-to-pay |
-| `Beneficiaries_Tab.png` | Beneficiary management with add/edit |
-| `Spending_360_Overview.png` | Spending 360 KPI cards and trend chart |
-| `Spending_360_Charts.png` | Currency breakdown and activity heatmap |
-| `Spending_360_Transactions.png` | Top beneficiaries and recent transactions |
-| `Cards_Tab.png` | Virtual card gallery with actions |
-| `Security_KYC.png` | E-KYC verification flow |
-| `Security_Fraud_Alerts.png` | Fraud alert monitoring feed |
-| `Documents_Tab.png` | Document center with statement downloads |
-| `Support_Chat.png` | AI-powered support chat widget |
 
 ---
 
