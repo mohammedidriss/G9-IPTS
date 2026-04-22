@@ -201,6 +201,9 @@ tailwind.config = {
     <button onclick="switchTab('graph')" data-tab="graph" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-diagram-project mr-1"></i>Network
     </button>
+    <button onclick="switchTab('mlops')" data-tab="mlops" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
+      <i class="fas fa-robot mr-1"></i>MLOps
+    </button>
   </nav>
 
   <!-- Tab Content -->
@@ -1602,6 +1605,114 @@ tailwind.config = {
       </div>
     </div>
 
+    <!-- MLOPS TAB (admin only) -->
+    <div id="tab-mlops" class="tab-content hidden fade-in">
+      <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">MLOps Center</h2>
+        <p class="text-gray-500 text-sm mt-1">Monitor model performance and selectively retrain AI models</p>
+      </div>
+
+      <!-- Model Performance Header -->
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-gauge-high mr-2 text-accent"></i>Model Performance</h3>
+        <button onclick="refreshMLOpsMetrics()" id="mlops-metrics-refresh-btn"
+          class="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition">
+          <i class="fas fa-rotate-right"></i> Refresh
+        </button>
+      </div>
+
+      <!-- Model Cards Grid -->
+      <div id="mlops-model-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Retrain Panel -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-sync-alt mr-2 text-accent"></i>Selective Retraining</h3>
+          <div class="flex gap-2">
+            <button onclick="mlopsSelectAll(true)" class="text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition">Select All</button>
+            <button onclick="mlopsSelectAll(false)" class="text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition">Deselect All</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-5" id="mlops-model-checkboxes">
+          <label class="flex items-center gap-2 glass rounded-lg p-3 cursor-pointer hover:border-accent border border-transparent transition">
+            <input type="checkbox" value="isolation_forest" class="mlops-chk accent-purple-500 w-4 h-4" checked>
+            <div><div class="text-sm font-medium text-gray-800">Isolation Forest</div><div class="text-xs text-gray-500">Anomaly detection</div></div>
+          </label>
+          <label class="flex items-center gap-2 glass rounded-lg p-3 cursor-pointer hover:border-accent border border-transparent transition">
+            <input type="checkbox" value="random_forest" class="mlops-chk accent-purple-500 w-4 h-4" checked>
+            <div><div class="text-sm font-medium text-gray-800">Random Forest</div><div class="text-xs text-gray-500">Classification</div></div>
+          </label>
+          <label class="flex items-center gap-2 glass rounded-lg p-3 cursor-pointer hover:border-accent border border-transparent transition">
+            <input type="checkbox" value="xgboost" class="mlops-chk accent-purple-500 w-4 h-4" checked>
+            <div><div class="text-sm font-medium text-gray-800">XGBoost</div><div class="text-xs text-gray-500">Gradient boosting</div></div>
+          </label>
+          <label class="flex items-center gap-2 glass rounded-lg p-3 cursor-pointer hover:border-accent border border-transparent transition">
+            <input type="checkbox" value="autoencoder" class="mlops-chk accent-purple-500 w-4 h-4" checked>
+            <div><div class="text-sm font-medium text-gray-800">Autoencoder</div><div class="text-xs text-gray-500">Neural network</div></div>
+          </label>
+          <label class="flex items-center gap-2 glass rounded-lg p-3 cursor-pointer hover:border-accent border border-transparent transition">
+            <input type="checkbox" value="sequence_detector" class="mlops-chk accent-purple-500 w-4 h-4" checked>
+            <div><div class="text-sm font-medium text-gray-800">Sequence Detector</div><div class="text-xs text-gray-500">Temporal patterns</div></div>
+          </label>
+        </div>
+        <button onclick="retrainSelected()" id="mlops-retrain-btn"
+          class="btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2">
+          <i class="fas fa-play"></i> Retrain Selected
+        </button>
+      </div>
+
+      <!-- Training Log -->
+      <div id="mlops-log-wrap" class="glass rounded-xl p-5 mb-6 hidden">
+        <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-terminal mr-2 text-accent"></i>Training Log</h3>
+        <div id="mlops-log" class="font-mono text-xs text-green-400 bg-black/40 rounded-lg p-4 max-h-48 overflow-y-auto space-y-1"></div>
+      </div>
+
+      <!-- Per-Model Charts -->
+      <div class="glass rounded-xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-chart-bar mr-2 text-accent"></i>Model Interpretability Charts</h3>
+          <button onclick="refreshMLOpsCharts()" id="mlops-charts-refresh-btn"
+            class="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition">
+            <i class="fas fa-rotate-right"></i> Refresh
+          </button>
+        </div>
+
+        <!-- Model tabs -->
+        <div class="flex flex-wrap gap-2 mb-5" id="mlops-chart-tabs">
+          <button onclick="switchMLOpsChart('random_forest')" data-chart="random_forest"
+            class="mlops-chart-tab px-3 py-1.5 text-xs font-medium rounded-lg bg-accent text-white transition">
+            <i class="fas fa-trees mr-1"></i>Random Forest
+          </button>
+          <button onclick="switchMLOpsChart('xgboost')" data-chart="xgboost"
+            class="mlops-chart-tab px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+            <i class="fas fa-rocket mr-1"></i>XGBoost
+          </button>
+          <button onclick="switchMLOpsChart('isolation_forest')" data-chart="isolation_forest"
+            class="mlops-chart-tab px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+            <i class="fas fa-tree mr-1"></i>Isolation Forest
+          </button>
+          <button onclick="switchMLOpsChart('autoencoder')" data-chart="autoencoder"
+            class="mlops-chart-tab px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+            <i class="fas fa-network-wired mr-1"></i>Autoencoder
+          </button>
+          <button onclick="switchMLOpsChart('sequence_detector')" data-chart="sequence_detector"
+            class="mlops-chart-tab px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+            <i class="fas fa-wave-square mr-1"></i>Sequence Detector
+          </button>
+        </div>
+
+        <!-- Chart subtitle -->
+        <p id="mlops-chart-label" class="text-xs text-gray-500 mb-4">Feature Importance (MDI)</p>
+
+        <!-- Bar chart area -->
+        <div id="mlops-feature-chart" class="space-y-2">
+          <p class="text-gray-500 text-sm">Loading…</p>
+        </div>
+      </div>
+    </div>
+
     <!-- DOCUMENTS TAB -->
     <div id="tab-documents" class="tab-content hidden fade-in">
       <div class="glass rounded-xl p-6">
@@ -1927,7 +2038,7 @@ function configureUIForRole() {
   // Tab visibility map: role -> array of tab data-tab values to SHOW
   const tabAccess = {
     // Admin: full system oversight — no personal payments/beneficiaries/spending
-    admin:         ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'security', 'cards', 'defi', 'admin', 'documents', 'graph'],
+    admin:         ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'security', 'cards', 'defi', 'admin', 'graph', 'mlops'],
     operator:      ['dashboard', 'payments', 'beneficiaries', 'aiml', 'security', 'cards', 'defi', 'documents', 'spending360'],
     compliance:    ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'graph', 'admin'],
     client:        ['dashboard', 'payments', 'beneficiaries', 'cards', 'documents', 'spending360', 'security', 'aiml'],
@@ -2077,6 +2188,7 @@ function switchTab(tab) {
     else { loadModelMetrics(); loadFraudHeatmap(); loadRiskEntities(); loadRiskTrend(); }
   }
   if (tab === 'graph') loadGraph();
+  if (tab === 'mlops') loadMLOps();
   if (tab === 'admin') {
     loadHITL(); loadAudit();
     if (ROLE === 'admin') { loadSystemStats(); loadAdminUsers(); }
@@ -2321,6 +2433,16 @@ function connectSSE() {
         }
       } else if (event.type === 'retrain') {
         loadModelMetrics();
+        if (document.getElementById('tab-mlops') && !document.getElementById('tab-mlops').classList.contains('hidden')) {
+          const logEl = document.getElementById('mlops-log');
+          if (logEl && event.data) {
+            const ts = new Date().toLocaleTimeString();
+            if (event.data.model) logEl.innerHTML += `<div class="text-yellow-300">[${ts}] ${event.data.message || ('Training: ' + event.data.model)}</div>`;
+            if (event.data.status === 'complete') { logEl.innerHTML += `<div class="text-green-300">[${ts}] ✓ Complete!</div>`; loadMLOps(); }
+            if (event.data.status === 'error') logEl.innerHTML += `<div class="text-red-400">[${ts}] Error: ${event.data.message}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+          }
+        }
       } else if (event.type === 'notification') {
         // Refresh notification badge for current user
         loadNotifications();
@@ -2977,6 +3099,252 @@ async function retrainModels() {
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-gears mr-2"></i>Retrain Models';
     alert('Retrain error: ' + e.message);
+  }
+}
+
+// ============================================================
+// MLOps Tab
+// ============================================================
+async function loadMLOps() {
+  try {
+    const data = await apiFetch('/api/models/metrics');
+    const modelNames = { isolation_forest: 'Isolation Forest', random_forest: 'Random Forest', xgboost: 'XGBoost', autoencoder: 'Autoencoder', sequence_detector: 'Sequence Detector' };
+    const modelIcons = { isolation_forest: 'fa-tree', random_forest: 'fa-trees', xgboost: 'fa-rocket', autoencoder: 'fa-network-wired', sequence_detector: 'fa-wave-square' };
+    const modelColors = { isolation_forest: 'text-green-600', random_forest: 'text-blue-500', xgboost: 'text-purple-500', autoencoder: 'text-cyan-600', sequence_detector: 'text-orange-500' };
+    const modelDesc = {
+      isolation_forest: 'n_estimators=100, contamination=0.05',
+      random_forest: 'n_estimators=150, max_depth=12, balanced',
+      xgboost: 'n_estimators=200, max_depth=6, lr=0.05',
+      autoencoder: 'MLP 64→32→16→32→64, relu, max_iter=200',
+      sequence_detector: 'SGD modified_huber, online mini-batch'
+    };
+
+    const grid = document.getElementById('mlops-model-grid');
+    const entries = Object.entries(data.models).filter(([k]) => modelNames[k]);
+    grid.innerHTML = entries.map(([key, m]) => `
+      <div class="glass rounded-xl p-5 border border-white/5">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+            <i class="fas ${modelIcons[key] || 'fa-brain'} ${modelColors[key] || 'text-accent'}"></i>
+          </div>
+          <div>
+            <div class="text-sm font-semibold text-gray-800">${modelNames[key] || key}</div>
+            <div class="text-xs text-gray-500">${modelDesc[key] || ''}</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div class="bg-gray-50 rounded-lg p-3 text-center">
+            <div class="text-xs text-gray-500 mb-1">Accuracy</div>
+            <div class="text-xl font-mono font-bold text-gray-800">${(m.accuracy * 100).toFixed(1)}%</div>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3 text-center">
+            <div class="text-xs text-gray-500 mb-1">F1 Score</div>
+            <div class="text-xl font-mono font-bold ${modelColors[key] || 'text-accent'}">${(m.f1 * 100).toFixed(1)}%</div>
+          </div>
+        </div>
+        <div class="w-full bg-gray-700 rounded-full h-1.5">
+          <div class="h-1.5 rounded-full bg-gradient-to-r from-accent to-purple-500" style="width:${(m.accuracy*100).toFixed(0)}%"></div>
+        </div>
+      </div>
+    `).join('');
+
+    // Load per-model interpretability charts
+    try {
+      const ins = await apiFetch('/api/models/insights');
+      window._mlopsInsights = ins.insights || {};
+      switchMLOpsChart('random_forest');
+    } catch(_) {}
+  } catch(e) { console.error('MLOps load error:', e); }
+}
+
+// Colour per model for charts
+const _mlopsChartColors = {
+  random_forest:    { bar: '#7c3aed', bg: 'rgba(124,58,237,0.15)' },
+  xgboost:          { bar: '#8b5cf6', bg: 'rgba(139,92,246,0.15)' },
+  isolation_forest: { bar: '#10b981', bg: 'rgba(16,185,129,0.15)' },
+  autoencoder:      { bar: '#06b6d4', bg: 'rgba(6,182,212,0.15)' },
+  sequence_detector:{ bar: '#f97316', bg: 'rgba(249,115,22,0.15)' },
+};
+
+function switchMLOpsChart(modelKey) {
+  // Update tab styles
+  document.querySelectorAll('.mlops-chart-tab').forEach(btn => {
+    if (btn.dataset.chart === modelKey) {
+      btn.className = 'mlops-chart-tab px-3 py-1.5 text-xs font-medium rounded-lg bg-accent text-white transition';
+    } else {
+      btn.className = 'mlops-chart-tab px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
+    }
+  });
+
+  const insights = window._mlopsInsights || {};
+  const data = insights[modelKey];
+  const container = document.getElementById('mlops-feature-chart');
+  const labelEl = document.getElementById('mlops-chart-label');
+
+  if (!data) {
+    container.innerHTML = '<p class="text-gray-400 text-sm py-4">No data yet — retrain this model to generate chart.</p>';
+    if (labelEl) labelEl.textContent = '';
+    return;
+  }
+
+  if (labelEl) labelEl.textContent = data.label || '';
+
+  const feats = data.features || [];
+  const vals = data.values || [];
+  const color = _mlopsChartColors[modelKey] || { bar: '#7c3aed', bg: 'rgba(124,58,237,0.15)' };
+
+  // Sort by value descending, take top 10
+  const paired = feats.map((f, i) => [f, vals[i]]).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const max = paired[0]?.[1] || 1;
+
+  // Format value label based on type
+  const fmtVal = (v) => {
+    if (data.type === 'feature_importance') return (v * 100).toFixed(1) + '%';
+    if (data.type === 'coefficients') return v.toFixed(4);
+    return v.toExponential(2);
+  };
+
+  container.innerHTML = paired.map(([feat, val], i) => `
+    <div class="flex items-center gap-3 group">
+      <div class="w-40 text-xs text-gray-500 text-right truncate" title="${feat}">${feat}</div>
+      <div class="flex-1 bg-gray-100 rounded-full h-4 relative overflow-hidden">
+        <div class="h-4 rounded-full transition-all duration-700 flex items-center justify-end pr-2"
+             style="width:${Math.max(4,(val/max*100)).toFixed(1)}%; background:${color.bar}">
+        </div>
+      </div>
+      <div class="w-16 text-xs font-mono text-gray-600 text-right">${fmtVal(val)}</div>
+    </div>
+  `).join('');
+}
+
+function mlopsSelectAll(checked) {
+  document.querySelectorAll('.mlops-chk').forEach(cb => cb.checked = checked);
+}
+
+async function refreshMLOpsMetrics() {
+  const btn = document.getElementById('mlops-metrics-refresh-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing…';
+  const grid = document.getElementById('mlops-model-grid');
+  grid.innerHTML = '<div class="col-span-5 text-center text-gray-400 text-sm py-6"><i class="fas fa-spinner fa-spin mr-2"></i>Loading…</div>';
+  try {
+    const data = await apiFetch('/api/models/metrics');
+    // Re-use the card rendering from loadMLOps by calling it selectively
+    const modelNames = { isolation_forest: 'Isolation Forest', random_forest: 'Random Forest', xgboost: 'XGBoost', autoencoder: 'Autoencoder', sequence_detector: 'Sequence Detector' };
+    const modelIcons = { isolation_forest: 'fa-tree', random_forest: 'fa-trees', xgboost: 'fa-rocket', autoencoder: 'fa-network-wired', sequence_detector: 'fa-wave-square' };
+    const modelColors = { isolation_forest: 'text-green-600', random_forest: 'text-blue-500', xgboost: 'text-purple-500', autoencoder: 'text-cyan-600', sequence_detector: 'text-orange-500' };
+    const modelDesc = { isolation_forest: 'n_estimators=100, contamination=0.05', random_forest: 'n_estimators=150, max_depth=12, balanced', xgboost: 'n_estimators=200, max_depth=6, lr=0.05', autoencoder: 'MLP 64→32→16→32→64, relu, max_iter=200', sequence_detector: 'SGD modified_huber, online mini-batch' };
+    const entries = Object.entries(data.models).filter(([k]) => modelNames[k]);
+    grid.innerHTML = entries.map(([key, m]) => `
+      <div class="glass rounded-xl p-5 border border-white/5">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+            <i class="fas ${modelIcons[key] || 'fa-brain'} ${modelColors[key] || 'text-accent'}"></i>
+          </div>
+          <div>
+            <div class="text-sm font-semibold text-gray-800">${modelNames[key] || key}</div>
+            <div class="text-xs text-gray-500">${modelDesc[key] || ''}</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div class="bg-gray-50 rounded-lg p-3 text-center">
+            <div class="text-xs text-gray-500 mb-1">Accuracy</div>
+            <div class="text-xl font-mono font-bold text-gray-800">${(m.accuracy * 100).toFixed(1)}%</div>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3 text-center">
+            <div class="text-xs text-gray-500 mb-1">F1 Score</div>
+            <div class="text-xl font-mono font-bold ${modelColors[key] || 'text-accent'}">${(m.f1 * 100).toFixed(1)}%</div>
+          </div>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-1.5">
+          <div class="h-1.5 rounded-full bg-gradient-to-r from-accent to-purple-500" style="width:${(m.accuracy*100).toFixed(0)}%"></div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    grid.innerHTML = '<div class="col-span-5 text-center text-red-400 text-sm py-6">Failed to load metrics.</div>';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-rotate-right"></i> Refresh';
+}
+
+async function refreshMLOpsCharts() {
+  const btn = document.getElementById('mlops-charts-refresh-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing…';
+  // Delete cached active model so it re-fetches from API
+  window._mlopsInsights = null;
+  document.getElementById('mlops-feature-chart').innerHTML =
+    '<p class="text-gray-400 text-sm py-4"><i class="fas fa-spinner fa-spin mr-2"></i>Loading…</p>';
+  try {
+    const ins = await apiFetch('/api/models/insights');
+    window._mlopsInsights = ins.insights || {};
+    // Re-render currently active tab
+    const active = document.querySelector('.mlops-chart-tab[class*="bg-accent"]');
+    switchMLOpsChart(active ? active.dataset.chart : 'random_forest');
+  } catch(e) {
+    document.getElementById('mlops-feature-chart').innerHTML =
+      '<p class="text-red-400 text-sm py-4">Failed to load chart data.</p>';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-rotate-right"></i> Refresh';
+}
+
+async function retrainSelected() {
+  const selected = [...document.querySelectorAll('.mlops-chk:checked')].map(cb => cb.value);
+  if (selected.length === 0) { alert('Select at least one model to retrain.'); return; }
+
+  const btn = document.getElementById('mlops-retrain-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Retraining…';
+
+  const logWrap = document.getElementById('mlops-log-wrap');
+  const log = document.getElementById('mlops-log');
+  logWrap.classList.remove('hidden');
+  log.innerHTML = '';
+  const addLog = (msg, cls='text-green-400') => {
+    const ts = new Date().toLocaleTimeString();
+    log.innerHTML += `<div class="${cls}">[${ts}] ${msg}</div>`;
+    log.scrollTop = log.scrollHeight;
+  };
+
+  addLog(`Starting retraining for: ${selected.join(', ')}`);
+
+  try {
+    await apiFetch('/api/models/retrain', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ models: selected })
+    });
+    addLog('Retraining job queued. Waiting for completion…', 'text-yellow-400');
+
+    // Poll for completion via SSE or timeout
+    let attempts = 0;
+    const poll = setInterval(async () => {
+      attempts++;
+      addLog(`Checking status… (${attempts * 5}s elapsed)`);
+      if (attempts >= 18) { // 90s max
+        clearInterval(poll);
+        addLog('Retraining may still be running. Refreshing metrics…', 'text-yellow-400');
+        await loadMLOps();
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-play mr-2"></i>Retrain Selected';
+      }
+      try {
+        const d = await apiFetch('/api/models/metrics');
+        if (d && d.models) {
+          clearInterval(poll);
+          addLog('✓ Retraining complete! Metrics updated.', 'text-green-300');
+          await loadMLOps();
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-play mr-2"></i>Retrain Selected';
+        }
+      } catch(_) {}
+    }, 5000);
+  } catch(e) {
+    addLog('Error: ' + e.message, 'text-red-400');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-play mr-2"></i>Retrain Selected';
   }
 }
 

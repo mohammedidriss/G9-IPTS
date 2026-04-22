@@ -1075,6 +1075,14 @@ def _auto_train_if_needed():
         thr = np.percentile(np.mean((X_norm - ae.predict(X_norm)) ** 2, axis=1), 97)
         joblib.dump(thr, os.path.join(MODELS_DIR, "ae_threshold.pkl"))
 
+        from sklearn.linear_model import SGDClassifier
+        SEQ_FEATS_AT = ['velocity_1h', 'velocity_24h', 'velocity_7d', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
+        seq_idx_at = [FEATS.index(f) for f in SEQ_FEATS_AT]
+        sd = SGDClassifier(loss='modified_huber', max_iter=1000, class_weight='balanced', random_state=42, n_jobs=-1)
+        for start in range(0, len(X_tr), 500):
+            sd.partial_fit(X_tr[start:start+500, :][:, seq_idx_at], y_tr[start:start+500], classes=[0, 1])
+        joblib.dump(sd, os.path.join(MODELS_DIR, "sequence_detector.pkl"))
+
         # Build a small synthetic transaction graph for PageRank
         G = nx.DiGraph()
         n_nodes = 500
@@ -1100,11 +1108,39 @@ def _auto_train_if_needed():
         recon_e = np.mean((X_te - ae.predict(X_te)) ** 2, axis=1)
         metrics["autoencoder"] = {"f1": float(f1s(y_te, (recon_e > thr).astype(int), zero_division=0)),
                                   "accuracy": float(accs(y_te, (recon_e > thr).astype(int)))}
+        sd_p = sd.predict(X_te[:, seq_idx_at])
+        metrics["sequence_detector"] = {"f1": float(f1s(y_te, sd_p, zero_division=0)),
+                                        "accuracy": float(accs(y_te, sd_p))}
         with open(os.path.join(MODELS_DIR, "metrics.json"), "w") as f:
             json.dump(metrics, f, indent=2)
-        fi = dict(zip(FEATS, rf.feature_importances_.tolist()))
+        fi_dict = dict(zip(FEATS, rf.feature_importances_.tolist()))
         with open(os.path.join(MODELS_DIR, "feature_importance.json"), "w") as f:
-            json.dump(fi, f, indent=2)
+            json.dump(fi_dict, f, indent=2)
+
+        # Per-model insights
+        SEQ_FEATS_AT2 = ['velocity_1h', 'velocity_24h', 'velocity_7d', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
+        seq_idx_at2 = [FEATS.index(f) for f in SEQ_FEATS_AT2]
+        at_insights = {
+            "random_forest": {"type": "feature_importance", "label": "Feature Importance (MDI)",
+                              "features": FEATS, "values": rf.feature_importances_.tolist()},
+            "xgboost": {"type": "feature_importance", "label": "Feature Importance (Gain)",
+                        "features": FEATS, "values": xg.feature_importances_.tolist()},
+        }
+        baseline_at = iso.decision_function(X_te)
+        iso_sc = []
+        for fi_i in range(X_te.shape[1]):
+            Xp = X_te.copy(); np.random.shuffle(Xp[:, fi_i])
+            iso_sc.append(float(np.mean(np.abs(baseline_at - iso.decision_function(Xp)))))
+        at_insights["isolation_forest"] = {"type": "anomaly_scores", "label": "Anomaly Feature Contribution",
+                                           "features": FEATS, "values": iso_sc}
+        ae_feat_err = np.mean((X_te - ae.predict(X_te)) ** 2, axis=0).tolist()
+        at_insights["autoencoder"] = {"type": "reconstruction_error", "label": "Per-Feature Reconstruction Error",
+                                      "features": FEATS, "values": ae_feat_err}
+        coef_at = sd.coef_[0].tolist() if hasattr(sd, 'coef_') and sd.coef_ is not None else []
+        at_insights["sequence_detector"] = {"type": "coefficients", "label": "Feature Coefficients (SGD Weights)",
+                                            "features": SEQ_FEATS_AT2, "values": [abs(c) for c in coef_at]}
+        with open(os.path.join(MODELS_DIR, "model_insights.json"), "w") as f:
+            json.dump(at_insights, f, indent=2)
 
         aml_engine._load_models()
         logger.info("Auto-training complete — models are now active")
@@ -3614,6 +3650,96 @@ def model_metrics():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# --- Model Insights (per-model charts) ---
+@app.route("/api/models/insights", methods=["GET"])
+@zero_trust_required
+def model_insights():
+    if request.user.get("role") not in ("admin", "datascientist"):
+        return jsonify({"error": "Insufficient permissions"}), 403
+    try:
+        path = os.path.join(MODELS_DIR, "model_insights.json")
+        # Return cached file if it exists
+        if os.path.exists(path):
+            with open(path) as f:
+                return jsonify({"insights": json.load(f)})
+
+        # --- Generate on-the-fly from existing pkl files ---
+        FEATS = ['amount', 'hour', 'day_of_week', 'freq_7d', 'is_round', 'country_risk',
+                 'sender_id', 'receiver_id', 'velocity_1h', 'velocity_24h', 'velocity_7d',
+                 'avg_tx_amount', 'std_tx_amount', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
+        SEQ_FEATS = ['velocity_1h', 'velocity_24h', 'velocity_7d', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
+        seq_idx = [FEATS.index(f) for f in SEQ_FEATS]
+
+        insights = {}
+
+        # Random Forest — feature importances
+        rf_path = os.path.join(MODELS_DIR, "random_forest.pkl")
+        if os.path.exists(rf_path):
+            rf = joblib.load(rf_path)
+            insights["random_forest"] = {
+                "type": "feature_importance", "label": "Feature Importance (MDI)",
+                "features": FEATS, "values": rf.feature_importances_.tolist()
+            }
+
+        # XGBoost — gain-based feature importances
+        xg_path = os.path.join(MODELS_DIR, "xgboost.pkl")
+        if os.path.exists(xg_path):
+            xg = joblib.load(xg_path)
+            insights["xgboost"] = {
+                "type": "feature_importance", "label": "Feature Importance (Gain)",
+                "features": FEATS, "values": xg.feature_importances_.tolist()
+            }
+
+        # Isolation Forest — permutation anomaly scores on small synthetic sample
+        iso_path = os.path.join(MODELS_DIR, "isolation_forest.pkl")
+        if os.path.exists(iso_path):
+            iso = joblib.load(iso_path)
+            np.random.seed(42)
+            X_sample = np.random.randn(300, len(FEATS)).astype(np.float32)
+            baseline = iso.decision_function(X_sample)
+            iso_scores = []
+            for fi_i in range(len(FEATS)):
+                Xp = X_sample.copy()
+                np.random.shuffle(Xp[:, fi_i])
+                iso_scores.append(float(np.mean(np.abs(baseline - iso.decision_function(Xp)))))
+            insights["isolation_forest"] = {
+                "type": "anomaly_scores", "label": "Anomaly Feature Contribution",
+                "features": FEATS, "values": iso_scores
+            }
+
+        # Autoencoder — per-feature reconstruction error on small synthetic sample
+        ae_path = os.path.join(MODELS_DIR, "autoencoder.pkl")
+        if os.path.exists(ae_path):
+            ae = joblib.load(ae_path)
+            np.random.seed(42)
+            X_sample = np.random.randn(300, len(FEATS)).astype(np.float32)
+            ae_feat_err = np.mean((X_sample - ae.predict(X_sample)) ** 2, axis=0).tolist()
+            insights["autoencoder"] = {
+                "type": "reconstruction_error", "label": "Per-Feature Reconstruction Error",
+                "features": FEATS, "values": ae_feat_err
+            }
+
+        # Sequence Detector — absolute SGD coefficients
+        sd_path = os.path.join(MODELS_DIR, "sequence_detector.pkl")
+        if os.path.exists(sd_path):
+            sd = joblib.load(sd_path)
+            if hasattr(sd, 'coef_') and sd.coef_ is not None:
+                coef = [abs(float(c)) for c in sd.coef_[0]]
+                insights["sequence_detector"] = {
+                    "type": "coefficients", "label": "Feature Coefficients (SGD Weights)",
+                    "features": SEQ_FEATS, "values": coef
+                }
+
+        # Cache for next time
+        if insights:
+            with open(path, "w") as f:
+                json.dump(insights, f, indent=2)
+
+        return jsonify({"insights": insights})
+    except Exception as e:
+        logger.error(f"Model insights error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 # --- Retrain (admin and datascientist only) ---
 @app.route("/api/models/retrain", methods=["POST"])
 @zero_trust_required
@@ -3621,9 +3747,14 @@ def retrain_models():
     if request.user.get("role") not in ("admin", "datascientist"):
         return jsonify({"error": "Insufficient permissions. Only admin and datascientist can retrain."}), 403
 
+    body = request.get_json(silent=True) or {}
+    selected_models = body.get("models", ["isolation_forest", "random_forest", "xgboost", "autoencoder", "sequence_detector"])
+    if not selected_models:
+        selected_models = ["isolation_forest", "random_forest", "xgboost", "autoencoder"]
+
     def _retrain():
         try:
-            logger.info("Model retraining initiated")
+            logger.info(f"Model retraining initiated for: {selected_models}")
             from sklearn.ensemble import IsolationForest, RandomForestClassifier
             from sklearn.neural_network import MLPRegressor
             from sklearn.model_selection import train_test_split as tts
@@ -3677,29 +3808,69 @@ def retrain_models():
             y_rt = df_rt['is_fraud'].values
             X_tr, X_te, y_tr, y_te = tts(X_rt, y_rt, test_size=0.2, stratify=y_rt)
 
-            iso = IsolationForest(n_estimators=100, contamination=0.05, n_jobs=-1)
-            iso.fit(X_tr)
-            joblib.dump(iso, os.path.join(MODELS_DIR, "isolation_forest.pkl"))
+            iso = None
+            if "isolation_forest" in selected_models:
+                push_sse("retrain", {"status": "progress", "model": "isolation_forest", "message": "Training Isolation Forest…"})
+                iso = IsolationForest(n_estimators=100, contamination=0.05, n_jobs=-1)
+                iso.fit(X_tr)
+                joblib.dump(iso, os.path.join(MODELS_DIR, "isolation_forest.pkl"))
+            else:
+                iso = joblib.load(os.path.join(MODELS_DIR, "isolation_forest.pkl")) if os.path.exists(os.path.join(MODELS_DIR, "isolation_forest.pkl")) else None
 
-            rf = RandomForestClassifier(n_estimators=150, max_depth=12, min_samples_leaf=10,
-                                        max_features='sqrt', class_weight='balanced', n_jobs=-1)
-            rf.fit(X_tr, y_tr)
-            joblib.dump(rf, os.path.join(MODELS_DIR, "random_forest.pkl"))
+            rf = None
+            if "random_forest" in selected_models:
+                push_sse("retrain", {"status": "progress", "model": "random_forest", "message": "Training Random Forest…"})
+                rf = RandomForestClassifier(n_estimators=150, max_depth=12, min_samples_leaf=10,
+                                            max_features='sqrt', class_weight='balanced', n_jobs=-1)
+                rf.fit(X_tr, y_tr)
+                joblib.dump(rf, os.path.join(MODELS_DIR, "random_forest.pkl"))
+            else:
+                rf = joblib.load(os.path.join(MODELS_DIR, "random_forest.pkl")) if os.path.exists(os.path.join(MODELS_DIR, "random_forest.pkl")) else None
 
+            xg = None
             spw = (y_tr == 0).sum() / max((y_tr == 1).sum(), 1)
-            xg = xgb_mod.XGBClassifier(n_estimators=200, max_depth=6, learning_rate=0.05,
-                                        scale_pos_weight=spw, reg_alpha=1.0, reg_lambda=2.0,
-                                        subsample=0.8, colsample_bytree=0.8,
-                                        use_label_encoder=False, eval_metric='logloss', n_jobs=-1)
-            xg.fit(X_tr, y_tr)
-            joblib.dump(xg, os.path.join(MODELS_DIR, "xgboost.pkl"))
+            if "xgboost" in selected_models:
+                push_sse("retrain", {"status": "progress", "model": "xgboost", "message": "Training XGBoost…"})
+                xg = xgb_mod.XGBClassifier(n_estimators=200, max_depth=6, learning_rate=0.05,
+                                            scale_pos_weight=spw, reg_alpha=1.0, reg_lambda=2.0,
+                                            subsample=0.8, colsample_bytree=0.8,
+                                            use_label_encoder=False, eval_metric='logloss', n_jobs=-1)
+                xg.fit(X_tr, y_tr)
+                joblib.dump(xg, os.path.join(MODELS_DIR, "xgboost.pkl"))
+            else:
+                xg = joblib.load(os.path.join(MODELS_DIR, "xgboost.pkl")) if os.path.exists(os.path.join(MODELS_DIR, "xgboost.pkl")) else None
 
-            X_norm = X_tr[y_tr == 0]
-            ae = MLPRegressor(hidden_layer_sizes=(64, 32, 16, 32, 64), activation='relu', max_iter=200)
-            ae.fit(X_norm, X_norm)
-            joblib.dump(ae, os.path.join(MODELS_DIR, "autoencoder.pkl"))
-            thr = np.percentile(np.mean((X_norm - ae.predict(X_norm)) ** 2, axis=1), 97)
-            joblib.dump(thr, os.path.join(MODELS_DIR, "ae_threshold.pkl"))
+            sd = None
+            if "sequence_detector" in selected_models:
+                push_sse("retrain", {"status": "progress", "model": "sequence_detector", "message": "Training Sequence Detector…"})
+                from sklearn.linear_model import SGDClassifier
+                # Sequence detector: uses rolling-window velocity features (velocity_1h, velocity_24h, velocity_7d,
+                # amount_zscore, unique_receivers, is_new_receiver) — simulates temporal pattern detection
+                SEQ_FEATS = ['velocity_1h', 'velocity_24h', 'velocity_7d', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
+                seq_idx = [FEATS.index(f) for f in SEQ_FEATS]
+                X_seq_tr = X_tr[:, seq_idx]
+                X_seq_te = X_te[:, seq_idx]
+                sd = SGDClassifier(loss='modified_huber', max_iter=1000, class_weight='balanced', random_state=42, n_jobs=-1)
+                # Simulate sequential/online learning in mini-batches
+                batch = 500
+                for start in range(0, len(X_seq_tr), batch):
+                    sd.partial_fit(X_seq_tr[start:start+batch], y_tr[start:start+batch], classes=[0, 1])
+                joblib.dump(sd, os.path.join(MODELS_DIR, "sequence_detector.pkl"))
+            else:
+                sd = joblib.load(os.path.join(MODELS_DIR, "sequence_detector.pkl")) if os.path.exists(os.path.join(MODELS_DIR, "sequence_detector.pkl")) else None
+
+            ae = None; thr = None
+            if "autoencoder" in selected_models:
+                push_sse("retrain", {"status": "progress", "model": "autoencoder", "message": "Training Autoencoder…"})
+                X_norm = X_tr[y_tr == 0]
+                ae = MLPRegressor(hidden_layer_sizes=(64, 32, 16, 32, 64), activation='relu', max_iter=200)
+                ae.fit(X_norm, X_norm)
+                joblib.dump(ae, os.path.join(MODELS_DIR, "autoencoder.pkl"))
+                thr = np.percentile(np.mean((X_norm - ae.predict(X_norm)) ** 2, axis=1), 97)
+                joblib.dump(thr, os.path.join(MODELS_DIR, "ae_threshold.pkl"))
+            else:
+                ae = joblib.load(os.path.join(MODELS_DIR, "autoencoder.pkl")) if os.path.exists(os.path.join(MODELS_DIR, "autoencoder.pkl")) else None
+                thr = joblib.load(os.path.join(MODELS_DIR, "ae_threshold.pkl")) if os.path.exists(os.path.join(MODELS_DIR, "ae_threshold.pkl")) else 1.0
 
             # Build synthetic transaction graph for PageRank
             G = nx.DiGraph()
@@ -3716,22 +3887,77 @@ def retrain_models():
             with open(os.path.join(MODELS_DIR, "graph_data.json"), "w") as f:
                 json.dump({"nodes": pr_nodes, "edges": pr_edges, "cycles": [], "communities": 0}, f)
 
-            # Metrics + feature importance
+            # Metrics + feature importance (load existing metrics first, then overwrite trained ones)
+            metrics_path = os.path.join(MODELS_DIR, "metrics.json")
             new_metrics = {}
+            if os.path.exists(metrics_path):
+                with open(metrics_path) as mf:
+                    try: new_metrics = json.load(mf)
+                    except: pass
             for name, mdl, needs_inv in [("isolation_forest", iso, True),
                                           ("random_forest", rf, False), ("xgboost", xg, False)]:
+                if mdl is None or name not in selected_models:
+                    continue
                 p = (mdl.predict(X_te) == -1).astype(int) if needs_inv else mdl.predict(X_te)
                 new_metrics[name] = {"f1": float(f1s(y_te, p, zero_division=0)),
                                      "accuracy": float(accs(y_te, p))}
-            recon_e = np.mean((X_te - ae.predict(X_te)) ** 2, axis=1)
-            ae_p = (recon_e > thr).astype(int)
-            new_metrics["autoencoder"] = {"f1": float(f1s(y_te, ae_p, zero_division=0)),
-                                          "accuracy": float(accs(y_te, ae_p))}
+            if ae is not None and thr is not None and "autoencoder" in selected_models:
+                recon_e = np.mean((X_te - ae.predict(X_te)) ** 2, axis=1)
+                ae_p = (recon_e > thr).astype(int)
+                new_metrics["autoencoder"] = {"f1": float(f1s(y_te, ae_p, zero_division=0)),
+                                              "accuracy": float(accs(y_te, ae_p))}
+            if sd is not None and "sequence_detector" in selected_models:
+                SEQ_FEATS = ['velocity_1h', 'velocity_24h', 'velocity_7d', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
+                seq_idx = [FEATS.index(f) for f in SEQ_FEATS]
+                sd_p = sd.predict(X_te[:, seq_idx])
+                new_metrics["sequence_detector"] = {"f1": float(f1s(y_te, sd_p, zero_division=0)),
+                                                    "accuracy": float(accs(y_te, sd_p))}
             with open(os.path.join(MODELS_DIR, "metrics.json"), "w") as f:
                 json.dump(new_metrics, f, indent=2)
-            fi = dict(zip(FEATS, rf.feature_importances_.tolist()))
-            with open(os.path.join(MODELS_DIR, "feature_importance.json"), "w") as f:
-                json.dump(fi, f, indent=2)
+
+            # Per-model insights for MLOps charts
+            SEQ_FEATS_INS = ['velocity_1h', 'velocity_24h', 'velocity_7d', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
+            seq_idx_ins = [FEATS.index(f) for f in SEQ_FEATS_INS]
+            insights = {}
+
+            if rf is not None:
+                fi = dict(zip(FEATS, rf.feature_importances_.tolist()))
+                insights["random_forest"] = {"type": "feature_importance", "label": "Feature Importance (MDI)",
+                                             "features": FEATS, "values": rf.feature_importances_.tolist()}
+                with open(os.path.join(MODELS_DIR, "feature_importance.json"), "w") as f:
+                    json.dump(fi, f, indent=2)
+
+            if xg is not None:
+                xg_imp = xg.feature_importances_.tolist()
+                insights["xgboost"] = {"type": "feature_importance", "label": "Feature Importance (Gain)",
+                                       "features": FEATS, "values": xg_imp}
+
+            if iso is not None:
+                # Anomaly score contribution: variance of decision function per feature
+                # Permutation-style: measure score drop when feature is shuffled
+                baseline = iso.decision_function(X_te)
+                iso_scores = []
+                for fi_idx in range(X_te.shape[1]):
+                    X_perm = X_te.copy(); np.random.shuffle(X_perm[:, fi_idx])
+                    permuted = iso.decision_function(X_perm)
+                    iso_scores.append(float(np.mean(np.abs(baseline - permuted))))
+                insights["isolation_forest"] = {"type": "anomaly_scores", "label": "Anomaly Feature Contribution",
+                                                "features": FEATS, "values": iso_scores}
+
+            if ae is not None:
+                # Per-feature mean squared reconstruction error on test set
+                ae_recon = ae.predict(X_te)
+                ae_feat_err = np.mean((X_te - ae_recon) ** 2, axis=0).tolist()
+                insights["autoencoder"] = {"type": "reconstruction_error", "label": "Per-Feature Reconstruction Error",
+                                           "features": FEATS, "values": ae_feat_err}
+
+            if sd is not None:
+                coef = sd.coef_[0].tolist() if hasattr(sd, 'coef_') and sd.coef_ is not None else []
+                insights["sequence_detector"] = {"type": "coefficients", "label": "Feature Coefficients (SGD Weights)",
+                                                 "features": SEQ_FEATS_INS, "values": [abs(c) for c in coef]}
+
+            with open(os.path.join(MODELS_DIR, "model_insights.json"), "w") as f:
+                json.dump(insights, f, indent=2)
 
             aml_engine._load_models()
             logger.info("Model retraining complete")
