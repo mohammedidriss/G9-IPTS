@@ -11,12 +11,10 @@ import time
 import uuid
 import random
 import hashlib
-import hmac
 import sqlite3
 import logging
 import threading
-import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from functools import wraps
 
 import jwt
@@ -39,142 +37,29 @@ except ImportError:
 # ============================================================
 APP_SECRET = os.environ.get("IPTS_SECRET_KEY", "ipts_enterprise_secret_2026_xK9mPq_FALLBACK_NOT_FOR_PRODUCTION")
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRY_HOURS = 8          # Extended for usability; refresh supported
-JWT_REFRESH_HOURS = 24
-_APP_DIR     = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_DIR = os.path.dirname(_APP_DIR)   # one level up from .runtime/
-DB_PATH      = os.path.join(_APP_DIR,      "ipts_vault.db")
-MODELS_DIR   = os.path.join(_APP_DIR,      "models")
-CONTRACTS_DIR= os.path.join(_APP_DIR,      "contracts")
-LOG_DIR      = os.path.join(_PROJECT_DIR,  "logs")
+JWT_EXPIRY_HOURS = 1
+DB_PATH = "ipts_vault.db"
+MODELS_DIR = "models"
+CONTRACTS_DIR = "contracts"
+LOG_DIR = "logs"
 
 # Fixed conversion rate for USD/ETH display
 ETH_USD_RATE = 3500.0
 
-# ── Password hashing helpers (PBKDF2-HMAC-SHA256, no external dep) ──────────
-def _hash_password(password: str) -> str:
-    salt = hashlib.sha256(os.urandom(60)).hexdigest().encode('ascii')
-    pwdhash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000)
-    return (salt + pwdhash.hex().encode('ascii')).decode('ascii')
-
-def _verify_password(stored: str, provided: str) -> bool:
-    # Support plaintext passwords during migration (no '$' prefix means hashed)
-    if len(stored) < 64:          # plaintext fallback (legacy)
-        return stored == provided
-    salt = stored[:64].encode('ascii')
-    stored_hash = stored[64:]
-    pwdhash = hashlib.pbkdf2_hmac('sha256', provided.encode('utf-8'), salt, 100000)
-    return hmac.compare_digest(pwdhash.hex(), stored_hash)
-
-# User login accounts — passwords stored as PBKDF2 hashes
-# _hash_password() used at startup to pre-hash plaintext values
-_RAW_PASSWORDS = {
-    "mohamad": "Mohamad@2026!",
-    "rohit":   "Rohit@2026!",
-    "sriram":  "Sriram@2026!",
-    "walid":   "Walid@2026!",
-    "vibin":   "Vibin@2026!",
-    "sara":    "Sara@2026!",
-}
+# User login accounts — username is a real name-based handle
+# NOTE: In production, passwords MUST be hashed (e.g., using bcrypt or argon2)
 USERS = {
-    "mohamad":  {"password": _hash_password("Mohamad@2026!"), "role": "admin"},           # CTO & Platform Admin
-    "rohit":    {"password": _hash_password("Rohit@2026!"),   "role": "compliance"},      # Chief Compliance & AML Officer
-    "sriram":   {"password": _hash_password("Sriram@2026!"),  "role": "operator"},        # Head of Payment Operations
-    "walid":    {"password": _hash_password("Walid@2026!"),   "role": "auditor"},         # Internal Auditor & Risk Manager
-    "vibin":    {"password": _hash_password("Vibin@2026!"),   "role": "datascientist"},   # Lead Data Scientist & MLOps
-    "sara":     {"password": _hash_password("Sara@2026!"),    "role": "client"},          # Corporate Treasury Client
+    "mohamad":      {"password": "Mohamad@2026!",    "role": "admin"},
+    "rohit":        {"password": "Rohit@2026!",      "role": "compliance"},
+    "sriram":       {"password": "Sriram@2026!",     "role": "operator"},
+    "walid":        {"password": "Walid@2026!",      "role": "auditor"},
+    "vibin":        {"password": "Vibin@2026!",      "role": "datascientist"},
+    "sara":         {"password": "Sara@2026!",       "role": "client"},
+    "lena":         {"password": "Lena@2026!",       "role": "client"},
+    "james":        {"password": "James@2026!",      "role": "client"},
+    "mei":          {"password": "Mei@2026!",        "role": "client"},
+    "carlos":       {"password": "Carlos@2026!",     "role": "client"},
 }
-
-# ── Account lockout tracker ──────────────────────────────────────────────────
-_FAILED_LOGINS: dict = {}          # username → {"count": int, "locked_until": float}
-MAX_LOGIN_ATTEMPTS  = 5
-LOCKOUT_SECONDS     = 900          # 15 minutes
-
-def _check_lockout(username: str) -> tuple[bool, int]:
-    """Returns (is_locked, seconds_remaining)."""
-    entry = _FAILED_LOGINS.get(username)
-    if not entry:
-        return False, 0
-    if entry["count"] >= MAX_LOGIN_ATTEMPTS:
-        remaining = int(entry["locked_until"] - time.time())
-        if remaining > 0:
-            return True, remaining
-        # Lockout expired — reset
-        _FAILED_LOGINS.pop(username, None)
-    return False, 0
-
-def _record_failed_login(username: str):
-    entry = _FAILED_LOGINS.setdefault(username, {"count": 0, "locked_until": 0})
-    entry["count"] += 1
-    entry["locked_until"] = time.time() + LOCKOUT_SECONDS
-
-def _reset_failed_login(username: str):
-    _FAILED_LOGINS.pop(username, None)
-
-# ── Token blacklist (revoked JTIs on logout) ─────────────────────────────────
-_REVOKED_TOKENS: set = set()
-
-# ── Per-user transaction limits (daily, per-transaction) ─────────────────────
-USER_TX_LIMITS = {
-    # Admin / CTO — highest limits for system operations and testing
-    "admin":         {"daily": 10_000_000, "per_tx": 5_000_000},
-    # Operator (Head of Payment Operations) — high operational limits
-    "operator":      {"daily": 5_000_000,  "per_tx": 2_000_000},
-    # Client (Corporate Treasury) — standard corporate limits
-    "client":        {"daily": 1_000_000,  "per_tx": 500_000},
-    # Auditor — read-only, no transaction capability
-    "auditor":       {"daily": 0,          "per_tx": 0},
-    # Compliance — no direct payments (reviews/approves only)
-    "compliance":    {"daily": 0,          "per_tx": 0},
-    # Data Scientist — no transaction capability
-    "datascientist": {"daily": 0,          "per_tx": 0},
-}
-
-# ── Fee schedule ─────────────────────────────────────────────────────────────
-FEE_TIERS = [
-    (0,       1_000,   0.0025, 0.50),    # 0.25%, min $0.50
-    (1_000,   10_000,  0.0020, 2.00),    # 0.20%, min $2.00
-    (10_000,  100_000, 0.0015, 15.00),   # 0.15%
-    (100_000, 500_000, 0.0010, 100.00),  # 0.10%
-    (500_000, None,    0.0005, 500.00),  # 0.05%
-]
-
-def calculate_fee(amount: float, payment_type: str = "standard") -> dict:
-    """Return fee breakdown for a given amount."""
-    base_rate, min_fee = 0.0025, 0.50
-    for lo, hi, rate, minfee in FEE_TIERS:
-        if hi is None or amount < hi:
-            base_rate, min_fee = rate, minfee
-            break
-    base_fee  = max(amount * base_rate, min_fee)
-    swift_fee = 18.00 if payment_type in ("swift", "wire", "external") else 0.0
-    fx_fee    = round(amount * 0.001, 2) if payment_type == "fx" else 0.0
-    total_fee = round(base_fee + swift_fee + fx_fee, 2)
-    return {
-        "base_fee":   round(base_fee, 2),
-        "swift_fee":  swift_fee,
-        "fx_fee":     fx_fee,
-        "total_fee":  total_fee,
-        "rate_pct":   round(base_rate * 100, 3),
-        "net_amount": round(amount - total_fee, 2),
-    }
-
-# ── Travel Rule helper (FATF — required for transfers ≥ USD 3,000) ──────────
-TRAVEL_RULE_THRESHOLD = 3_000.0
-
-def check_travel_rule(amount: float, data: dict) -> list[str]:
-    """Return list of missing fields if travel rule applies."""
-    if amount < TRAVEL_RULE_THRESHOLD:
-        return []
-    required = ["originator_name", "originator_account", "beneficiary_account"]
-    return [f for f in required if not data.get(f)]
-
-# ── High-risk countries (FATF grey/black list, illustrative) ─────────────────
-HIGH_RISK_COUNTRIES = {
-    "IR","KP","MM","YE","SY","IQ","AF","LY","SO","SD","ZW","VE","CU","BY","RU"
-}
-def country_risk_score(country_code: str) -> float:
-    return 0.95 if country_code and country_code.upper() in HIGH_RISK_COUNTRIES else 0.1
 
 # User accounts with balances
 USER_ACCOUNTS = {
@@ -183,25 +68,34 @@ USER_ACCOUNTS = {
     "sriram":       {"full_name": "Sriram Acharya Mudumbai",   "balance": 500000.00,  "currency": "USD", "wallet_idx": 2},
     "walid":        {"full_name": "Walid Elmahdy",             "balance": 350000.00,  "currency": "USD", "wallet_idx": 3},
     "vibin":        {"full_name": "Vibin Chandrabose",         "balance": 150000.00,  "currency": "USD", "wallet_idx": 4},
-    "sara":         {"full_name": "Sara Mitchell",             "balance": 2000000.00,   "currency": "USD", "wallet_idx": 4},
+    "sara":         {"full_name": "Sara Mitchell",             "balance": 850000.00,  "currency": "USD", "wallet_idx": 5},
+    "lena":         {"full_name": "Lena Novak",                "balance": 125000.00,  "currency": "USD", "wallet_idx": 6},
+    "james":        {"full_name": "James Okafor",              "balance": 87500.00,   "currency": "USD", "wallet_idx": 7},
+    "mei":          {"full_name": "Mei Lin",                   "balance": 310000.00,  "currency": "USD", "wallet_idx": 8},
+    "carlos":       {"full_name": "Carlos Mendez",             "balance": 450000.00,  "currency": "USD", "wallet_idx": 9},
 }
 
 # Beneficiaries list (legit + suspicious for testing)
 BENEFICIARIES = [
-    {"name": "Mohamad Idriss", "type": "individual"},
-    {"name": "Rohit Jacob Isaac", "type": "individual"},
-    {"name": "Sriram Acharya Mudumbai", "type": "individual"},
-    {"name": "Walid Elmahdy", "type": "individual"},
-    {"name": "Vibin Chandrabose", "type": "individual"},
-    {"name": "Global Trade Corp", "type": "corporate"},
-    {"name": "Acme International", "type": "corporate"},
-    {"name": "Shell Company Alpha", "type": "corporate"},
-    {"name": "Offshore Haven Corp", "type": "corporate"},
-    {"name": "Dark Web Exchange", "type": "corporate"},
-    {"name": "Phantom Bank Ltd", "type": "corporate"},
-    {"name": "Hawala Underground Services", "type": "corporate"},
-    {"name": "Arms Dealer International", "type": "corporate"},
-    {"name": "Narco Laundry Inc", "type": "corporate"},
+    {"name": "Mohamad Idriss", "type": "individual", "risk": "low"},
+    {"name": "Rohit Jacob Isaac", "type": "individual", "risk": "low"},
+    {"name": "Sriram Acharya Mudumbai", "type": "individual", "risk": "low"},
+    {"name": "Walid Elmahdy", "type": "individual", "risk": "low"},
+    {"name": "Vibin Chandrabose", "type": "individual", "risk": "low"},
+    {"name": "Sara Mitchell",    "type": "individual", "risk": "low"},
+    {"name": "Lena Novak",       "type": "individual", "risk": "low"},
+    {"name": "James Okafor",     "type": "individual", "risk": "low"},
+    {"name": "Mei Lin",          "type": "individual", "risk": "low"},
+    {"name": "Carlos Mendez",    "type": "individual", "risk": "low"},
+    {"name": "Global Trade Corp", "type": "corporate", "risk": "low"},
+    {"name": "Acme International", "type": "corporate", "risk": "low"},
+    {"name": "Shell Company Alpha", "type": "corporate", "risk": "critical"},
+    {"name": "Offshore Haven Corp", "type": "corporate", "risk": "critical"},
+    {"name": "Dark Web Exchange", "type": "corporate", "risk": "critical"},
+    {"name": "Phantom Bank Ltd", "type": "corporate", "risk": "high"},
+    {"name": "Hawala Underground Services", "type": "corporate", "risk": "critical"},
+    {"name": "Arms Dealer International", "type": "corporate", "risk": "critical"},
+    {"name": "Narco Laundry Inc", "type": "corporate", "risk": "critical"},
 ]
 
 # AML Watchlist entities
@@ -266,7 +160,7 @@ class FXEngine:
             if ccy != base:
                 rate = cls.get_rate(base, ccy, include_spread=False)
                 if rate:
-                    rates[ccy] = round(rate, 4)
+                    rates[f"{base}/{ccy}"] = round(rate, 4)
         return rates
 
 fx_engine = FXEngine()
@@ -280,7 +174,7 @@ class ISO20022Generator:
     @staticmethod
     def generate_pacs008(settlement_id, sender_name, sender_bic, receiver_name,
                           receiver_bic, amount, currency, beneficiary_name):
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = datetime.utcnow()
         msg_id = f"IPTS{now.strftime('%Y%m%d%H%M%S')}{settlement_id[:8]}"
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08">
@@ -365,7 +259,6 @@ RATE_LIMIT_WINDOW = 60
 # Flask App Setup
 # ============================================================
 app = Flask(__name__, template_folder="templates")
-app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SECRET_KEY'] = APP_SECRET
 
 logging.basicConfig(
@@ -380,17 +273,9 @@ logger = logging.getLogger("IPTS")
 # ============================================================
 def get_db():
     if 'db' not in g:
-        g.db = open_db()
+        g.db = sqlite3.connect(DB_PATH)
         g.db.row_factory = sqlite3.Row
     return g.db
-
-def open_db():
-    """Open a DB connection with WAL mode and extended busy timeout."""
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=30000")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    return conn
 
 @app.teardown_appcontext
 def close_db(exception):
@@ -399,7 +284,7 @@ def close_db(exception):
         db.close()
 
 def init_db():
-    conn = open_db()  # WAL mode set inside open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS pii_vault (
         id TEXT PRIMARY KEY,
@@ -426,7 +311,6 @@ def init_db():
         id TEXT PRIMARY KEY,
         username TEXT,
         label TEXT,
-        card_type TEXT DEFAULT 'debit',
         card_network TEXT,
         card_number TEXT,
         expiry_month INTEGER,
@@ -543,17 +427,6 @@ def init_db():
         required INTEGER DEFAULT 1,
         status TEXT DEFAULT 'pending'
     )""")
-    c.execute("""CREATE TABLE IF NOT EXISTS notifications (
-        id TEXT PRIMARY KEY,
-        username TEXT NOT NULL,
-        role TEXT,
-        title TEXT NOT NULL,
-        message TEXT NOT NULL,
-        type TEXT DEFAULT 'info',
-        link_tab TEXT,
-        is_read INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )""")
     conn.commit()
     conn.close()
     logger.info("Database initialized")
@@ -562,7 +435,7 @@ init_db()
 
 def init_user_accounts(blockchain_accounts):
     """Initialize user_accounts table from USER_ACCOUNTS config."""
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     for username, info in USER_ACCOUNTS.items():
         wallet_idx = info["wallet_idx"]
@@ -580,7 +453,7 @@ def init_user_accounts(blockchain_accounts):
     conn.close()
 
 def get_user_balance(username):
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT balance FROM user_accounts WHERE username = ?", (username,))
     row = c.fetchone()
@@ -588,15 +461,15 @@ def get_user_balance(username):
     return row[0] if row else 0.0
 
 def update_user_balance(username, new_balance):
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("UPDATE user_accounts SET balance = ?, updated_at = ? WHERE username = ?",
-              (new_balance, datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), username))
+              (new_balance, datetime.utcnow().isoformat(), username))
     conn.commit()
     conn.close()
 
 def get_user_account_info(username):
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT * FROM user_accounts WHERE username = ?", (username,))
     row = c.fetchone()
@@ -616,23 +489,6 @@ def get_user_account_info(username):
 # Compliance case counter
 _case_counter_lock = threading.Lock()
 _case_counter = [0]
-
-def _init_case_counter():
-    """Seed the in-memory counter from the highest case number in the DB."""
-    try:
-        conn = sqlite3.connect(DB_PATH, timeout=10)
-        c = conn.cursor()
-        c.execute("SELECT case_number FROM compliance_cases ORDER BY case_number DESC LIMIT 1")
-        row = c.fetchone()
-        conn.close()
-        if row and row[0]:
-            # Parse the trailing number from e.g. "CASE-2026-0007"
-            parts = row[0].split("-")
-            _case_counter[0] = int(parts[-1])
-    except Exception:
-        pass
-
-_init_case_counter()  # Seed counter from existing DB cases on startup
 
 def generate_case_number():
     with _case_counter_lock:
@@ -676,9 +532,9 @@ def create_compliance_case_for_blocked(settlement_id, risk_result, amount, sende
     description += "Reasons: " + "; ".join(risk_result["reasons"])
 
     sla_hours = sla_hours_for_severity(severity)
-    sla_deadline = (datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=sla_hours)).isoformat()
+    sla_deadline = (datetime.utcnow() + timedelta(hours=sla_hours)).isoformat()
 
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""INSERT INTO compliance_cases
         (id, case_number, settlement_id, case_type, severity, status, description,
@@ -730,8 +586,8 @@ def generate_token(username, role):
     payload = {
         "sub": username,
         "role": role,
-        "iat": datetime.now(timezone.utc).replace(tzinfo=None),
-        "exp": datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=JWT_EXPIRY_HOURS),
+        "iat": datetime.utcnow(),
+        "exp": datetime.utcnow() + timedelta(hours=JWT_EXPIRY_HOURS),
         "jti": str(uuid.uuid4()),
     }
     return jwt.encode(payload, APP_SECRET, algorithm=JWT_ALGORITHM)
@@ -744,22 +600,17 @@ def zero_trust_required(f):
         if not check_rate_limit(client_ip):
             return jsonify({"error": "Rate limit exceeded"}), 429
 
-        # JWT check — accept token from Authorization header or ?token= query param (for file downloads)
+        # JWT check
         auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header.split("Bearer ")[-1].strip()
-        elif request.args.get("token"):
-            token = request.args.get("token")
-        else:
+        if not auth_header.startswith("Bearer "):
             return jsonify({"error": "Missing or invalid Authorization header"}), 401
+
+        token = auth_header.split("Bearer ")[-1].strip()
         try:
             payload = jwt.decode(token, APP_SECRET, algorithms=[JWT_ALGORITHM])
-            # Check token blacklist (revoked on logout)
-            if payload.get("jti") in _REVOKED_TOKENS:
-                return jsonify({"error": "Token has been revoked — please log in again"}), 401
             request.user = payload
         except jwt.ExpiredSignatureError:
-            return jsonify({"error": "Token expired — please log in again"}), 401
+            return jsonify({"error": "Token expired"}), 401
         except jwt.InvalidTokenError:
             return jsonify({"error": "Invalid token"}), 401
 
@@ -784,29 +635,19 @@ class AML_Risk_Engine:
 
     def _load_models(self):
         try:
-            self.iso_forest   = joblib.load(os.path.join(MODELS_DIR, "isolation_forest.pkl"))
-            _rf_raw           = joblib.load(os.path.join(MODELS_DIR, "random_forest.pkl"))
-            self.rf_clf       = _rf_raw['model'] if isinstance(_rf_raw, dict) else _rf_raw
-            _xgb_raw          = joblib.load(os.path.join(MODELS_DIR, "xgboost.pkl"))
-            self.xgb_clf      = _xgb_raw['model'] if isinstance(_xgb_raw, dict) else _xgb_raw
-            self.autoencoder  = joblib.load(os.path.join(MODELS_DIR, "autoencoder.pkl"))
+            self.iso_forest = joblib.load(os.path.join(MODELS_DIR, "isolation_forest.pkl"))
+            self.rf_clf = joblib.load(os.path.join(MODELS_DIR, "random_forest.pkl"))
+            self.xgb_clf = joblib.load(os.path.join(MODELS_DIR, "xgboost.pkl"))
+            self.autoencoder = joblib.load(os.path.join(MODELS_DIR, "autoencoder.pkl"))
             self.ae_threshold = joblib.load(os.path.join(MODELS_DIR, "ae_threshold.pkl"))
-            self.models_loaded = True
-            logger.info("Core ML models loaded successfully")
-        except Exception as e:
-            logger.error(f"Core model loading error: {e}")
-            self.models_loaded = False
-
-        # Graph models are optional — load if available, silently skip if not
-        try:
             self.pagerank = joblib.load(os.path.join(MODELS_DIR, "pagerank.pkl"))
-        except Exception:
-            self.pagerank = {}
-        try:
             with open(os.path.join(MODELS_DIR, "graph_data.json")) as f:
                 self.graph_data = json.load(f)
-        except Exception:
-            self.graph_data = {}
+            self.models_loaded = True
+            logger.info("All 4 ML models loaded successfully")
+        except Exception as e:
+            logger.error(f"Model loading error: {e}")
+            self.models_loaded = False
 
     def score_transaction(self, amount, hour, day, freq, is_round, country_risk,
                           sender, receiver, beneficiary_name=""):
@@ -919,28 +760,21 @@ class AML_Risk_Engine:
             self._last_shap = None
         scores['ml'] = ml_score
 
-        # === NLP Watchlist + Entity Risk (15% weight) ===
-        # Multi-factor: exact watchlist hit (100), sanctions DB (100),
-        # fuzzy proximity to risky entities (30-80), entity opacity keywords (10-30),
-        # high-risk jurisdiction (20-40)
+        # === NLP Watchlist (15% weight) ===
         nlp_score = 0
-        nlp_reasons = []
         if beneficiary_name:
-            from difflib import SequenceMatcher
             name_lower = beneficiary_name.lower()
-
-            # 1. Exact watchlist match → 100
+            # Check against watchlist entities
             for entity in WATCHLIST_ENTITIES:
                 if entity in name_lower or name_lower in entity:
                     nlp_score = 100
-                    nlp_reasons.append(f"Watchlist match: {entity}")
+                    reasons.append(f"Watchlist match: {entity}")
                     force_composite = max(force_composite or 0, 95)
                     break
-
-            # 2. Sanctions DB match → 100
-            if nlp_score < 100:
+            # Check sanctions DB
+            if nlp_score == 0:
                 try:
-                    conn = open_db()
+                    conn = sqlite3.connect(DB_PATH)
                     c = conn.cursor()
                     c.execute("SELECT entity_name FROM sanctions_list WHERE LOWER(entity_name) LIKE ?",
                               (f"%{name_lower}%",))
@@ -948,58 +782,11 @@ class AML_Risk_Engine:
                     conn.close()
                     if match:
                         nlp_score = 100
-                        nlp_reasons.append(f"Sanctions list match: {match[0]}")
+                        reasons.append(f"Sanctions list match: {match[0]}")
                         force_composite = max(force_composite or 0, 95)
                 except Exception:
                     pass
-
-            # 3. Fuzzy proximity to known risky entities (threshold 0.55) → 30-80
-            if nlp_score < 100:
-                best_ratio = 0.0
-                best_entity = ""
-                for entity in WATCHLIST_ENTITIES:
-                    ratio = SequenceMatcher(None, name_lower, entity).ratio()
-                    if ratio > best_ratio:
-                        best_ratio = ratio
-                        best_entity = entity
-                if best_ratio >= 0.55:
-                    fuzzy_score = int((best_ratio - 0.55) / 0.45 * 80)  # 0→80 range
-                    nlp_score = max(nlp_score, fuzzy_score)
-                    if fuzzy_score >= 20:
-                        nlp_reasons.append(f"Name proximity to risky entity ({best_ratio:.0%}): {best_entity}")
-
-            # 4. Entity opacity keywords → 10-30
-            if nlp_score < 100:
-                OPACITY_KEYWORDS = ["offshore", "haven", "shell", "holding", "anon",
-                                    "phantom", "nominee", "bearer", "corp intl", "unnamed"]
-                opacity_hits = [kw for kw in OPACITY_KEYWORDS if kw in name_lower]
-                if opacity_hits:
-                    opacity_score = min(len(opacity_hits) * 15, 30)
-                    nlp_score = max(nlp_score, opacity_score)
-                    nlp_reasons.append(f"Entity opacity indicators: {', '.join(opacity_hits)}")
-
-            # 5. Destination country risk → 20-40
-            if nlp_score < 100:
-                HIGH_RISK_CR = {"IR": 40, "KP": 40, "RU": 35, "BY": 35, "SY": 40,
-                                "IQ": 35, "AF": 40, "MM": 30, "YE": 35, "VE": 30,
-                                "CU": 30, "ZW": 25, "SD": 35, "LY": 35, "SO": 40}
-                MEDIUM_RISK_CR = {"NG": 20, "PK": 20, "BD": 15, "KH": 20, "LA": 15,
-                                  "PA": 20, "MU": 15, "SC": 15, "BZ": 20, "VU": 20}
-                # Use the country_risk float already computed
-                if country_risk >= 0.9:
-                    cr_score = 40
-                    nlp_reasons.append(f"High-risk destination country ({cr_score})")
-                elif country_risk >= 0.5:
-                    cr_score = 20
-                    nlp_reasons.append(f"Elevated-risk destination country ({cr_score})")
-                else:
-                    cr_score = 0
-                nlp_score = max(nlp_score, cr_score)
-
-            if nlp_reasons:
-                reasons.extend(nlp_reasons)
-
-        scores['nlp'] = min(nlp_score, 100)
+        scores['nlp'] = nlp_score
 
         # === Graph Risk (15% weight) ===
         graph_score = 0
@@ -1051,333 +838,6 @@ class AML_Risk_Engine:
 
 # Initialize AML Engine
 aml_engine = AML_Risk_Engine()
-
-def _rebuild_graph_pagerank():
-    """Rebuild PageRank from real DB settlements + synthetic risk cluster.
-    Called on startup (background thread) so graph scores reflect actual data."""
-    try:
-        import networkx as nx
-        G = nx.DiGraph()
-
-        # Load real settlements from DB
-        try:
-            _conn = open_db()
-            _c = _conn.cursor()
-            _c.execute("SELECT sender, receiver, amount, beneficiary_name FROM settlements LIMIT 5000")
-            rows = _c.fetchall()
-            _conn.close()
-            for s_raw, r_raw, amt, bname in rows:
-                s_id = abs(hash(str(s_raw).lower().strip())) % 10000
-                r_id = abs(hash(str(bname or r_raw).lower().strip())) % 10000
-                if s_id != r_id:
-                    w = float(amt) if amt else 1000.0
-                    if G.has_edge(s_id, r_id):
-                        G[s_id][r_id]['weight'] += w
-                    else:
-                        G.add_edge(s_id, r_id, weight=w)
-        except Exception as e:
-            logger.warning(f"Graph DB read: {e}")
-
-        # Add synthetic high-risk cluster so risky entities have elevated PageRank
-        _risky_entities = list(WATCHLIST_ENTITIES) + [
-            "shell company alpha", "offshore haven corp", "phantom bank ltd",
-            "narco laundry inc", "hawala underground services", "arms dealer international"
-        ]
-        _risky_ids = [abs(hash(e)) % 10000 for e in _risky_entities]
-        _hub = abs(hash("global_risk_hub")) % 10000
-        for _rid in _risky_ids:
-            for _ in range(20):
-                G.add_edge(_rid, _hub, weight=float(np.random.lognormal(11, 1.5)))
-                G.add_edge(_hub, _rid, weight=float(np.random.lognormal(11, 1.5)))
-
-        # Add known beneficiaries with moderate connectivity
-        for bname in [b["name"] for b in BENEFICIARIES]:
-            bid = abs(hash(bname.lower().strip())) % 10000
-            for _ in range(np.random.randint(5, 15)):
-                inter = _risky_ids[np.random.randint(0, len(_risky_ids))]
-                G.add_edge(bid, inter, weight=float(np.random.lognormal(10, 1.5)))
-
-        if len(G.nodes()) >= 2:
-            pr = nx.pagerank(G, alpha=0.85, max_iter=200, weight='weight')
-            joblib.dump(pr, os.path.join(MODELS_DIR, "pagerank.pkl"))
-            nodes = [{"id": int(n), "pagerank": float(v)} for n, v in pr.items()]
-            edges = [{"source": int(u), "target": int(v)} for u, v in list(G.edges())[:1000]]
-            with open(os.path.join(MODELS_DIR, "graph_data.json"), "w") as f:
-                json.dump({"nodes": nodes, "edges": edges}, f)
-            # Reload into aml_engine immediately
-            aml_engine.pagerank = pr
-            logger.info(f"PageRank rebuilt: {len(pr)} nodes from {len(rows) if 'rows' in dir() else 0} DB settlements")
-    except Exception as e:
-        logger.error(f"PageRank rebuild error: {e}")
-
-
-# Auto-train models on startup if not yet trained (e.g. fresh cloud deployment)
-def _auto_train_if_needed():
-    """Background thread: trains ML models if pkl files or metrics.json are missing."""
-    required = ["isolation_forest.pkl", "random_forest.pkl", "xgboost.pkl",
-                "autoencoder.pkl", "ae_threshold.pkl", "sequence_detector.pkl"]
-    missing = [f for f in required if not os.path.exists(os.path.join(MODELS_DIR, f))]
-    metrics_missing = not os.path.exists(os.path.join(MODELS_DIR, "metrics.json"))
-    if not missing and not metrics_missing:
-        return
-    logger.info(f"Auto-training: {len(missing)} model file(s) missing — starting background training")
-    try:
-        from sklearn.ensemble import IsolationForest, RandomForestClassifier
-        from sklearn.neural_network import MLPRegressor
-        import xgboost as xgb_mod
-        import networkx as nx
-        import pandas as pd
-
-        # ── Real dataset: UCI/Kaggle Credit Card Fraud (284k rows, 0.17% fraud) ──
-        # Columns: Time, V1-V28 (PCA), Amount, Class
-        # We map them to our 16 FEATS so inference stays compatible.
-        DATASET_URL = "https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv"
-        DATASET_PATH = os.path.join(MODELS_DIR, "creditcard.csv")
-
-        def _load_real_dataset():
-            if not os.path.exists(DATASET_PATH):
-                logger.info("Downloading Credit Card Fraud dataset (~150MB)…")
-                import urllib.request
-                urllib.request.urlretrieve(DATASET_URL, DATASET_PATH)
-                logger.info("Dataset downloaded.")
-            raw = pd.read_csv(DATASET_PATH)
-            # Feature mapping — keep our 16-feature inference interface
-            # Time (seconds elapsed in 2-day window) → hour of day + day index
-            raw['hour']        = ((raw['Time'] % 86400) / 3600).astype(int)
-            raw['day_of_week'] = ((raw['Time'] // 86400) % 7).astype(int)
-            # Amount stays as-is
-            raw['amount']      = raw['Amount']
-            # PCA components as proxies for derived velocity/risk features
-            # V1 correlates strongly with fraud — use as country_risk proxy (normalise to 0-1)
-            v1_min, v1_max = raw['V1'].min(), raw['V1'].max()
-            raw['country_risk'] = 1.0 - (raw['V1'] - v1_min) / (v1_max - v1_min + 1e-9)
-            # V3 magnitude → velocity_1h proxy (fraudsters make bursts)
-            raw['velocity_1h']  = np.clip(np.abs(raw['V3']).values * 1.5, 0, 15)
-            # V4 → velocity_24h proxy
-            raw['velocity_24h'] = np.clip(np.abs(raw['V4']).values * 4, 0, 60)
-            # V10 → velocity_7d proxy
-            raw['velocity_7d']  = np.clip(np.abs(raw['V10']).values * 8, 0, 150)
-            # V2 is strongly correlated with Amount anomaly → amount_zscore proxy
-            raw['amount_zscore'] = raw['V2'].values
-            # V5 → unique_receivers proxy (1-20)
-            raw['unique_receivers'] = np.clip(np.abs(raw['V5']).values * 2 + 1, 1, 20)
-            # V6 → is_new_receiver (threshold at median)
-            med_v6 = raw['V6'].median()
-            raw['is_new_receiver'] = (raw['V6'] < med_v6).astype(int)
-            # freq_7d — derive from amount percentile (higher amounts → higher freq bucket)
-            raw['freq_7d'] = pd.qcut(raw['Amount'], q=30, labels=False, duplicates='drop').fillna(0).astype(int) + 1
-            # is_round — true if amount has no cents
-            raw['is_round'] = (raw['Amount'] % 1.0 == 0).astype(int)
-            # sender_id / receiver_id — use index-based bucketing (no real IDs in dataset)
-            raw['sender_id']   = (raw.index % 500).astype(int)
-            raw['receiver_id'] = ((raw.index + 137) % 500).astype(int)
-            # avg/std tx amount — approximate from Amount and V7/V8 magnitude
-            raw['avg_tx_amount'] = raw['Amount'] * np.clip(np.abs(raw['V7'].values) * 0.3 + 0.7, 0.5, 2.0)
-            raw['std_tx_amount'] = raw['Amount'] * np.clip(np.abs(raw['V8'].values) * 0.15, 0.0, 0.8)
-            raw['is_fraud'] = raw['Class']
-            return raw
-
-        try:
-            df = _load_real_dataset()
-            logger.info(f"Real dataset loaded: {len(df)} rows, {df['is_fraud'].sum()} fraud ({df['is_fraud'].mean()*100:.2f}%)")
-        except Exception as dl_err:
-            logger.warning(f"Dataset download failed ({dl_err}), falling back to synthetic data")
-            df = None
-
-        if df is None:
-            # Fallback: synthetic data with overlapping distributions
-            np.random.seed(42)
-            N = 15000; N_F = 750; N_N = N - N_F; N_FP = 500; N_CN = N_N - N_FP
-            N_CF = int(N_F * 0.7); N_SF = N_F - N_CF
-            def _vel(n, lo, hi): return np.random.randint(lo, hi, n).astype(float)
-            def make_rows(n, is_fraud_val, amt_range, risk_range, freq_range):
-                amt = np.random.uniform(*amt_range, n)
-                noise = lambda base, scale: np.clip(base + np.random.normal(0, scale, n), 0, None)
-                if not is_fraud_val:
-                    vel1h=noise(_vel(n,0,6),0.8); vel24h=noise(_vel(n,0,25),2.0); vel7d=noise(_vel(n,0,80),5.0)
-                    zscore=np.random.uniform(-1.5,3.0,n); n_recv=noise(_vel(n,1,8),0.5)
-                    new_r=np.random.choice([0,1],n,p=[0.75,0.25])
-                else:
-                    vel1h=noise(_vel(n,2,10),1.0); vel24h=noise(_vel(n,8,45),3.0); vel7d=noise(_vel(n,30,130),8.0)
-                    zscore=np.random.uniform(0.5,5.0,n); n_recv=noise(_vel(n,3,18),1.0)
-                    new_r=np.random.choice([0,1],n,p=[0.45,0.55])
-                return {'amount':amt,'hour':np.random.randint(0,24,n),'day_of_week':np.random.randint(0,7,n),
-                        'freq_7d':np.random.randint(*freq_range,n),'is_round':np.random.choice([0,1],n,p=[0.75,0.25]),
-                        'country_risk':np.random.uniform(*risk_range,n),'sender_id':np.random.randint(0,500,n),
-                        'receiver_id':np.random.randint(0,500,n),'velocity_1h':vel1h,'velocity_24h':vel24h,
-                        'velocity_7d':vel7d,'avg_tx_amount':amt*np.random.uniform(0.5,1.5,n),
-                        'std_tx_amount':amt*np.random.uniform(0.0,0.5,n),'amount_zscore':zscore,
-                        'unique_receivers':n_recv,'is_new_receiver':new_r,'is_fraud':np.full(n,int(is_fraud_val))}
-            df = pd.concat([pd.DataFrame(make_rows(N_CN,False,(100,500000),(0.0,0.5),(1,20))),
-                            pd.DataFrame(make_rows(N_FP,False,(9000,600000),(0.3,0.9),(10,35))),
-                            pd.DataFrame(make_rows(N_CF,True,(9000,2000000),(0.4,1.0),(12,45))),
-                            pd.DataFrame(make_rows(N_SF,True,(5000,300000),(0.2,0.8),(5,25)))],
-                           ignore_index=True).sample(frac=1).reset_index(drop=True)
-
-        FEATS = ['amount', 'hour', 'day_of_week', 'freq_7d', 'is_round', 'country_risk',
-                 'sender_id', 'receiver_id', 'velocity_1h', 'velocity_24h', 'velocity_7d',
-                 'avg_tx_amount', 'std_tx_amount', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
-        X = df[FEATS].values
-        y = df['is_fraud'].values
-
-        from sklearn.model_selection import train_test_split as tts
-        X_tr, X_te, y_tr, y_te = tts(X, y, test_size=0.2, stratify=y)
-        os.makedirs(MODELS_DIR, exist_ok=True)
-
-        iso = IsolationForest(n_estimators=100, contamination=0.05, n_jobs=-1)
-        iso.fit(X_tr)
-        joblib.dump(iso, os.path.join(MODELS_DIR, "isolation_forest.pkl"))
-
-        rf = RandomForestClassifier(n_estimators=150, max_depth=12, min_samples_leaf=10,
-                                    max_features='sqrt', class_weight='balanced', n_jobs=-1)
-        rf.fit(X_tr, y_tr)
-        joblib.dump(rf, os.path.join(MODELS_DIR, "random_forest.pkl"))
-
-        spw = (y_tr == 0).sum() / max((y_tr == 1).sum(), 1)
-        xg = xgb_mod.XGBClassifier(n_estimators=200, max_depth=6, learning_rate=0.05,
-                                    scale_pos_weight=spw, reg_alpha=1.0, reg_lambda=2.0,
-                                    subsample=0.8, colsample_bytree=0.8,
-                                    use_label_encoder=False, eval_metric='logloss', n_jobs=-1)
-        xg.fit(X_tr, y_tr)
-        joblib.dump(xg, os.path.join(MODELS_DIR, "xgboost.pkl"))
-
-        X_norm = X_tr[y_tr == 0]
-        ae = MLPRegressor(hidden_layer_sizes=(64, 32, 16, 32, 64), activation='relu', max_iter=200)
-        ae.fit(X_norm, X_norm)
-        joblib.dump(ae, os.path.join(MODELS_DIR, "autoencoder.pkl"))
-        thr = np.percentile(np.mean((X_norm - ae.predict(X_norm)) ** 2, axis=1), 97)
-        joblib.dump(thr, os.path.join(MODELS_DIR, "ae_threshold.pkl"))
-
-        from sklearn.linear_model import SGDClassifier
-        from sklearn.utils.class_weight import compute_class_weight as _ccw
-        SEQ_FEATS_AT = ['velocity_1h', 'velocity_24h', 'velocity_7d', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
-        seq_idx_at = [FEATS.index(f) for f in SEQ_FEATS_AT]
-        # partial_fit doesn't support class_weight='balanced' — compute explicitly
-        _cw = _ccw('balanced', classes=np.array([0, 1]), y=y_tr)
-        sd = SGDClassifier(loss='modified_huber', max_iter=1000,
-                           class_weight={0: float(_cw[0]), 1: float(_cw[1])},
-                           random_state=42, n_jobs=-1)
-        for start in range(0, len(X_tr), 500):
-            sd.partial_fit(X_tr[start:start+500, :][:, seq_idx_at], y_tr[start:start+500], classes=[0, 1])
-        joblib.dump(sd, os.path.join(MODELS_DIR, "sequence_detector.pkl"))
-
-        # Build transaction graph for PageRank from:
-        # 1. Real DB settlements (hashed sender_username / beneficiary_name IDs)
-        # 2. Augmented with synthetic high-risk cluster so demo shows non-zero scores
-        G = nx.DiGraph()
-
-        # Add edges from real DB settlements
-        try:
-            _conn = open_db()
-            _c = _conn.cursor()
-            _c.execute("SELECT sender, receiver, amount, beneficiary_name FROM settlements LIMIT 2000")
-            for row in _c.fetchall():
-                s_raw, r_raw, amt, bname = row
-                # Use same hashing as settlement endpoint
-                s_id = abs(hash(str(s_raw).lower().strip())) % 10000
-                r_id = abs(hash(str(bname or r_raw).lower().strip())) % 10000
-                if s_id != r_id:
-                    w = float(amt) if amt else 1000.0
-                    if G.has_edge(s_id, r_id):
-                        G[s_id][r_id]['weight'] += w
-                    else:
-                        G.add_edge(s_id, r_id, weight=w)
-            _conn.close()
-        except Exception as _ge:
-            logger.warning(f"Graph DB load warning: {_ge}")
-
-        # Seed high-risk synthetic cluster (known risky entity IDs) to ensure
-        # watchlist-adjacent entities have elevated PageRank
-        _risky_entities = WATCHLIST_ENTITIES + [
-            "shell company alpha", "offshore haven corp", "phantom bank ltd",
-            "narco laundry inc", "hawala underground services"
-        ]
-        _risky_ids = [abs(hash(e)) % 10000 for e in _risky_entities]
-        _hub_id = abs(hash("global_risk_hub")) % 10000
-        for _rid in _risky_ids:
-            for _ in range(15):  # 15 synthetic transactions per risky entity
-                G.add_edge(_rid, _hub_id, weight=float(np.random.lognormal(11, 1.5)))
-                G.add_edge(_hub_id, _rid, weight=float(np.random.lognormal(11, 1.5)))
-
-        # Also add known BENEFICIARIES so "Global Trade Corp" gets some PageRank
-        _bene_names = [b["name"] for b in BENEFICIARIES]
-        for i, bname in enumerate(_bene_names):
-            bid = abs(hash(bname.lower().strip())) % 10000
-            # Route through a few synthetic intermediaries
-            for _ in range(np.random.randint(3, 10)):
-                inter = np.random.choice(_risky_ids + [abs(hash(f"node_{j}")) % 10000 for j in range(20)])
-                G.add_edge(bid, inter, weight=float(np.random.lognormal(10, 1.5)))
-
-        if len(G.nodes()) < 2:
-            # Fallback: pure synthetic graph
-            for _ in range(3000):
-                src = np.random.randint(0, 500)
-                dst = np.random.randint(0, 500)
-                if src != dst:
-                    G.add_edge(src, dst, weight=float(np.random.lognormal(9, 1.5)))
-
-        pr = nx.pagerank(G, alpha=0.85, max_iter=200, weight='weight')
-        joblib.dump(pr, os.path.join(MODELS_DIR, "pagerank.pkl"))
-
-        nodes = [{"id": int(n), "pagerank": float(v)} for n, v in pr.items()]
-        edges = [{"source": int(u), "target": int(v)} for u, v in list(G.edges())[:500]]
-        with open(os.path.join(MODELS_DIR, "graph_data.json"), "w") as f:
-            json.dump({"nodes": nodes, "edges": edges}, f)
-
-        # Metrics + feature importance
-        from sklearn.metrics import f1_score as f1s, accuracy_score as accs
-        metrics = {}
-        for nm, mdl, inv in [("isolation_forest", iso, True), ("random_forest", rf, False), ("xgboost", xg, False)]:
-            p = (mdl.predict(X_te) == -1).astype(int) if inv else mdl.predict(X_te)
-            metrics[nm] = {"f1": float(f1s(y_te, p, zero_division=0)), "accuracy": float(accs(y_te, p))}
-        recon_e = np.mean((X_te - ae.predict(X_te)) ** 2, axis=1)
-        metrics["autoencoder"] = {"f1": float(f1s(y_te, (recon_e > thr).astype(int), zero_division=0)),
-                                  "accuracy": float(accs(y_te, (recon_e > thr).astype(int)))}
-        sd_p = sd.predict(X_te[:, seq_idx_at])
-        metrics["sequence_detector"] = {"f1": float(f1s(y_te, sd_p, zero_division=0)),
-                                        "accuracy": float(accs(y_te, sd_p))}
-        with open(os.path.join(MODELS_DIR, "metrics.json"), "w") as f:
-            json.dump(metrics, f, indent=2)
-        fi_dict = dict(zip(FEATS, rf.feature_importances_.tolist()))
-        with open(os.path.join(MODELS_DIR, "feature_importance.json"), "w") as f:
-            json.dump(fi_dict, f, indent=2)
-
-        # Per-model insights
-        SEQ_FEATS_AT2 = ['velocity_1h', 'velocity_24h', 'velocity_7d', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
-        seq_idx_at2 = [FEATS.index(f) for f in SEQ_FEATS_AT2]
-        at_insights = {
-            "random_forest": {"type": "feature_importance", "label": "Feature Importance (MDI)",
-                              "features": FEATS, "values": rf.feature_importances_.tolist()},
-            "xgboost": {"type": "feature_importance", "label": "Feature Importance (Gain)",
-                        "features": FEATS, "values": xg.feature_importances_.tolist()},
-        }
-        baseline_at = iso.decision_function(X_te)
-        iso_sc = []
-        for fi_i in range(X_te.shape[1]):
-            Xp = X_te.copy(); np.random.shuffle(Xp[:, fi_i])
-            iso_sc.append(float(np.mean(np.abs(baseline_at - iso.decision_function(Xp)))))
-        at_insights["isolation_forest"] = {"type": "anomaly_scores", "label": "Anomaly Feature Contribution",
-                                           "features": FEATS, "values": iso_sc}
-        ae_feat_err = np.mean((X_te - ae.predict(X_te)) ** 2, axis=0).tolist()
-        at_insights["autoencoder"] = {"type": "reconstruction_error", "label": "Per-Feature Reconstruction Error",
-                                      "features": FEATS, "values": ae_feat_err}
-        coef_at = sd.coef_[0].tolist() if hasattr(sd, 'coef_') and sd.coef_ is not None else []
-        at_insights["sequence_detector"] = {"type": "coefficients", "label": "Feature Coefficients (SGD Weights)",
-                                            "features": SEQ_FEATS_AT2, "values": [abs(c) for c in coef_at]}
-        with open(os.path.join(MODELS_DIR, "model_insights.json"), "w") as f:
-            json.dump(at_insights, f, indent=2)
-
-        aml_engine._load_models()
-        logger.info("Auto-training complete — models are now active")
-        push_sse("retrain", {"status": "complete", "metrics": metrics})
-    except Exception as e:
-        logger.error(f"Auto-training failed: {e}")
-
-import threading as _threading
-# Always check: models may be loaded but metrics.json / sequence_detector still missing
-_threading.Thread(target=_auto_train_if_needed, daemon=True).start()
-# Always rebuild PageRank from current DB data (fast — no ML training needed)
-_threading.Thread(target=_rebuild_graph_pagerank, daemon=True).start()
 
 # ============================================================
 # Blockchain Manager
@@ -1538,7 +998,7 @@ blockchain = BlockchainManager()
 # ============================================================
 def log_audit(event_type, actor, details, ip=""):
     try:
-        conn = open_db()
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute(
             "INSERT INTO audit_log (event_type, actor, details, ip_address) VALUES (?, ?, ?, ?)",
@@ -1560,38 +1020,11 @@ def push_sse(event_type, data):
         sse_events.append({
             "type": event_type,
             "data": data,
-            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+            "timestamp": datetime.utcnow().isoformat()
         })
         # Keep only last 200 events
         if len(sse_events) > 200:
             del sse_events[:100]
-
-def push_notification(username_or_role, title, message, notif_type="info", link_tab=None, is_role=False):
-    """
-    Push a notification to a specific user or all users of a role.
-    username_or_role: username (e.g. 'sara') or role (e.g. 'admin') when is_role=True
-    notif_type: 'info' | 'success' | 'warning' | 'error'
-    link_tab: which tab to open when notification is clicked (e.g. 'approvals', 'cards')
-    """
-    import uuid as _uuid
-    conn = open_db()
-    c = conn.cursor()
-    if is_role:
-        # Insert one notification per user who has this role
-        for uname, creds in USERS.items():
-            if creds.get("role") == username_or_role:
-                c.execute("""INSERT INTO notifications (id, username, role, title, message, type, link_tab)
-                             VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                          (str(_uuid.uuid4()), uname, username_or_role, title, message, notif_type, link_tab))
-    else:
-        notif_id = str(_uuid.uuid4())
-        c.execute("""INSERT INTO notifications (id, username, role, title, message, type, link_tab)
-                     VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                  (notif_id, username_or_role, USERS.get(username_or_role, {}).get("role", ""), title, message, notif_type, link_tab))
-    conn.commit()
-    conn.close()
-    # Push SSE so connected clients update their badge instantly
-    push_sse("notification", {"for": username_or_role, "is_role": is_role, "title": title, "type": notif_type})
 
 # ============================================================
 # API ENDPOINTS
@@ -1601,100 +1034,28 @@ def push_notification(username_or_role, title, message, notif_type="info", link_
 @app.route("/api/login", methods=["POST"])
 def login():
     data = request.get_json(force=True)
-    username = data.get("username", "").strip().lower()
+    username = data.get("username", "")
     password = data.get("password", "")
-    client_ip = request.remote_addr or "unknown"
-
-    # ── Account lockout check ────────────────────────────────────────────────
-    locked, secs = _check_lockout(username)
-    if locked:
-        log_audit("login_blocked", username, {"reason": "account locked", "seconds_remaining": secs}, client_ip)
-        return jsonify({
-            "error": f"Account temporarily locked due to too many failed attempts. Try again in {secs // 60 + 1} minute(s).",
-            "locked_until_seconds": secs,
-        }), 423
 
     user = USERS.get(username)
-    if not user or not _verify_password(user["password"], password):
-        _record_failed_login(username)
-        attempts = _FAILED_LOGINS.get(username, {}).get("count", 1)
-        remaining = MAX_LOGIN_ATTEMPTS - attempts
-        log_audit("login_failed", username, {"reason": "invalid credentials", "attempts": attempts}, client_ip)
-        if remaining > 0:
-            return jsonify({"error": f"Invalid credentials. {remaining} attempt(s) remaining before account is locked."}), 401
-        return jsonify({"error": "Too many failed attempts. Account locked for 15 minutes."}), 423
+    if not user or user["password"] != password:
+        log_audit("login_failed", username, {"reason": "invalid credentials"}, request.remote_addr)
+        return jsonify({"error": "Invalid credentials"}), 401
 
-    _reset_failed_login(username)
     token = generate_token(username, user["role"])
-    # Generate refresh token (longer-lived, no role — only for refreshing access)
-    refresh_payload = {
-        "sub": username, "type": "refresh",
-        "iat": datetime.now(timezone.utc).replace(tzinfo=None),
-        "exp": datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=JWT_REFRESH_HOURS),
-        "jti": str(uuid.uuid4()),
-    }
-    refresh_token = jwt.encode(refresh_payload, APP_SECRET, algorithm=JWT_ALGORITHM)
-    log_audit("login_success", username, {"role": user["role"], "ip": client_ip}, client_ip)
+    log_audit("login_success", username, {"role": user["role"]}, request.remote_addr)
 
+    # Get user account info
     acct = get_user_account_info(username)
     full_name = acct["full_name"] if acct else username
-    limits = USER_TX_LIMITS.get(user["role"], {})
 
     return jsonify({
-        "token":         token,
-        "refresh_token": refresh_token,
-        "username":      username,
-        "role":          user["role"],
-        "full_name":     full_name,
-        "expires_in":    JWT_EXPIRY_HOURS * 3600,
-        "tx_limits":     limits,
+        "token": token,
+        "username": username,
+        "role": user["role"],
+        "full_name": full_name,
+        "expires_in": JWT_EXPIRY_HOURS * 3600,
     })
-
-# --- Logout (token blacklist) ---
-@app.route("/api/auth/logout", methods=["POST"])
-@zero_trust_required
-def logout():
-    jti = request.user.get("jti")
-    if jti:
-        _REVOKED_TOKENS.add(jti)
-    log_audit("logout", request.user.get("sub",""), {}, request.remote_addr)
-    return jsonify({"message": "Logged out successfully"})
-
-# --- Token Refresh ---
-@app.route("/api/auth/refresh", methods=["POST"])
-def refresh_token_endpoint():
-    data = request.get_json(force=True) or {}
-    refresh_tok = data.get("refresh_token", "")
-    if not refresh_tok:
-        return jsonify({"error": "refresh_token required"}), 400
-    try:
-        payload = jwt.decode(refresh_tok, APP_SECRET, algorithms=[JWT_ALGORITHM])
-        if payload.get("type") != "refresh":
-            return jsonify({"error": "Not a refresh token"}), 400
-        if payload.get("jti") in _REVOKED_TOKENS:
-            return jsonify({"error": "Refresh token revoked"}), 401
-        username = payload["sub"]
-        user = USERS.get(username)
-        if not user:
-            return jsonify({"error": "User not found"}), 401
-        new_token = generate_token(username, user["role"])
-        log_audit("token_refreshed", username, {}, request.remote_addr)
-        return jsonify({"token": new_token, "expires_in": JWT_EXPIRY_HOURS * 3600})
-    except jwt.ExpiredSignatureError:
-        return jsonify({"error": "Refresh token expired — please log in again"}), 401
-    except jwt.InvalidTokenError:
-        return jsonify({"error": "Invalid refresh token"}), 401
-
-# --- Fee Calculator ---
-@app.route("/api/payments/fee", methods=["POST"])
-@zero_trust_required
-def get_payment_fee():
-    data = request.get_json(force=True) or {}
-    amount = float(data.get("amount", 0))
-    payment_type = data.get("payment_type", "standard")
-    if amount <= 0:
-        return jsonify({"error": "Amount must be positive"}), 400
-    return jsonify(calculate_fee(amount, payment_type))
 
 # --- Account Info ---
 @app.route("/api/accounts/me", methods=["GET"])
@@ -1712,7 +1073,7 @@ def account_me():
 @zero_trust_required
 def sub_accounts():
     username = request.user.get("sub", "")
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT balance FROM user_accounts WHERE username = ?", (username,))
     row = c.fetchone()
@@ -1731,8 +1092,6 @@ def sub_accounts():
 @app.route("/api/p2p/send", methods=["POST"])
 @zero_trust_required
 def p2p_send():
-    if request.user.get("role") not in ("admin", "operator", "client"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     data = request.get_json(force=True)
     username = request.user.get("sub", "")
     recipient_value = data.get("recipient_value", "").strip()
@@ -1741,7 +1100,7 @@ def p2p_send():
     if not recipient_value or amount <= 0:
         return jsonify({"error": "Recipient and positive amount required"}), 400
     # Find recipient by username or full name (case-insensitive)
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT username, full_name, balance FROM user_accounts WHERE username = ? OR LOWER(full_name) = LOWER(?) OR LOWER(username) = LOWER(?)",
               (recipient_value, recipient_value, recipient_value))
@@ -1765,7 +1124,7 @@ def p2p_send():
     update_user_balance(recipient_username, recipient_bal + amount)
     # Log to settlements
     tx_id = str(uuid.uuid4())
-    conn2 = open_db()
+    conn2 = sqlite3.connect(DB_PATH)
     c2 = conn2.cursor()
     sender_name = ""
     c2.execute("SELECT full_name FROM user_accounts WHERE username = ?", (username,))
@@ -1774,7 +1133,7 @@ def p2p_send():
     c2.execute("""INSERT INTO settlements (id, sender, receiver, amount, currency, risk_score, status, beneficiary_name, created_at, sender_username, receiver_username)
         VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
         (tx_id, sender_name or username, recipient_name, amount, "USD", 0, "settled", recipient_name,
-         datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), username, recipient_username))
+         datetime.utcnow().isoformat(), username, recipient_username))
     conn2.commit()
     conn2.close()
     log_audit("p2p_transfer", username, {"to": recipient[0], "amount": amount, "note": note}, request.remote_addr)
@@ -1785,7 +1144,7 @@ def p2p_send():
 def p2p_history():
     username = request.user.get("sub", "")
     full_name = USERS.get(username, {}).get("full_name", username)
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM settlements WHERE sender_username = ? AND risk_score = 0 ORDER BY created_at DESC LIMIT 20", (username,))
@@ -1802,8 +1161,6 @@ def p2p_history():
 @app.route("/api/transfers/external", methods=["POST"])
 @zero_trust_required
 def external_transfer():
-    if request.user.get("role") not in ("admin", "operator", "client"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     data = request.get_json(force=True)
     username = request.user.get("sub", "")
     amount = float(data.get("amount", 0))
@@ -1830,7 +1187,7 @@ def external_transfer():
 @zero_trust_required
 def list_scheduled():
     username = request.user.get("sub", "")
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS scheduled_payments (
         id TEXT PRIMARY KEY, username TEXT, beneficiary_name TEXT, amount REAL, frequency TEXT,
@@ -1851,12 +1208,12 @@ def create_scheduled():
     recipient = data.get("beneficiary_name") or data.get("recipient", "")
     amount = float(data.get("amount", 0))
     frequency = data.get("frequency", "monthly")
-    next_date = data.get("next_run_date") or data.get("start_date", datetime.now(timezone.utc).replace(tzinfo=None).isoformat()[:10])
+    next_date = data.get("next_run_date") or data.get("start_date", datetime.utcnow().isoformat()[:10])
     description = data.get("description", "")
     if not recipient or amount <= 0:
         return jsonify({"error": "Recipient and positive amount required"}), 400
     pay_id = str(uuid.uuid4())
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS scheduled_payments (
         id TEXT PRIMARY KEY, username TEXT, beneficiary_name TEXT, amount REAL, frequency TEXT,
@@ -1872,7 +1229,7 @@ def create_scheduled():
 @zero_trust_required
 def cancel_scheduled(pay_id):
     username = request.user.get("sub", "")
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("DELETE FROM scheduled_payments WHERE id = ? AND username = ?", (pay_id, username))
     conn.commit()
@@ -1933,97 +1290,6 @@ def list_documents():
     if doc_filter:
         docs = [d for d in docs if d["type"] == doc_filter]
     return jsonify({"documents": docs})
-
-@app.route("/api/documents/<doc_id>/download", methods=["GET"])
-@zero_trust_required
-def download_document(doc_id):
-    username = request.user.get("sub", "")
-    full_name = USER_ACCOUNTS.get(username, {}).get("full_name", username)
-
-    # Build document metadata from the id
-    lines = []
-    if doc_id.startswith("stmt-"):
-        parts = doc_id.split("-")
-        year, month = parts[1], parts[2]
-        from datetime import date
-        month_name = date(int(year), int(month), 1).strftime("%B %Y")
-        title = f"Monthly Statement — {month_name}"
-        lines = [
-            f"IPTS — Monthly Account Statement",
-            f"Account Holder : {full_name}",
-            f"Period         : {month_name}",
-            f"Generated      : {datetime.now(timezone.utc).replace(tzinfo=None).strftime('%Y-%m-%d %H:%M UTC')}",
-            "",
-            "This statement summarises all transactions processed through",
-            "the Integrated Payment Transformation System (IPTS) for the",
-            f"period of {month_name}.",
-            "",
-            "For queries contact: support@ipts.example.com",
-        ]
-    elif doc_id.startswith("tax-"):
-        year = doc_id.split("-")[-1]
-        title = f"1099-INT Tax Form — {year}"
-        lines = [
-            f"IPTS — 1099-INT Interest Income Tax Form",
-            f"Taxpayer       : {full_name}",
-            f"Tax Year       : {year}",
-            f"Generated      : {datetime.now(timezone.utc).replace(tzinfo=None).strftime('%Y-%m-%d %H:%M UTC')}",
-            "",
-            "This form reports interest income earned through IPTS accounts.",
-            "Please include this information in your annual tax return.",
-            "",
-            "For queries contact: tax@ipts.example.com",
-        ]
-    elif doc_id.startswith("receipt-"):
-        title = "KYC Verification Receipt"
-        lines = [
-            f"IPTS — KYC Verification Receipt",
-            f"Account Holder : {full_name}",
-            f"Status         : VERIFIED",
-            f"Date           : {datetime.now(timezone.utc).replace(tzinfo=None).strftime('%Y-%m-%d %H:%M UTC')}",
-            "",
-            "Identity verification has been completed successfully.",
-            "This receipt confirms compliance with KYC/AML regulations.",
-            "",
-            "Reference ID   : " + doc_id,
-        ]
-    else:
-        return jsonify({"error": "Document not found"}), 404
-
-    # Generate a simple PDF using reportlab if available, else plain text
-    try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.pdfgen import canvas as rl_canvas
-        import io
-        buf = io.BytesIO()
-        c = rl_canvas.Canvas(buf, pagesize=A4)
-        c.setFont("Helvetica-Bold", 16)
-        c.drawString(50, 800, "IPTS — Integrated Payment Transformation System")
-        c.setFont("Helvetica", 11)
-        y = 760
-        for line in lines:
-            c.drawString(50, y, line)
-            y -= 20
-        c.setFont("Helvetica-Oblique", 9)
-        c.drawString(50, 50, "This is a system-generated document. IPTS © 2026")
-        c.save()
-        buf.seek(0)
-        from flask import send_file
-        return send_file(
-            buf,
-            mimetype="application/pdf",
-            as_attachment=True,
-            download_name=f"{doc_id}.pdf"
-        )
-    except ImportError:
-        # Fallback: plain text
-        content = "\n".join(lines)
-        from flask import Response
-        return Response(
-            content,
-            mimetype="text/plain",
-            headers={"Content-Disposition": f'attachment; filename="{doc_id}.txt"'}
-        )
 
 # --- QR Pay ---
 @app.route("/api/qr/generate", methods=["POST"])
@@ -2093,12 +1359,13 @@ def account_beneficiaries():
         beneficiaries.append({
             "name": b["name"],
             "type": b["type"],
+            "risk": b["risk"],
             "username": matched_username,
         })
         
     # Add custom beneficiaries from DB
     try:
-        conn = open_db()
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute("SELECT name, beneficiary_type FROM beneficiaries")
         for row in c.fetchall():
@@ -2132,7 +1399,7 @@ def account_beneficiaries():
 @app.route("/api/beneficiaries", methods=["GET"])
 @zero_trust_required
 def get_beneficiaries():
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT * FROM beneficiaries ORDER BY created_at DESC")
     rows = c.fetchall()
@@ -2153,7 +1420,7 @@ def get_beneficiaries():
 def add_beneficiary():
     data = request.get_json(force=True)
     b_id = str(uuid.uuid4())
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""INSERT INTO beneficiaries (id, name, nickname, account_number, bank_name, swift_code, country, currency, beneficiary_type, notes)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -2169,7 +1436,7 @@ def add_beneficiary():
 @zero_trust_required
 def update_beneficiary(id):
     data = request.get_json(force=True)
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""UPDATE beneficiaries SET name=?, nickname=?, account_number=?, bank_name=?, swift_code=?, country=?, currency=?, beneficiary_type=?, notes=?
                  WHERE id=?""",
@@ -2184,7 +1451,7 @@ def update_beneficiary(id):
 @app.route("/api/beneficiaries/<id>", methods=["DELETE"])
 @zero_trust_required
 def delete_beneficiary(id):
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("DELETE FROM beneficiaries WHERE id=?", (id,))
     conn.commit()
@@ -2197,7 +1464,7 @@ def delete_beneficiary(id):
 @zero_trust_required
 def get_cards():
     username = request.user.get("sub", "")
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT id, label, card_network, card_number, expiry_month, expiry_year, spending_limit, status FROM virtual_cards WHERE username=? ORDER BY created_at DESC", (username,))
     cards = []
@@ -2213,309 +1480,43 @@ def get_cards():
 @app.route("/api/cards/generate", methods=["POST"])
 @zero_trust_required
 def generate_card():
-    """Admin-only: directly generate an active card (used internally when approving)."""
-    if request.user.get("role") not in ("admin",):
-        return jsonify({"error": "Only admins can generate cards directly. Use /api/cards/request instead."}), 403
-    return _create_card(request.user.get("sub", ""), request.get_json(force=True), status="active")
-
-@app.route("/api/cards/request", methods=["POST"])
-@zero_trust_required
-def request_card():
-    """Users request a card — stored as pending_approval until an admin approves."""
     username = request.user.get("sub", "")
     data = request.get_json(force=True)
-    # Check for duplicate pending request
-    conn = open_db()
-    c = conn.cursor()
-    c.execute("SELECT id FROM virtual_cards WHERE username=? AND status='pending_approval'", (username,))
-    if c.fetchone():
-        conn.close()
-        return jsonify({"error": "You already have a card request pending approval."}), 400
-    conn.close()
-    result = _create_card(username, data, status="pending_approval")
-    log_audit("card_requested", username, {"label": data.get("label","Virtual Card")}, request.remote_addr)
-    _card_label = data.get("label", "Virtual Card")
-    _card_network = data.get("card_network", "Visa")
-    push_notification(username, "Card Request Submitted", f"Your '{_card_label}' card request is awaiting admin approval.", notif_type="info", link_tab="cards")
-    push_notification("admin", "New Card Request", f"{username} requested a new {_card_network} card.", notif_type="info", link_tab="cards", is_role=True)
-    return result
-
-def _create_card(username, data, status="pending_approval"):
     c_id = str(uuid.uuid4())
     label = data.get("label", "Virtual Card")
     spending_limit = float(data.get("spending_limit", 5000))
-    card_type = data.get("card_type", "Virtual Debit")
-    card_network = data.get("card_network", "Visa")
-    # Only generate real card numbers for active cards
-    if status == "active":
-        prefix = "4" if card_network == "Visa" else "5"
-        last_four = str(random.randint(1000, 9999))
-        card_number = f"{prefix}xxx xxxx xxxx {last_four}"
-        expiry_month = random.randint(1, 12)
-        expiry_year = datetime.now().year + random.randint(1, 4)
-        cvv = str(random.randint(100, 999))
-    else:
-        card_number = "Pending approval"
-        expiry_month, expiry_year, cvv, last_four = 0, 0, "---", "????"
-    conn = open_db()
-    c = conn.cursor()
-    c.execute("""INSERT INTO virtual_cards (id, username, label, card_type, card_network, card_number, expiry_month, expiry_year, cvv, spending_limit, status)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-              (c_id, username, label, card_type, card_network, card_number, expiry_month, expiry_year, cvv, spending_limit, status))
-    conn.commit()
-    conn.close()
-    if status == "active":
-        return jsonify({"message": "Card generated successfully", "id": c_id,
-                        "last_four": last_four, "expiry": f"{expiry_month:02d}/{expiry_year}", "cvv": cvv})
-    else:
-        return jsonify({"message": "Card request submitted. An admin will review and approve it shortly.", "id": c_id})
-
-@app.route("/api/cards/requests", methods=["GET"])
-@zero_trust_required
-def get_card_requests():
-    """Admin: view all pending card requests."""
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    conn = open_db()
-    c = conn.cursor()
-    c.execute("""SELECT id, username, label, card_type, card_network, spending_limit, status, created_at
-                 FROM virtual_cards WHERE status='pending_approval' ORDER BY created_at DESC""")
-    requests_list = [{"id": r[0], "username": r[1], "label": r[2], "card_type": r[3],
-                      "card_network": r[4], "spending_limit": r[5], "status": r[6], "created_at": r[7]}
-                     for r in c.fetchall()]
-    conn.close()
-    return jsonify({"requests": requests_list, "total": len(requests_list)})
-
-@app.route("/api/cards/<card_id>/approve", methods=["POST"])
-@zero_trust_required
-def approve_card(card_id):
-    """Admin: approve a pending card request — generates real card details."""
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    conn = open_db()
-    c = conn.cursor()
-    c.execute("SELECT username, card_network, spending_limit, status FROM virtual_cards WHERE id=?", (card_id,))
-    row = c.fetchone()
-    if not row:
-        conn.close()
-        return jsonify({"error": "Card not found"}), 404
-    if row[3] != "pending_approval":
-        conn.close()
-        return jsonify({"error": f"Card is already {row[3]}"}), 400
-    # Generate real card details now
-    card_network = row[1] or "Visa"
+    
+    # Generate mock card details
+    card_network = "Visa" if random.random() > 0.5 else "Mastercard"
     prefix = "4" if card_network == "Visa" else "5"
     last_four = str(random.randint(1000, 9999))
     card_number = f"{prefix}xxx xxxx xxxx {last_four}"
     expiry_month = random.randint(1, 12)
     expiry_year = datetime.now().year + random.randint(1, 4)
     cvv = str(random.randint(100, 999))
-    c.execute("""UPDATE virtual_cards
-                 SET status='active', card_number=?, expiry_month=?, expiry_year=?, cvv=?
-                 WHERE id=?""",
-              (card_number, expiry_month, expiry_year, cvv, card_id))
+    
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""INSERT INTO virtual_cards (id, username, label, card_network, card_number, expiry_month, expiry_year, cvv, spending_limit, status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')""",
+              (c_id, username, label, card_network, card_number, expiry_month, expiry_year, cvv, spending_limit))
     conn.commit()
     conn.close()
-    admin = request.user.get("sub", "admin")
-    log_audit("card_approved", admin, {"card_id": card_id, "user": row[0], "last_four": last_four}, request.remote_addr)
-    push_sse("card_approved", {"card_id": card_id, "username": row[0], "last_four": last_four})
-    push_notification(row[0], "Card Approved & Activated", f"Your card ending {last_four} is now active.", notif_type="success", link_tab="cards")
-    return jsonify({"message": f"Card approved and activated. Last four: {last_four}",
-                    "last_four": last_four, "expiry": f"{expiry_month:02d}/{expiry_year}"})
-
-@app.route("/api/cards/<card_id>/reject", methods=["POST"])
-@zero_trust_required
-def reject_card(card_id):
-    """Admin: reject a pending card request."""
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    data = request.get_json(force=True) or {}
-    reason = data.get("reason", "Request declined by admin")
-    conn = open_db()
-    c = conn.cursor()
-    c.execute("SELECT username, status FROM virtual_cards WHERE id=?", (card_id,))
-    row = c.fetchone()
-    if not row:
-        conn.close()
-        return jsonify({"error": "Card not found"}), 404
-    if row[1] != "pending_approval":
-        conn.close()
-        return jsonify({"error": f"Card is already {row[1]}"}), 400
-    c.execute("UPDATE virtual_cards SET status='rejected' WHERE id=?", (card_id,))
-    conn.commit()
-    conn.close()
-    log_audit("card_rejected", request.user.get("sub","admin"), {"card_id": card_id, "user": row[0], "reason": reason}, request.remote_addr)
-    push_notification(row[0], "Card Request Rejected", f"Your card request was rejected. {reason}", notif_type="error", link_tab="cards")
-    return jsonify({"message": "Card request rejected.", "reason": reason})
-
-# ============================================================
-# User Management (Admin only)
-# ============================================================
-
-@app.route("/api/admin/users", methods=["GET"])
-@zero_trust_required
-def list_users():
-    """Admin: list all users with their roles, balances and status."""
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    users = []
-    for username, creds in USERS.items():
-        acct = USER_ACCOUNTS.get(username, {})
-        # Count transactions
-        conn = open_db()
-        c = conn.cursor()
-        c.execute("SELECT COUNT(*) FROM settlements WHERE sender_username=?", (username,))
-        tx_count = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM virtual_cards WHERE username=? AND status NOT IN ('cancelled','rejected')", (username,))
-        card_count = c.fetchone()[0]
-        conn.close()
-        users.append({
-            "username": username,
-            "full_name": acct.get("full_name", username),
-            "role": creds.get("role", "unknown"),
-            "balance": get_user_balance(username),
-            "currency": acct.get("currency", "USD"),
-            "tx_count": tx_count,
-            "card_count": card_count,
-        })
-    return jsonify({"users": users, "total": len(users)})
-
-@app.route("/api/admin/users/<username>/role", methods=["POST"])
-@zero_trust_required
-def update_user_role(username):
-    """Admin: change a user's role."""
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    if username not in USERS:
-        return jsonify({"error": "User not found"}), 404
-    if username == request.user.get("sub"):
-        return jsonify({"error": "Cannot change your own role"}), 400
-    data = request.get_json() or {}
-    new_role = data.get("role", "")
-    valid_roles = ["admin", "operator", "compliance", "auditor", "datascientist", "client"]
-    if new_role not in valid_roles:
-        return jsonify({"error": f"Invalid role. Must be one of: {', '.join(valid_roles)}"}), 400
-    old_role = USERS[username]["role"]
-    USERS[username]["role"] = new_role
-    log_audit("role_changed", request.user.get("sub", "admin"),
-              {"username": username, "old_role": old_role, "new_role": new_role}, request.remote_addr)
-    return jsonify({"message": f"Role updated to {new_role}", "username": username, "role": new_role})
-
-@app.route("/api/admin/users/<username>/balance", methods=["POST"])
-@zero_trust_required
-def adjust_user_balance(username):
-    """Admin: adjust a user's balance (credit or debit)."""
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    if username not in USER_ACCOUNTS:
-        return jsonify({"error": "User not found"}), 404
-    data = request.get_json() or {}
-    amount = float(data.get("amount", 0))
-    action = data.get("action", "credit")  # 'credit' or 'debit'
-    current = get_user_balance(username)
-    if action == "debit" and current < amount:
-        return jsonify({"error": "Insufficient balance"}), 400
-    new_balance = current + amount if action == "credit" else current - amount
-    update_user_balance(username, new_balance)
-    log_audit("balance_adjusted", request.user.get("sub", "admin"),
-              {"username": username, "action": action, "amount": amount,
-               "old_balance": current, "new_balance": new_balance}, request.remote_addr)
-    return jsonify({"message": f"Balance {action}ed by ${amount:,.2f}", "new_balance": new_balance})
-
-@app.route("/api/admin/system-stats", methods=["GET"])
-@zero_trust_required
-def system_stats():
-    """Admin: high-level system statistics."""
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    conn = open_db()
-    c = conn.cursor()
-    c.execute("SELECT COUNT(*), COALESCE(SUM(amount),0) FROM settlements")
-    total_tx, total_vol = c.fetchone()
-    c.execute("SELECT COUNT(*) FROM settlements WHERE status='blocked'")
-    blocked = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM settlements WHERE status='pending_review'")
-    pending_review = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM compliance_cases WHERE status='open'")
-    open_cases = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM virtual_cards WHERE status='pending_approval'")
-    pending_cards = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM four_eyes_approvals WHERE status='pending'")
-    pending_approvals = c.fetchone()[0]
-    conn.close()
-    total_balance = sum(get_user_balance(u) for u in USER_ACCOUNTS)
+    
+    log_audit("virtual_card_generated", username, {"id": c_id, "limit": spending_limit}, request.remote_addr)
     return jsonify({
-        "total_transactions": total_tx,
-        "total_volume": round(total_vol, 2),
-        "blocked_transactions": blocked,
-        "pending_review": pending_review,
-        "open_cases": open_cases,
-        "pending_card_requests": pending_cards,
-        "pending_approvals": pending_approvals,
-        "total_users": len(USERS),
-        "total_system_balance": round(total_balance, 2),
+        "message": "Card generated successfully",
+        "id": c_id,
+        "last_four": last_four,
+        "expiry": f"{expiry_month:02d}/{expiry_year}",
+        "cvv": cvv
     })
-
-# ============================================================
-# Notifications
-# ============================================================
-
-@app.route("/api/notifications", methods=["GET"])
-@zero_trust_required
-def get_notifications():
-    username = request.user.get("sub", "")
-    unread_only = request.args.get("unread_only", "false").lower() == "true"
-    conn = open_db()
-    c = conn.cursor()
-    query = "SELECT id, title, message, type, link_tab, is_read, created_at FROM notifications WHERE username=?"
-    params = [username]
-    if unread_only:
-        query += " AND is_read=0"
-    query += " ORDER BY created_at DESC LIMIT 50"
-    c.execute(query, params)
-    notifs = [{"id": r[0], "title": r[1], "message": r[2], "type": r[3],
-               "link_tab": r[4], "is_read": bool(r[5]), "created_at": r[6]}
-              for r in c.fetchall()]
-    c.execute("SELECT COUNT(*) FROM notifications WHERE username=? AND is_read=0", (username,))
-    unread_count = c.fetchone()[0]
-    conn.close()
-    return jsonify({"notifications": notifs, "unread_count": unread_count})
-
-@app.route("/api/notifications/<notif_id>/read", methods=["POST"])
-@zero_trust_required
-def mark_notification_read(notif_id):
-    username = request.user.get("sub", "")
-    conn = open_db()
-    conn.execute("UPDATE notifications SET is_read=1 WHERE id=? AND username=?", (notif_id, username))
-    conn.commit()
-    conn.close()
-    return jsonify({"ok": True})
-
-@app.route("/api/notifications/read-all", methods=["POST"])
-@zero_trust_required
-def mark_all_notifications_read():
-    username = request.user.get("sub", "")
-    conn = open_db()
-    conn.execute("UPDATE notifications SET is_read=1 WHERE username=?", (username,))
-    conn.commit()
-    conn.close()
-    return jsonify({"ok": True})
-
-@app.route("/api/notifications/clear", methods=["DELETE"])
-@zero_trust_required
-def clear_notifications():
-    username = request.user.get("sub", "")
-    conn = open_db()
-    conn.execute("DELETE FROM notifications WHERE username=? AND is_read=1", (username,))
-    conn.commit()
-    conn.close()
-    return jsonify({"ok": True})
 
 @app.route("/api/cards/<id>/freeze", methods=["POST"])
 @zero_trust_required
 def freeze_card(id):
     username = request.user.get("sub", "")
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT status FROM virtual_cards WHERE id=? AND username=?", (id, username))
     row = c.fetchone()
@@ -2534,7 +1535,7 @@ def freeze_card(id):
 @zero_trust_required
 def delete_card(id):
     username = request.user.get("sub", "")
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("UPDATE virtual_cards SET status='cancelled' WHERE id=? AND username=?", (id, username))
     conn.commit()
@@ -2554,7 +1555,7 @@ def provision_card(id):
 @zero_trust_required
 def kyc_status():
     username = request.user.get("sub", "")
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT doc_type, doc_status, verification_score, verified_at FROM kyc_verifications WHERE username=? ORDER BY verified_at DESC LIMIT 1", (username,))
     row = c.fetchone()
@@ -2615,7 +1616,7 @@ def kyc_submit():
     
     if not ocr_success or not extracted_text.strip():
         # OCR not available or failed - reject
-        conn = open_db()
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute("""INSERT OR REPLACE INTO kyc_verifications (id, username, doc_type, doc_status, verification_score, verified_at)
                      VALUES (?, ?, ?, 'rejected', 0, ?)""",
@@ -2647,7 +1648,7 @@ def kyc_submit():
     
     if not is_id_document:
         # Not an ID document - reject
-        conn = open_db()
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute("""INSERT OR REPLACE INTO kyc_verifications (id, username, doc_type, doc_status, verification_score, verified_at)
                      VALUES (?, ?, ?, 'rejected', ?, ?)""",
@@ -2726,7 +1727,7 @@ def kyc_submit():
     
     verified_at = datetime.now().isoformat()
     
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""INSERT OR REPLACE INTO kyc_verifications (id, username, doc_type, doc_status, verification_score, verified_at)
                  VALUES (?, ?, ?, ?, ?, ?)""",
@@ -2768,7 +1769,7 @@ def kyc_submit():
 @zero_trust_required
 def spending_360():
     username = request.user.get("sub", "")
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     # 1. Balance
@@ -2880,34 +1881,25 @@ def spending_360():
 @app.route("/api/dashboard", methods=["GET"])
 @zero_trust_required
 def dashboard():
-    username = request.user.get("sub", "")
-    role = request.user.get("role", "client")
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    privileged = role in ("admin", "compliance", "operator", "auditor")
-
-    if privileged:
-        c.execute("SELECT COUNT(*) FROM settlements"); total = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM settlements WHERE status='blocked'"); blocked = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM settlements WHERE status='settled'"); settled = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM settlements WHERE status='flagged'"); flagged = c.fetchone()[0]
-    else:
-        # Client / datascientist: scope to own transactions
-        c.execute("SELECT COUNT(*) FROM settlements WHERE sender_username=? OR receiver_username=?", (username, username)); total = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM settlements WHERE status='blocked' AND (sender_username=? OR receiver_username=?)", (username, username)); blocked = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM settlements WHERE status='settled' AND (sender_username=? OR receiver_username=?)", (username, username)); settled = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM settlements WHERE status='flagged' AND (sender_username=? OR receiver_username=?)", (username, username)); flagged = c.fetchone()[0]
-
-    # HITL pending — only for approval-capable roles
-    hitl_pending = 0
-    if role in ("admin", "compliance", "operator"):
-        c.execute("SELECT COUNT(*) FROM hitl_queue WHERE status='pending'"); hitl_pending = c.fetchone()[0]
-
+    c.execute("SELECT COUNT(*) FROM settlements")
+    total = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM settlements WHERE status='blocked'")
+    blocked = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM settlements WHERE status='settled'")
+    settled = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM settlements WHERE status='flagged'")
+    flagged = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM hitl_queue WHERE status='pending'")
+    hitl_pending = c.fetchone()[0]
     c.execute("SELECT AVG(settlement_time_ms) FROM settlements WHERE settlement_time_ms > 0")
     avg_time = c.fetchone()[0] or 0
+
     conn.close()
 
+    # Get model metrics
     try:
         with open(os.path.join(MODELS_DIR, "metrics.json")) as f:
             model_metrics = json.load(f)
@@ -2931,29 +1923,17 @@ def dashboard():
         "accounts": blockchain.accounts[:5] if blockchain.accounts else [],
         "contracts_deployed": list(blockchain.deployed.keys()),
         "ganache_connected": blockchain.w3.is_connected() if blockchain.w3 else False,
-        "role": role,
-        "scoped_to_user": not privileged,
     })
 
 # --- Settlement ---
 @app.route("/api/settlement", methods=["POST"])
 @zero_trust_required
 def create_settlement():
-    if request.user.get("role") not in ("admin", "operator", "client"):
-        return jsonify({"error": "Insufficient permissions — compliance users cannot initiate payments"}), 403
     data = request.get_json(force=True)
     start_time = time.time()
 
     sender_username = request.user.get("sub", "")
     beneficiary_name = data.get("beneficiary_name", "")
-    # Resolve beneficiary_id → name if beneficiary_name not provided
-    if not beneficiary_name and data.get("beneficiary_id") is not None:
-        try:
-            _bid = int(data["beneficiary_id"]) - 1  # frontend uses 1-based index
-            if 0 <= _bid < len(BENEFICIARIES):
-                beneficiary_name = BENEFICIARIES[_bid]["name"]
-        except Exception:
-            pass
     amount = float(data.get("amount", 0))
     currency = data.get("currency", "USD")
     confirmed = data.get("confirmed", False)
@@ -2961,64 +1941,6 @@ def create_settlement():
     # Security: Ensure amount is positive
     if amount <= 0:
         return jsonify({"error": "Transaction amount must be positive"}), 400
-
-    # ── Per-transaction limit check ──────────────────────────────────────────
-    role = request.user.get("role", "client")
-    limits = USER_TX_LIMITS.get(role, {})
-    per_tx_limit = limits.get("per_tx", 0)
-    if per_tx_limit > 0 and amount > per_tx_limit:
-        return jsonify({
-            "error": f"Amount exceeds your per-transaction limit of ${per_tx_limit:,.0f}",
-            "limit": per_tx_limit,
-        }), 400
-
-    # ── Daily limit check ────────────────────────────────────────────────────
-    daily_limit = limits.get("daily", 0)
-    if daily_limit > 0:
-        conn_l = open_db()
-        today_start = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d") + " 00:00:00"
-        row = conn_l.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM settlements WHERE sender_username=? AND created_at>=? AND status NOT IN ('blocked','reversed')",
-            (sender_username, today_start)
-        ).fetchone()
-        conn_l.close()
-        daily_spent = float(row[0])
-        if daily_spent + amount > daily_limit:
-            return jsonify({
-                "error": f"Daily transfer limit of ${daily_limit:,.0f} exceeded. Today's usage: ${daily_spent:,.0f}",
-                "daily_limit": daily_limit,
-                "daily_spent": daily_spent,
-            }), 400
-
-    # ── Sanctions screening ───────────────────────────────────────────────────
-    conn_s = open_db()
-    sanction_rows = conn_s.execute(
-        "SELECT entity_name FROM sanctions_list"
-    ).fetchall()
-    conn_s.close()
-    sanctioned_names = [r[0].lower() for r in sanction_rows]
-    bn_lower = beneficiary_name.lower()
-    for sname in sanctioned_names:
-        if sname and (sname in bn_lower or bn_lower in sname):
-            log_audit("sanction_hit", sender_username,
-                      {"beneficiary": beneficiary_name, "matched": sname}, request.remote_addr)
-            return jsonify({
-                "error": f"Payment blocked: beneficiary '{beneficiary_name}' matches sanctions list entry '{sname}'. Contact compliance.",
-                "sanctions_hit": True,
-            }), 451
-
-    # ── Travel Rule (FATF) check ─────────────────────────────────────────────
-    missing_travel = check_travel_rule(amount, data)
-    if missing_travel:
-        return jsonify({
-            "error": f"FATF Travel Rule: payments ≥ ${TRAVEL_RULE_THRESHOLD:,.0f} require additional originator/beneficiary information.",
-            "missing_fields": missing_travel,
-            "travel_rule_required": True,
-        }), 422
-
-    # ── Fee calculation ───────────────────────────────────────────────────────
-    payment_type = data.get("payment_type", "standard")
-    fee_info = calculate_fee(amount, payment_type)
 
     # Requirement: Explicit user confirmation
     if not confirmed:
@@ -3028,23 +1950,17 @@ def create_settlement():
             "data": {
                 "beneficiary_name": beneficiary_name,
                 "amount": amount,
-                "currency": currency,
-                "fee":        fee_info["total_fee"],
-                "fee_detail": fee_info,
-                "net_amount": fee_info["net_amount"],
+                "currency": currency
             }
         }), 200
 
-    # Check sender balance (including fee)
+    # Check sender balance
     sender_balance = get_user_balance(sender_username)
-    total_debit = amount + fee_info["total_fee"]
-    if total_debit > sender_balance:
+    if amount > sender_balance:
         return jsonify({
-            "error": "Insufficient funds (including transaction fee)",
+            "error": "Insufficient funds",
             "current_balance": sender_balance,
             "requested_amount": amount,
-            "fee": fee_info["total_fee"],
-            "total_required": total_debit,
         }), 400
 
     # Determine receiver wallet
@@ -3058,17 +1974,12 @@ def create_settlement():
             receiver = blockchain.accounts[1]
 
     # Generate risk parameters
-    hour = datetime.now(timezone.utc).replace(tzinfo=None).hour
-    day = datetime.now(timezone.utc).replace(tzinfo=None).weekday()
+    hour = datetime.utcnow().hour
+    day = datetime.utcnow().weekday()
     is_round = 1 if amount == int(amount) and amount > 0 else 0
-    dest_country = data.get("destination_country", "")
-    country_risk = country_risk_score(dest_country) if dest_country else float(data.get("country_risk", np.random.uniform(0, 1)))
-    # Use stable hashed IDs matching graph-rebuild logic (full name, lowercased)
-    _sender_full_name = USER_ACCOUNTS.get(sender_username, {}).get("full_name", sender_username)
-    _sender_key  = _sender_full_name.lower().strip()
-    _bene_key    = beneficiary_name.lower().strip() if beneficiary_name else str(receiver).lower().strip()
-    sender_id    = abs(hash(_sender_key)) % 10000
-    receiver_id  = abs(hash(_bene_key)) % 10000
+    country_risk = float(data.get("country_risk", np.random.uniform(0, 1)))
+    sender_id = int(data.get("sender_id", np.random.randint(0, 500)))
+    receiver_id = int(data.get("receiver_id", np.random.randint(0, 500)))
     freq = int(data.get("freq_7d", np.random.randint(1, 20)))
 
     # AML Risk Scoring
@@ -3099,7 +2010,7 @@ def create_settlement():
 
     if risk_result["decision"] == "blocked":
         # Add to HITL queue
-        conn = open_db()
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         hitl_id = str(uuid.uuid4())
         c.execute("""INSERT INTO hitl_queue
@@ -3135,8 +2046,8 @@ def create_settlement():
         })
 
     else:
-        # Deduct sender balance INCLUDING fee
-        new_sender_balance = sender_balance - amount - fee_info["total_fee"]
+        # Deduct sender balance
+        new_sender_balance = sender_balance - amount
         update_user_balance(sender_username, new_sender_balance)
 
         # Credit receiver if they are a user
@@ -3152,7 +2063,7 @@ def create_settlement():
 
         elapsed_ms = int((time.time() - start_time) * 1000)
 
-        conn = open_db()
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         status = "settled" if risk_result["decision"] == "approved" else "flagged"
         tx_hash = bc_result["tx_hash"] if bc_result else "N/A"
@@ -3181,7 +2092,6 @@ def create_settlement():
         result["settlement_time_ms"] = elapsed_ms
         result["uetr"] = uetr
         result["new_balance"] = new_sender_balance
-        result["fee"] = fee_info
 
         push_sse("settlement", {
             "id": settlement_id, "status": status,
@@ -3190,60 +2100,7 @@ def create_settlement():
         })
 
     log_audit("settlement", request.user.get("sub", "unknown"), result, request.remote_addr)
-    # Notify sender of their transaction result
-    _status = result.get("status", "")
-    _status_msgs = {
-        "settled": ("Payment Processed", "success"),
-        "blocked": ("Payment Blocked", "error"),
-        "flagged": ("Payment Flagged for Review", "warning"),
-    }
-    _smsg = _status_msgs.get(_status, ("Payment Submitted", "info"))
-    push_notification(sender_username, _smsg[0], f"${amount:,.2f} to {beneficiary_name} — {_status.replace('_', ' ').title()}", notif_type=_smsg[1], link_tab="payments")
-    # Notify admin if blocked or flagged
-    if _status in ("blocked", "flagged"):
-        _risk_score = result.get("risk_score", 0)
-        push_notification("admin", "Payment Needs Review", f"${amount:,.2f} from {sender_username} — risk score {_risk_score:.0f}", notif_type="warning", link_tab="approvals", is_role=True)
     return jsonify(result)
-
-# --- Ledger (per-user debit/credit view) ---
-@app.route("/api/ledger", methods=["GET"])
-@zero_trust_required
-def get_ledger():
-    username = request.user.get("sub")
-    page = int(request.args.get("page", 1))
-    per_page = int(request.args.get("per_page", 10))
-    offset = (page - 1) * per_page
-    conn = open_db()
-    c = conn.cursor()
-    c.execute(
-        """SELECT id, sender_username, receiver_username, amount, currency,
-                  risk_score, status, tx_hash, beneficiary_name, created_at
-           FROM settlements
-           WHERE sender_username=? OR receiver_username=?
-           ORDER BY created_at DESC LIMIT ? OFFSET ?""",
-        (username, username, per_page, offset)
-    )
-    rows = c.fetchall()
-    c.execute("SELECT balance FROM user_accounts WHERE username=?", (username,))
-    bal_row = c.fetchone()
-    conn.close()
-    balance = float(bal_row[0]) if bal_row else 0.0
-    entries = []
-    for r in rows:
-        is_sender = r[1] == username
-        counterparty = r[8] or r[2] or r[1]   # beneficiary_name → receiver → sender
-        entries.append({
-            "id": r[0],
-            "direction": "debit" if is_sender else "credit",
-            "counterparty": counterparty,
-            "amount": r[3],
-            "currency": r[4],
-            "risk_score": r[5],
-            "status": r[6],
-            "tx_hash": r[7],
-            "created_at": r[9],
-        })
-    return jsonify({"transactions": entries, "balance_current": balance, "page": page, "per_page": per_page})
 
 # --- Transactions ---
 @app.route("/api/transactions", methods=["GET"])
@@ -3252,43 +2109,25 @@ def get_transactions():
     page = int(request.args.get("page", 1))
     per_page = int(request.args.get("per_page", 20))
     offset = (page - 1) * per_page
-    username = request.user.get("sub", "")
-    role = request.user.get("role", "client")
 
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-
-    # Data isolation: clients and datascientists only see their own transactions
-    privileged_roles = ("admin", "compliance", "operator", "auditor")
-    if role in privileged_roles:
-        # Full visibility for operational/oversight roles
-        c.execute("SELECT COUNT(*) FROM settlements")
-        total = c.fetchone()[0]
-        c.execute(
-            "SELECT * FROM settlements ORDER BY created_at DESC LIMIT ? OFFSET ?",
-            (per_page, offset)
-        )
-    else:
-        # Clients and data scientists: own transactions only
-        c.execute(
-            "SELECT COUNT(*) FROM settlements WHERE sender_username=? OR receiver_username=?",
-            (username, username)
-        )
-        total = c.fetchone()[0]
-        c.execute(
-            "SELECT * FROM settlements WHERE sender_username=? OR receiver_username=? ORDER BY created_at DESC LIMIT ? OFFSET ?",
-            (username, username, per_page, offset)
-        )
+    c.execute("SELECT COUNT(*) FROM settlements")
+    total = c.fetchone()[0]
+    c.execute(
+        "SELECT * FROM settlements ORDER BY created_at DESC LIMIT ? OFFSET ?",
+        (per_page, offset)
+    )
     rows = c.fetchall()
     conn.close()
 
     transactions = []
     for row in rows:
         transactions.append({
-            "id": row[0], "sender": row[1], "sender_username": row[1], "receiver": row[2],
-            "receiver_username": row[2], "amount": row[3], "currency": row[4],
-            "risk_score": row[5], "status": row[6], "tx_hash": row[7],
-            "iso20022_hash": row[8], "beneficiary_name": row[9], "created_at": row[10],
+            "id": row[0], "sender": row[1], "receiver": row[2],
+            "amount": row[3], "currency": row[4], "risk_score": row[5],
+            "status": row[6], "tx_hash": row[7], "iso20022_hash": row[8],
+            "beneficiary_name": row[9], "created_at": row[10],
             "settlement_time_ms": row[11]
         })
 
@@ -3300,49 +2139,11 @@ def get_transactions():
         "pages": (total + per_page - 1) // per_page,
     })
 
-# --- Settlement Refund / Reversal ---
-@app.route("/api/settlement/<settlement_id>/refund", methods=["POST"])
-@zero_trust_required
-def refund_settlement(settlement_id):
-    """Admin-only: reverse a settled transaction and refund sender."""
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    data = request.get_json(force=True) or {}
-    reason = data.get("reason", "Administrative reversal")
-    conn = open_db()
-    c = conn.cursor()
-    c.execute("SELECT sender_username, receiver_username, amount, status, beneficiary_name FROM settlements WHERE id=?", (settlement_id,))
-    row = c.fetchone()
-    if not row:
-        conn.close()
-        return jsonify({"error": "Settlement not found"}), 404
-    sender_u, receiver_u, amount, status, bene_name = row
-    if status in ("blocked", "reversed"):
-        conn.close()
-        return jsonify({"error": f"Cannot refund a {status} settlement"}), 400
-    # Reverse balances
-    if sender_u:
-        update_user_balance(sender_u, get_user_balance(sender_u) + amount)
-    if receiver_u and receiver_u in USER_ACCOUNTS:
-        update_user_balance(receiver_u, max(0, get_user_balance(receiver_u) - amount))
-    c.execute("UPDATE settlements SET status='reversed' WHERE id=?", (settlement_id,))
-    conn.commit()
-    conn.close()
-    actor = request.user.get("sub", "admin")
-    log_audit("settlement_reversed", actor, {"settlement_id": settlement_id, "amount": amount, "reason": reason}, request.remote_addr)
-    if sender_u:
-        push_notification(sender_u, "Payment Reversed 🔄",
-            f"${amount:,.2f} to {bene_name} has been reversed and refunded to your account. Reason: {reason}",
-            notif_type="info", link_tab="payments")
-    return jsonify({"message": f"Settlement reversed. ${amount:,.2f} refunded to {sender_u}.", "new_balance": get_user_balance(sender_u) if sender_u else None})
-
 # --- HITL Queue ---
 @app.route("/api/hitl/queue", methods=["GET"])
 @zero_trust_required
 def hitl_queue():
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT * FROM hitl_queue ORDER BY created_at DESC")
     rows = c.fetchall()
@@ -3356,21 +2157,13 @@ def hitl_queue():
             "reviewed_by": row[9], "reviewed_at": row[10], "created_at": row[11]
         }
         # Attach four-eyes info if applicable
-        if item["amount"] and item["amount"] >= 150000:
+        if item["amount"] and item["amount"] >= 100000:
             c.execute("SELECT first_approver, second_approver, status FROM four_eyes_approvals WHERE hitl_id = ?", (row[0],))
             fe = c.fetchone()
             if fe:
                 item["first_approver"] = fe[0]
                 item["second_approver"] = fe[1]
                 item["four_eyes_status"] = fe[2]
-        # Attach linked compliance case status
-        c.execute("""SELECT case_number, status FROM compliance_cases
-                     WHERE settlement_id = ? ORDER BY created_at DESC LIMIT 1""",
-                  (item["settlement_id"],))
-        case_row = c.fetchone()
-        if case_row:
-            item["case_number"] = case_row[0]
-            item["case_status"] = case_row[1]
         items.append(item)
     conn.close()
     return jsonify({"queue": items, "pending": sum(1 for i in items if i["status"] in ("pending", "awaiting_second_approval"))})
@@ -3379,9 +2172,7 @@ def hitl_queue():
 @app.route("/api/hitl/approve/<hitl_id>", methods=["POST"])
 @zero_trust_required
 def hitl_approve(hitl_id):
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     # Use IMMEDIATE to lock the database and prevent race conditions
     conn.execute("BEGIN IMMEDIATE")
     c = conn.cursor()
@@ -3399,26 +2190,8 @@ def hitl_approve(hitl_id):
             conn.close()
             return jsonify({"error": f"HITL item already {item[8]}"}), 400
 
-        # ── Compliance case gate ──────────────────────────────────────────────
-        # The linked compliance case must be resolved/closed before approval
-        settlement_id = item[1]
-        c.execute("""SELECT case_number, status FROM compliance_cases
-                     WHERE settlement_id = ? ORDER BY created_at DESC LIMIT 1""",
-                  (settlement_id,))
-        case_row = c.fetchone()
-        if case_row:
-            case_number, case_status = case_row
-            if case_status not in ('resolved', 'closed'):
-                conn.rollback()
-                conn.close()
-                return jsonify({
-                    "error": f"Cannot approve: compliance case {case_number} must be resolved before this transaction can be approved. Current status: '{case_status}'.",
-                    "case_number": case_number,
-                    "case_status": case_status,
-                    "blocked_by": "compliance_case",
-                }), 409
-
         # Get settlement details for balance transfer
+        settlement_id = item[1]
         amount = item[4]  # amount from hitl_queue
         c.execute("SELECT sender_username, receiver_username, receiver, amount FROM settlements WHERE id = ?",
                   (settlement_id,))
@@ -3437,7 +2210,7 @@ def hitl_approve(hitl_id):
         logger.info(f"HITL APPROVE: sender={sender_username}, receiver={receiver_username}, amount={settle_amount} (type={type(settle_amount).__name__}), approver={approver}, hitl_status={item[8]}")
 
         # === FOUR-EYES APPROVAL for amounts >= $100,000 ===
-        FOUR_EYES_THRESHOLD = 150000
+        FOUR_EYES_THRESHOLD = 100000
         logger.info(f"FOUR-EYES CHECK: amount={settle_amount}, threshold={FOUR_EYES_THRESHOLD}, requires_four_eyes={settle_amount >= FOUR_EYES_THRESHOLD}")
         if settle_amount >= FOUR_EYES_THRESHOLD:
             c.execute("SELECT * FROM four_eyes_approvals WHERE hitl_id = ?", (hitl_id,))
@@ -3450,14 +2223,13 @@ def hitl_approve(hitl_id):
                 c.execute("""INSERT INTO four_eyes_approvals
                     (id, hitl_id, first_approver, first_approved_at, required, status)
                     VALUES (?, ?, ?, ?, 2, 'awaiting_second')""",
-                    (fe_id, hitl_id, approver, datetime.now(timezone.utc).replace(tzinfo=None).isoformat()))
+                    (fe_id, hitl_id, approver, datetime.utcnow().isoformat()))
                 c.execute("UPDATE hitl_queue SET status='awaiting_second_approval' WHERE id=?", (hitl_id,))
                 conn.commit()
                 conn.close()
                 log_audit("four_eyes_first_approval", approver, {
                     "hitl_id": hitl_id, "amount": settle_amount}, request.remote_addr)
                 push_sse("hitl", {"id": hitl_id, "action": "first_approval", "approver": approver, "amount": settle_amount})
-                push_notification("admin", "Second Approval Required", f"Payment ${settle_amount:,.2f} from {sender_username} has 1/2 approvals. Your approval is needed.", notif_type="warning", link_tab="approvals", is_role=True)
                 return jsonify({
                     "status": "awaiting_second_approval",
                     "message": f"Four-eyes required for amounts >${FOUR_EYES_THRESHOLD:,}. First approval recorded by {approver}. A different approver must confirm.",
@@ -3484,7 +2256,7 @@ def hitl_approve(hitl_id):
 
             # Second approval — proceed with execution
             c.execute("""UPDATE four_eyes_approvals SET second_approver=?, second_approved_at=?, status='completed'
-                WHERE hitl_id=?""", (approver, datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), hitl_id))
+                WHERE hitl_id=?""", (approver, datetime.utcnow().isoformat(), hitl_id))
             logger.info(f"FOUR-EYES COMPLETE: first={first_approver}, second={approver}, amount={settle_amount}")
 
         # === Balance check and transfer ===
@@ -3505,7 +2277,7 @@ def hitl_approve(hitl_id):
         # Deduct sender balance
         new_sender_balance = sender_balance - settle_amount
         c.execute("UPDATE user_accounts SET balance = ?, updated_at = ? WHERE username = ?",
-                  (new_sender_balance, datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), sender_username))
+                  (new_sender_balance, datetime.utcnow().isoformat(), sender_username))
         logger.info(f"HITL APPROVE: deducted {settle_amount} from {sender_username}: {sender_balance} -> {new_sender_balance}")
 
         # Credit receiver if they are a system user
@@ -3515,7 +2287,7 @@ def hitl_approve(hitl_id):
             if recv_row:
                 new_recv_balance = recv_row[0] + settle_amount
                 c.execute("UPDATE user_accounts SET balance = ?, updated_at = ? WHERE username = ?",
-                          (new_recv_balance, datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), receiver_username))
+                          (new_recv_balance, datetime.utcnow().isoformat(), receiver_username))
                 logger.info(f"HITL APPROVE: credited {settle_amount} to {receiver_username}: {recv_row[0]} -> {new_recv_balance}")
 
         # Execute blockchain settlement
@@ -3536,7 +2308,7 @@ def hitl_approve(hitl_id):
 
         # Update records
         c.execute("""UPDATE hitl_queue SET status='approved', reviewed_by=?, reviewed_at=?
-            WHERE id=?""", (approver, datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), hitl_id))
+            WHERE id=?""", (approver, datetime.utcnow().isoformat(), hitl_id))
         c.execute("UPDATE settlements SET status='settled', tx_hash=? WHERE id=?",
                   (tx_hash, settlement_id))
         conn.commit()
@@ -3554,8 +2326,6 @@ def hitl_approve(hitl_id):
         "four_eyes": settle_amount >= FOUR_EYES_THRESHOLD,
     }, request.remote_addr)
     push_sse("hitl", {"id": hitl_id, "action": "approved", "amount": settle_amount, "tx_hash": tx_hash})
-    # Notify the original sender
-    push_notification(sender_username, "Payment Approved", f"Your payment of ${settle_amount:,.2f} has been approved by {approver}", notif_type="success", link_tab="payments")
     return jsonify({
         "status": "approved", "hitl_id": hitl_id,
         "settlement_id": settlement_id, "tx_hash": tx_hash,
@@ -3568,9 +2338,7 @@ def hitl_approve(hitl_id):
 @app.route("/api/hitl/reject/<hitl_id>", methods=["POST"])
 @zero_trust_required
 def hitl_reject(hitl_id):
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT * FROM hitl_queue WHERE id = ?", (hitl_id,))
     item = c.fetchone()
@@ -3578,47 +2346,21 @@ def hitl_reject(hitl_id):
         conn.close()
         return jsonify({"error": "HITL item not found"}), 404
 
-    # ── Compliance case gate ──────────────────────────────────────────────────
-    c.execute("""SELECT case_number, status FROM compliance_cases
-                 WHERE settlement_id = ? ORDER BY created_at DESC LIMIT 1""",
-              (item[1],))
-    case_row = c.fetchone()
-    if case_row:
-        case_number, case_status = case_row
-        if case_status not in ('resolved', 'closed'):
-            conn.close()
-            return jsonify({
-                "error": f"Cannot reject: compliance case {case_number} must be resolved before this transaction can be actioned. Current status: '{case_status}'.",
-                "case_number": case_number,
-                "case_status": case_status,
-                "blocked_by": "compliance_case",
-            }), 409
-
-    # Fetch sender info before closing
-    c.execute("SELECT sender_username, amount FROM settlements WHERE id=?", (item[1],))
-    settle_row = c.fetchone()
-    reject_sender_username = settle_row[0] if settle_row else ""
-    reject_amount = float(settle_row[1]) if settle_row else float(item[4] or 0)
-
     c.execute("""UPDATE hitl_queue SET status='rejected', reviewed_by=?, reviewed_at=?
-        WHERE id=?""", (request.user.get("sub"), datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), hitl_id))
+        WHERE id=?""", (request.user.get("sub"), datetime.utcnow().isoformat(), hitl_id))
     c.execute("UPDATE settlements SET status='rejected' WHERE id=?", (item[1],))
     conn.commit()
     conn.close()
 
     log_audit("hitl_reject", request.user.get("sub"), {"hitl_id": hitl_id}, request.remote_addr)
     push_sse("hitl", {"id": hitl_id, "action": "rejected"})
-    if reject_sender_username:
-        push_notification(reject_sender_username, "Payment Rejected", f"Your payment of ${reject_amount:,.2f} was rejected by compliance review.", notif_type="error", link_tab="payments")
     return jsonify({"status": "rejected", "hitl_id": hitl_id})
 
 # --- Sanctions ---
 @app.route("/api/compliance/sanctions", methods=["GET"])
 @zero_trust_required
 def get_sanctions():
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT * FROM sanctions_list ORDER BY created_at DESC")
     rows = c.fetchall()
@@ -3630,8 +2372,6 @@ def get_sanctions():
 @app.route("/api/compliance/sanctions", methods=["POST"])
 @zero_trust_required
 def add_sanction():
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     data = request.get_json(force=True)
     entity_name = data.get("entity_name", "")
     entity_type = data.get("entity_type", "individual")
@@ -3640,7 +2380,7 @@ def add_sanction():
     if not entity_name:
         return jsonify({"error": "entity_name required"}), 400
 
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     try:
         c.execute("""INSERT INTO sanctions_list (entity_name, entity_type, added_by, reason)
@@ -3660,9 +2400,7 @@ def add_sanction():
 @app.route("/api/compliance/swift-gpi/<uetr>", methods=["GET"])
 @zero_trust_required
 def swift_gpi_track(uetr):
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT * FROM swift_gpi_tracker WHERE uetr = ?", (uetr,))
     row = c.fetchone()
@@ -3683,13 +2421,11 @@ def swift_gpi_track(uetr):
 @app.route("/api/compliance/cases", methods=["GET"])
 @zero_trust_required
 def list_compliance_cases():
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     status_filter = request.args.get("status", "")
     severity_filter = request.args.get("severity", "")
     case_type_filter = request.args.get("case_type", "")
 
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -3735,7 +2471,7 @@ def list_compliance_cases():
         })
 
     # Summary counts
-    conn2 = open_db()
+    conn2 = sqlite3.connect(DB_PATH)
     c2 = conn2.cursor()
     c2.execute("SELECT COUNT(*) FROM compliance_cases WHERE status='open'")
     open_count = c2.fetchone()[0]
@@ -3761,9 +2497,7 @@ def list_compliance_cases():
 @app.route("/api/compliance/cases/<case_id>", methods=["GET"])
 @zero_trust_required
 def get_compliance_case(case_id):
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM compliance_cases WHERE id = ? OR case_number = ?", (case_id, case_id))
@@ -3796,13 +2530,11 @@ def get_compliance_case(case_id):
 @app.route("/api/compliance/cases", methods=["POST"])
 @zero_trust_required
 def create_compliance_case():
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     data = request.get_json(force=True)
     case_id = str(uuid.uuid4())
     case_number = generate_case_number()
 
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""INSERT INTO compliance_cases
         (id, case_number, settlement_id, case_type, severity, status, assigned_to,
@@ -3819,38 +2551,14 @@ def create_compliance_case():
 
     log_audit("case_created", request.user.get("sub"),
               {"case_number": case_number}, request.remote_addr)
-    _case_type = data.get("case_type", "aml")
-    push_notification("compliance", "New Compliance Case", f"Case {case_number} opened — {_case_type}", notif_type="warning", link_tab="cases", is_role=True)
-    push_notification("admin", "New Compliance Case", f"Case {case_number} — {_case_type}", notif_type="warning", link_tab="cases", is_role=True)
     return jsonify({"status": "created", "case_id": case_id, "case_number": case_number})
 
 @app.route("/api/compliance/cases/<case_id>", methods=["PUT"])
 @zero_trust_required
 def update_compliance_case(case_id):
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     data = request.get_json(force=True)
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-
-    VALID_ASSIGNEES = {"Mohamad", "Walid", "Rohit", "Vibin", "Sriram"}
-
-    # Validate assignee if being set
-    if "assigned_to" in data and data["assigned_to"] not in VALID_ASSIGNEES:
-        return jsonify({"error": f"Invalid assignee. Must be one of: {', '.join(sorted(VALID_ASSIGNEES))}"}), 400
-
-    # Block resolving/closing if no assignee
-    if data.get("status") in ("resolved", "closed"):
-        c.execute("SELECT assigned_to FROM compliance_cases WHERE id = ? OR case_number = ?",
-                  (case_id, case_id))
-        existing = c.fetchone()
-        current_assignee = data.get("assigned_to") or (existing[0] if existing else None)
-        if not current_assignee:
-            conn.close()
-            return jsonify({
-                "error": "Cannot resolve case: an assignee must be set before a case can be marked as resolved.",
-                "requires": "assigned_to",
-            }), 409
 
     updates = []
     params = []
@@ -3862,10 +2570,10 @@ def update_compliance_case(case_id):
 
     if data.get("status") in ("resolved", "closed"):
         updates.append("closed_at = ?")
-        params.append(datetime.now(timezone.utc).replace(tzinfo=None).isoformat())
+        params.append(datetime.utcnow().isoformat())
 
     updates.append("updated_at = ?")
-    params.append(datetime.now(timezone.utc).replace(tzinfo=None).isoformat())
+    params.append(datetime.utcnow().isoformat())
     params.append(case_id)
 
     c.execute(f"UPDATE compliance_cases SET {', '.join(updates)} WHERE id = ? OR case_number = ?",
@@ -3880,13 +2588,11 @@ def update_compliance_case(case_id):
 @app.route("/api/compliance/cases/<case_id>/escalate", methods=["POST"])
 @zero_trust_required
 def escalate_compliance_case(case_id):
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""UPDATE compliance_cases SET status='escalated', updated_at=?
         WHERE id = ? OR case_number = ?""",
-        (datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), case_id, case_id))
+        (datetime.utcnow().isoformat(), case_id, case_id))
     conn.commit()
     conn.close()
     log_audit("case_escalated", request.user.get("sub"),
@@ -3896,14 +2602,12 @@ def escalate_compliance_case(case_id):
 @app.route("/api/compliance/cases/<case_id>/file-sar", methods=["POST"])
 @zero_trust_required
 def file_sar(case_id):
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     sar_number = f"SAR-2026-{uuid.uuid4().hex[:8].upper()}"
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""UPDATE compliance_cases SET regulatory_report_filed=1, sar_number=?, updated_at=?
         WHERE id = ? OR case_number = ?""",
-        (sar_number, datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), case_id, case_id))
+        (sar_number, datetime.utcnow().isoformat(), case_id, case_id))
     conn.commit()
     conn.close()
     log_audit("sar_filed", request.user.get("sub"),
@@ -3914,22 +2618,13 @@ def file_sar(case_id):
 @app.route("/api/network/graph", methods=["GET"])
 @zero_trust_required
 def network_graph():
-    graph_file = os.path.join(MODELS_DIR, "graph_data.json")
-    if not os.path.exists(graph_file):
-        # Models not yet trained — return empty graph with informative status
-        return jsonify({
-            "nodes": [], "edges": [], "cycles": [], "communities": 0,
-            "status": "training",
-            "message": "Graph data will be available after models finish training (1–3 minutes)."
-        })
     try:
-        with open(graph_file) as f:
+        with open(os.path.join(MODELS_DIR, "graph_data.json")) as f:
             data = json.load(f)
         # Limit to top 200 nodes by pagerank for visualization
-        nodes_sorted = sorted(data.get("nodes", []), key=lambda n: n.get("pagerank", 0), reverse=True)[:200]
+        nodes_sorted = sorted(data["nodes"], key=lambda n: n["pagerank"], reverse=True)[:200]
         node_ids = set(n["id"] for n in nodes_sorted)
-        edges_filtered = [e for e in data.get("edges", [])
-                          if e["source"] in node_ids and e["target"] in node_ids]
+        edges_filtered = [e for e in data["edges"] if e["source"] in node_ids and e["target"] in node_ids]
         return jsonify({
             "nodes": nodes_sorted,
             "edges": edges_filtered[:500],
@@ -3943,8 +2638,6 @@ def network_graph():
 @app.route("/api/models/metrics", methods=["GET"])
 @zero_trust_required
 def model_metrics():
-    if request.user.get("role") not in ("admin", "compliance", "operator", "datascientist", "auditor"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     try:
         with open(os.path.join(MODELS_DIR, "metrics.json")) as f:
             metrics = json.load(f)
@@ -3958,96 +2651,6 @@ def model_metrics():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- Model Insights (per-model charts) ---
-@app.route("/api/models/insights", methods=["GET"])
-@zero_trust_required
-def model_insights():
-    if request.user.get("role") not in ("admin", "datascientist"):
-        return jsonify({"error": "Insufficient permissions"}), 403
-    try:
-        path = os.path.join(MODELS_DIR, "model_insights.json")
-        # Return cached file if it exists
-        if os.path.exists(path):
-            with open(path) as f:
-                return jsonify({"insights": json.load(f)})
-
-        # --- Generate on-the-fly from existing pkl files ---
-        FEATS = ['amount', 'hour', 'day_of_week', 'freq_7d', 'is_round', 'country_risk',
-                 'sender_id', 'receiver_id', 'velocity_1h', 'velocity_24h', 'velocity_7d',
-                 'avg_tx_amount', 'std_tx_amount', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
-        SEQ_FEATS = ['velocity_1h', 'velocity_24h', 'velocity_7d', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
-        seq_idx = [FEATS.index(f) for f in SEQ_FEATS]
-
-        insights = {}
-
-        # Random Forest — feature importances
-        rf_path = os.path.join(MODELS_DIR, "random_forest.pkl")
-        if os.path.exists(rf_path):
-            rf = joblib.load(rf_path)
-            insights["random_forest"] = {
-                "type": "feature_importance", "label": "Feature Importance (MDI)",
-                "features": FEATS, "values": rf.feature_importances_.tolist()
-            }
-
-        # XGBoost — gain-based feature importances
-        xg_path = os.path.join(MODELS_DIR, "xgboost.pkl")
-        if os.path.exists(xg_path):
-            xg = joblib.load(xg_path)
-            insights["xgboost"] = {
-                "type": "feature_importance", "label": "Feature Importance (Gain)",
-                "features": FEATS, "values": xg.feature_importances_.tolist()
-            }
-
-        # Isolation Forest — permutation anomaly scores on small synthetic sample
-        iso_path = os.path.join(MODELS_DIR, "isolation_forest.pkl")
-        if os.path.exists(iso_path):
-            iso = joblib.load(iso_path)
-            np.random.seed(42)
-            X_sample = np.random.randn(300, len(FEATS)).astype(np.float32)
-            baseline = iso.decision_function(X_sample)
-            iso_scores = []
-            for fi_i in range(len(FEATS)):
-                Xp = X_sample.copy()
-                np.random.shuffle(Xp[:, fi_i])
-                iso_scores.append(float(np.mean(np.abs(baseline - iso.decision_function(Xp)))))
-            insights["isolation_forest"] = {
-                "type": "anomaly_scores", "label": "Anomaly Feature Contribution",
-                "features": FEATS, "values": iso_scores
-            }
-
-        # Autoencoder — per-feature reconstruction error on small synthetic sample
-        ae_path = os.path.join(MODELS_DIR, "autoencoder.pkl")
-        if os.path.exists(ae_path):
-            ae = joblib.load(ae_path)
-            np.random.seed(42)
-            X_sample = np.random.randn(300, len(FEATS)).astype(np.float32)
-            ae_feat_err = np.mean((X_sample - ae.predict(X_sample)) ** 2, axis=0).tolist()
-            insights["autoencoder"] = {
-                "type": "reconstruction_error", "label": "Per-Feature Reconstruction Error",
-                "features": FEATS, "values": ae_feat_err
-            }
-
-        # Sequence Detector — absolute SGD coefficients
-        sd_path = os.path.join(MODELS_DIR, "sequence_detector.pkl")
-        if os.path.exists(sd_path):
-            sd = joblib.load(sd_path)
-            if hasattr(sd, 'coef_') and sd.coef_ is not None:
-                coef = [abs(float(c)) for c in sd.coef_[0]]
-                insights["sequence_detector"] = {
-                    "type": "coefficients", "label": "Feature Coefficients (SGD Weights)",
-                    "features": SEQ_FEATS, "values": coef
-                }
-
-        # Cache for next time
-        if insights:
-            with open(path, "w") as f:
-                json.dump(insights, f, indent=2)
-
-        return jsonify({"insights": insights})
-    except Exception as e:
-        logger.error(f"Model insights error: {e}")
-        return jsonify({"error": str(e)}), 500
-
 # --- Retrain (admin and datascientist only) ---
 @app.route("/api/models/retrain", methods=["POST"])
 @zero_trust_required
@@ -4055,252 +2658,133 @@ def retrain_models():
     if request.user.get("role") not in ("admin", "datascientist"):
         return jsonify({"error": "Insufficient permissions. Only admin and datascientist can retrain."}), 403
 
-    body = request.get_json(silent=True) or {}
-    selected_models = body.get("models", ["isolation_forest", "random_forest", "xgboost", "autoencoder", "sequence_detector"])
-    if not selected_models:
-        selected_models = ["isolation_forest", "random_forest", "xgboost", "autoencoder"]
-
     def _retrain():
         try:
-            logger.info(f"Model retraining initiated for: {selected_models}")
+            logger.info("Model retraining initiated")
             from sklearn.ensemble import IsolationForest, RandomForestClassifier
             from sklearn.neural_network import MLPRegressor
-            from sklearn.model_selection import train_test_split as tts
-            from sklearn.metrics import f1_score as f1s, accuracy_score as accs
             import xgboost as xgb_mod
-            import networkx as nx
-            import pandas as pd
 
             np.random.seed(int(time.time()) % 10000)
-            N = 15000; N_F = 750; N_N = N - N_F; N_FP = 500; N_CN = N_N - N_FP
-            N_CF = int(N_F * 0.7); N_SF = N_F - N_CF
+            N = 15000
+            N_F = 750   # 5% fraud
+            N_N = N - N_F
+            N_FP = 500  # false positive bait
+            N_CN = N_N - N_FP
 
-            # All 16 features — must match score_transaction() feature vector exactly
-            FEATS = ['amount', 'hour', 'day_of_week', 'freq_7d', 'is_round', 'country_risk',
-                     'sender_id', 'receiver_id', 'velocity_1h', 'velocity_24h', 'velocity_7d',
-                     'avg_tx_amount', 'std_tx_amount', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
+            # Clean normal
+            normal = {
+                'amount': np.random.lognormal(mean=9.5, sigma=1.2, size=N_CN).clip(100, 500000),
+                'hour': np.random.randint(0, 24, N_CN),
+                'day_of_week': np.random.randint(0, 7, N_CN),
+                'freq_7d': np.random.randint(1, 25, N_CN),
+                'is_round': np.random.choice([0, 1], N_CN, p=[0.82, 0.18]),
+                'country_risk': np.random.beta(2, 5, N_CN),
+                'sender_id': np.random.randint(0, 500, N_CN),
+                'receiver_id': np.random.randint(0, 500, N_CN),
+                'is_fraud': np.zeros(N_CN, dtype=int),
+            }
+            # FP bait — looks suspicious but is legit
+            fp_bait = {
+                'amount': np.concatenate([
+                    np.random.uniform(9000, 9999, N_FP // 4),
+                    np.random.uniform(100000, 600000, N_FP // 4),
+                    np.random.uniform(50000, 200000, N_FP // 4),
+                    np.random.uniform(5000, 50000, N_FP - 3 * (N_FP // 4)),
+                ]),
+                'hour': np.random.choice([0, 1, 2, 3, 22, 23], N_FP),
+                'day_of_week': np.random.randint(0, 7, N_FP),
+                'freq_7d': np.random.randint(10, 35, N_FP),
+                'is_round': np.random.choice([0, 1], N_FP, p=[0.5, 0.5]),
+                'country_risk': np.random.uniform(0.4, 0.9, N_FP),
+                'sender_id': np.random.randint(0, 200, N_FP),
+                'receiver_id': np.random.randint(0, 200, N_FP),
+                'is_fraud': np.zeros(N_FP, dtype=int),
+            }
+            # Fraud — 70% clear, 30% subtle
+            N_CF = int(N_F * 0.7)
+            N_SF = N_F - N_CF
+            fraud = {
+                'amount': np.concatenate([
+                    np.random.uniform(9000, 9999, N_CF // 3),
+                    np.random.uniform(300000, 2000000, N_CF // 3),
+                    np.random.uniform(15000, 150000, N_CF - 2 * (N_CF // 3)),
+                    np.random.lognormal(mean=10.0, sigma=1.0, size=N_SF).clip(5000, 300000),
+                ]),
+                'hour': np.concatenate([np.random.choice([0,1,2,3,22,23], N_CF), np.random.randint(0,24,N_SF)]),
+                'day_of_week': np.random.randint(0, 7, N_F),
+                'freq_7d': np.concatenate([np.random.randint(12, 45, N_CF), np.random.randint(5, 25, N_SF)]),
+                'is_round': np.concatenate([
+                    np.random.choice([0,1], N_CF, p=[0.35,0.65]),
+                    np.random.choice([0,1], N_SF, p=[0.75,0.25]),
+                ]),
+                'country_risk': np.concatenate([
+                    np.random.uniform(0.5, 1.0, N_CF),
+                    np.random.uniform(0.2, 0.8, N_SF),
+                ]),
+                'sender_id': np.concatenate([np.random.randint(0, 100, N_CF), np.random.randint(0, 400, N_SF)]),
+                'receiver_id': np.concatenate([np.random.randint(0, 100, N_CF), np.random.randint(0, 400, N_SF)]),
+                'is_fraud': np.ones(N_F, dtype=int),
+            }
 
-            # ── Real dataset loader (same mapping as auto-train) ──
-            DATASET_URL  = "https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv"
-            DATASET_PATH = os.path.join(MODELS_DIR, "creditcard.csv")
-            try:
-                if not os.path.exists(DATASET_PATH):
-                    push_sse("retrain", {"status": "progress", "model": "data", "message": "Downloading Credit Card Fraud dataset (~150MB)…"})
-                    import urllib.request
-                    urllib.request.urlretrieve(DATASET_URL, DATASET_PATH)
-                raw = pd.read_csv(DATASET_PATH)
-                raw['hour']           = ((raw['Time'] % 86400) / 3600).astype(int)
-                raw['day_of_week']    = ((raw['Time'] // 86400) % 7).astype(int)
-                raw['amount']         = raw['Amount']
-                v1_min, v1_max        = raw['V1'].min(), raw['V1'].max()
-                raw['country_risk']   = 1.0 - (raw['V1'] - v1_min) / (v1_max - v1_min + 1e-9)
-                raw['velocity_1h']    = np.clip(np.abs(raw['V3'].values) * 1.5, 0, 15)
-                raw['velocity_24h']   = np.clip(np.abs(raw['V4'].values) * 4, 0, 60)
-                raw['velocity_7d']    = np.clip(np.abs(raw['V10'].values) * 8, 0, 150)
-                raw['amount_zscore']  = raw['V2'].values
-                raw['unique_receivers'] = np.clip(np.abs(raw['V5'].values) * 2 + 1, 1, 20)
-                raw['is_new_receiver']  = (raw['V6'] < raw['V6'].median()).astype(int)
-                raw['freq_7d']        = pd.qcut(raw['Amount'], q=30, labels=False, duplicates='drop').fillna(0).astype(int) + 1
-                raw['is_round']       = (raw['Amount'] % 1.0 == 0).astype(int)
-                raw['sender_id']      = (raw.index % 500).astype(int)
-                raw['receiver_id']    = ((raw.index + 137) % 500).astype(int)
-                raw['avg_tx_amount']  = raw['Amount'] * np.clip(np.abs(raw['V7'].values) * 0.3 + 0.7, 0.5, 2.0)
-                raw['std_tx_amount']  = raw['Amount'] * np.clip(np.abs(raw['V8'].values) * 0.15, 0.0, 0.8)
-                raw['is_fraud']       = raw['Class']
-                df_rt = raw.sample(frac=1, random_state=int(time.time()) % 10000).reset_index(drop=True)
-                push_sse("retrain", {"status": "progress", "model": "data",
-                                     "message": f"Dataset loaded: {len(df_rt):,} rows, {df_rt['is_fraud'].sum()} fraud ({df_rt['is_fraud'].mean()*100:.2f}%)"})
-            except Exception as dl_err:
-                logger.warning(f"Dataset load failed ({dl_err}), using synthetic fallback")
-                push_sse("retrain", {"status": "progress", "model": "data", "message": f"Dataset unavailable, using synthetic data"})
-                np.random.seed(int(time.time()) % 10000)
-                N = 15000; N_F = 750; N_N = N - N_F; N_FP = 500; N_CN = N_N - N_FP
-                N_CF = int(N_F * 0.7); N_SF = N_F - N_CF
-                def _mk(n,f,ar,rr,fr):
-                    a=np.random.uniform(*ar,n); ns=lambda b,s:np.clip(b+np.random.normal(0,s,n),0,None)
-                    v=lambda lo,hi:np.random.randint(lo,hi,n).astype(float)
-                    if not f:
-                        return {'amount':a,'hour':np.random.randint(0,24,n),'day_of_week':np.random.randint(0,7,n),
-                                'freq_7d':np.random.randint(*fr,n),'is_round':np.random.choice([0,1],n,p=[0.75,0.25]),
-                                'country_risk':np.random.uniform(*rr,n),'sender_id':np.random.randint(0,500,n),
-                                'receiver_id':np.random.randint(0,500,n),'velocity_1h':ns(v(0,6),0.8),
-                                'velocity_24h':ns(v(0,25),2.0),'velocity_7d':ns(v(0,80),5.0),
-                                'avg_tx_amount':a*np.random.uniform(0.5,1.5,n),'std_tx_amount':a*np.random.uniform(0,0.5,n),
-                                'amount_zscore':np.random.uniform(-1.5,3.0,n),'unique_receivers':ns(v(1,8),0.5),
-                                'is_new_receiver':np.random.choice([0,1],n,p=[0.75,0.25]),'is_fraud':np.zeros(n)}
-                    else:
-                        return {'amount':a,'hour':np.random.randint(0,24,n),'day_of_week':np.random.randint(0,7,n),
-                                'freq_7d':np.random.randint(*fr,n),'is_round':np.random.choice([0,1],n,p=[0.75,0.25]),
-                                'country_risk':np.random.uniform(*rr,n),'sender_id':np.random.randint(0,500,n),
-                                'receiver_id':np.random.randint(0,500,n),'velocity_1h':ns(v(2,10),1.0),
-                                'velocity_24h':ns(v(8,45),3.0),'velocity_7d':ns(v(30,130),8.0),
-                                'avg_tx_amount':a*np.random.uniform(0.5,1.5,n),'std_tx_amount':a*np.random.uniform(0,0.5,n),
-                                'amount_zscore':np.random.uniform(0.5,5.0,n),'unique_receivers':ns(v(3,18),1.0),
-                                'is_new_receiver':np.random.choice([0,1],n,p=[0.45,0.55]),'is_fraud':np.ones(n)}
-                df_rt = pd.concat([pd.DataFrame(_mk(N_CN,False,(100,500000),(0.0,0.5),(1,25))),
-                                   pd.DataFrame(_mk(N_FP,False,(9000,600000),(0.3,0.9),(10,35))),
-                                   pd.DataFrame(_mk(N_CF,True,(9000,2000000),(0.4,1.0),(12,45))),
-                                   pd.DataFrame(_mk(N_SF,True,(5000,300000),(0.2,0.8),(5,25)))],
-                                  ignore_index=True).sample(frac=1).reset_index(drop=True)
-
-            X_rt = df_rt[FEATS].values.astype(np.float32)
-            y_rt = df_rt['is_fraud'].values.astype(int)
+            import pandas as pd
+            df_rt = pd.concat([pd.DataFrame(normal), pd.DataFrame(fp_bait), pd.DataFrame(fraud)], ignore_index=True)
+            df_rt = df_rt.sample(frac=1).reset_index(drop=True)
+            feats = ['amount','hour','day_of_week','freq_7d','is_round','country_risk','sender_id','receiver_id']
+            X_rt = df_rt[feats].values
+            y_rt = df_rt['is_fraud'].values
+            from sklearn.model_selection import train_test_split as tts
             X_tr, X_te, y_tr, y_te = tts(X_rt, y_rt, test_size=0.2, stratify=y_rt)
 
-            iso = None
-            if "isolation_forest" in selected_models:
-                push_sse("retrain", {"status": "progress", "model": "isolation_forest", "message": "Training Isolation Forest…"})
-                iso = IsolationForest(n_estimators=100, contamination=0.05, n_jobs=-1)
-                iso.fit(X_tr)
-                joblib.dump(iso, os.path.join(MODELS_DIR, "isolation_forest.pkl"))
-            else:
-                iso = joblib.load(os.path.join(MODELS_DIR, "isolation_forest.pkl")) if os.path.exists(os.path.join(MODELS_DIR, "isolation_forest.pkl")) else None
+            iso = IsolationForest(n_estimators=100, contamination=0.05, n_jobs=-1)
+            iso.fit(X_tr)
+            joblib.dump(iso, os.path.join(MODELS_DIR, "isolation_forest.pkl"))
 
-            rf = None
-            if "random_forest" in selected_models:
-                push_sse("retrain", {"status": "progress", "model": "random_forest", "message": "Training Random Forest…"})
-                rf = RandomForestClassifier(n_estimators=150, max_depth=12, min_samples_leaf=10,
-                                            max_features='sqrt', class_weight='balanced', n_jobs=-1)
-                rf.fit(X_tr, y_tr)
-                joblib.dump(rf, os.path.join(MODELS_DIR, "random_forest.pkl"))
-            else:
-                rf = joblib.load(os.path.join(MODELS_DIR, "random_forest.pkl")) if os.path.exists(os.path.join(MODELS_DIR, "random_forest.pkl")) else None
+            rf = RandomForestClassifier(
+                n_estimators=150, max_depth=12, min_samples_leaf=10,
+                max_features='sqrt', class_weight='balanced', n_jobs=-1
+            )
+            rf.fit(X_tr, y_tr)
+            joblib.dump(rf, os.path.join(MODELS_DIR, "random_forest.pkl"))
 
-            xg = None
             spw = (y_tr == 0).sum() / max((y_tr == 1).sum(), 1)
-            if "xgboost" in selected_models:
-                push_sse("retrain", {"status": "progress", "model": "xgboost", "message": "Training XGBoost…"})
-                xg = xgb_mod.XGBClassifier(n_estimators=200, max_depth=6, learning_rate=0.05,
-                                            scale_pos_weight=spw, reg_alpha=1.0, reg_lambda=2.0,
-                                            subsample=0.8, colsample_bytree=0.8,
-                                            use_label_encoder=False, eval_metric='logloss', n_jobs=-1)
-                xg.fit(X_tr, y_tr)
-                joblib.dump(xg, os.path.join(MODELS_DIR, "xgboost.pkl"))
-            else:
-                xg = joblib.load(os.path.join(MODELS_DIR, "xgboost.pkl")) if os.path.exists(os.path.join(MODELS_DIR, "xgboost.pkl")) else None
+            xg = xgb_mod.XGBClassifier(
+                n_estimators=200, max_depth=6, learning_rate=0.05,
+                scale_pos_weight=spw, reg_alpha=1.0, reg_lambda=2.0,
+                subsample=0.8, colsample_bytree=0.8,
+                use_label_encoder=False, eval_metric='logloss', n_jobs=-1
+            )
+            xg.fit(X_tr, y_tr)
+            joblib.dump(xg, os.path.join(MODELS_DIR, "xgboost.pkl"))
 
-            sd = None
-            if "sequence_detector" in selected_models:
-                push_sse("retrain", {"status": "progress", "model": "sequence_detector", "message": "Training Sequence Detector…"})
-                from sklearn.linear_model import SGDClassifier
-                # Sequence detector: uses rolling-window velocity features (velocity_1h, velocity_24h, velocity_7d,
-                # amount_zscore, unique_receivers, is_new_receiver) — simulates temporal pattern detection
-                SEQ_FEATS = ['velocity_1h', 'velocity_24h', 'velocity_7d', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
-                seq_idx = [FEATS.index(f) for f in SEQ_FEATS]
-                X_seq_tr = X_tr[:, seq_idx]
-                X_seq_te = X_te[:, seq_idx]
-                from sklearn.utils.class_weight import compute_class_weight as _ccw2
-                _cw2 = _ccw2('balanced', classes=np.array([0, 1]), y=y_tr)
-                sd = SGDClassifier(loss='modified_huber', max_iter=1000,
-                                   class_weight={0: float(_cw2[0]), 1: float(_cw2[1])},
-                                   random_state=42, n_jobs=-1)
-                # Simulate sequential/online learning in mini-batches
-                batch = 500
-                for start in range(0, len(X_seq_tr), batch):
-                    sd.partial_fit(X_seq_tr[start:start+batch], y_tr[start:start+batch], classes=[0, 1])
-                joblib.dump(sd, os.path.join(MODELS_DIR, "sequence_detector.pkl"))
-            else:
-                sd = joblib.load(os.path.join(MODELS_DIR, "sequence_detector.pkl")) if os.path.exists(os.path.join(MODELS_DIR, "sequence_detector.pkl")) else None
+            X_norm = X_tr[y_tr == 0]
+            ae = MLPRegressor(hidden_layer_sizes=(64,32,16,32,64), activation='relu', max_iter=200)
+            ae.fit(X_norm, X_norm)
+            joblib.dump(ae, os.path.join(MODELS_DIR, "autoencoder.pkl"))
+            thr = np.percentile(np.mean((X_norm - ae.predict(X_norm))**2, axis=1), 97)
+            joblib.dump(thr, os.path.join(MODELS_DIR, "ae_threshold.pkl"))
 
-            ae = None; thr = None
-            if "autoencoder" in selected_models:
-                push_sse("retrain", {"status": "progress", "model": "autoencoder", "message": "Training Autoencoder…"})
-                X_norm = X_tr[y_tr == 0]
-                ae = MLPRegressor(hidden_layer_sizes=(64, 32, 16, 32, 64), activation='relu', max_iter=200)
-                ae.fit(X_norm, X_norm)
-                joblib.dump(ae, os.path.join(MODELS_DIR, "autoencoder.pkl"))
-                thr = np.percentile(np.mean((X_norm - ae.predict(X_norm)) ** 2, axis=1), 97)
-                joblib.dump(thr, os.path.join(MODELS_DIR, "ae_threshold.pkl"))
-            else:
-                ae = joblib.load(os.path.join(MODELS_DIR, "autoencoder.pkl")) if os.path.exists(os.path.join(MODELS_DIR, "autoencoder.pkl")) else None
-                thr = joblib.load(os.path.join(MODELS_DIR, "ae_threshold.pkl")) if os.path.exists(os.path.join(MODELS_DIR, "ae_threshold.pkl")) else 1.0
-
-            # Build synthetic transaction graph for PageRank
-            G = nx.DiGraph()
-            n_nodes = 500
-            for _ in range(3000):
-                src = np.random.randint(0, n_nodes)
-                dst = np.random.randint(0, n_nodes)
-                if src != dst:
-                    G.add_edge(src, dst, weight=float(np.random.lognormal(9, 1.5)))
-            pr = nx.pagerank(G, alpha=0.85, max_iter=100, weight='weight')
-            joblib.dump(pr, os.path.join(MODELS_DIR, "pagerank.pkl"))
-            pr_nodes = [{"id": int(n), "pagerank": float(v)} for n, v in pr.items()]
-            pr_edges = [{"source": int(u), "target": int(v)} for u, v in list(G.edges())[:500]]
-            with open(os.path.join(MODELS_DIR, "graph_data.json"), "w") as f:
-                json.dump({"nodes": pr_nodes, "edges": pr_edges, "cycles": [], "communities": 0}, f)
-
-            # Metrics + feature importance (load existing metrics first, then overwrite trained ones)
-            metrics_path = os.path.join(MODELS_DIR, "metrics.json")
+            from sklearn.metrics import f1_score as f1s, accuracy_score as accs
             new_metrics = {}
-            if os.path.exists(metrics_path):
-                with open(metrics_path) as mf:
-                    try: new_metrics = json.load(mf)
-                    except: pass
-            for name, mdl, needs_inv in [("isolation_forest", iso, True),
-                                          ("random_forest", rf, False), ("xgboost", xg, False)]:
-                if mdl is None or name not in selected_models:
-                    continue
-                p = (mdl.predict(X_te) == -1).astype(int) if needs_inv else mdl.predict(X_te)
+            for name, mdl, needs_inv in [("isolation_forest", iso, True), ("random_forest", rf, False),
+                                          ("xgboost", xg, False)]:
+                if needs_inv:
+                    p = (mdl.predict(X_te) == -1).astype(int)
+                else:
+                    p = mdl.predict(X_te)
                 new_metrics[name] = {"f1": float(f1s(y_te, p, zero_division=0)),
                                      "accuracy": float(accs(y_te, p))}
-            if ae is not None and thr is not None and "autoencoder" in selected_models:
-                recon_e = np.mean((X_te - ae.predict(X_te)) ** 2, axis=1)
-                ae_p = (recon_e > thr).astype(int)
-                new_metrics["autoencoder"] = {"f1": float(f1s(y_te, ae_p, zero_division=0)),
-                                              "accuracy": float(accs(y_te, ae_p))}
-            if sd is not None and "sequence_detector" in selected_models:
-                SEQ_FEATS = ['velocity_1h', 'velocity_24h', 'velocity_7d', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
-                seq_idx = [FEATS.index(f) for f in SEQ_FEATS]
-                sd_p = sd.predict(X_te[:, seq_idx])
-                new_metrics["sequence_detector"] = {"f1": float(f1s(y_te, sd_p, zero_division=0)),
-                                                    "accuracy": float(accs(y_te, sd_p))}
+            recon_e = np.mean((X_te - ae.predict(X_te))**2, axis=1)
+            ae_p = (recon_e > thr).astype(int)
+            new_metrics["autoencoder"] = {"f1": float(f1s(y_te, ae_p, zero_division=0)),
+                                          "accuracy": float(accs(y_te, ae_p))}
+
             with open(os.path.join(MODELS_DIR, "metrics.json"), "w") as f:
                 json.dump(new_metrics, f, indent=2)
 
-            # Per-model insights for MLOps charts
-            SEQ_FEATS_INS = ['velocity_1h', 'velocity_24h', 'velocity_7d', 'amount_zscore', 'unique_receivers', 'is_new_receiver']
-            seq_idx_ins = [FEATS.index(f) for f in SEQ_FEATS_INS]
-            insights = {}
-
-            if rf is not None:
-                fi = dict(zip(FEATS, rf.feature_importances_.tolist()))
-                insights["random_forest"] = {"type": "feature_importance", "label": "Feature Importance (MDI)",
-                                             "features": FEATS, "values": rf.feature_importances_.tolist()}
-                with open(os.path.join(MODELS_DIR, "feature_importance.json"), "w") as f:
-                    json.dump(fi, f, indent=2)
-
-            if xg is not None:
-                xg_imp = xg.feature_importances_.tolist()
-                insights["xgboost"] = {"type": "feature_importance", "label": "Feature Importance (Gain)",
-                                       "features": FEATS, "values": xg_imp}
-
-            if iso is not None:
-                # Anomaly score contribution: variance of decision function per feature
-                # Permutation-style: measure score drop when feature is shuffled
-                baseline = iso.decision_function(X_te)
-                iso_scores = []
-                for fi_idx in range(X_te.shape[1]):
-                    X_perm = X_te.copy(); np.random.shuffle(X_perm[:, fi_idx])
-                    permuted = iso.decision_function(X_perm)
-                    iso_scores.append(float(np.mean(np.abs(baseline - permuted))))
-                insights["isolation_forest"] = {"type": "anomaly_scores", "label": "Anomaly Feature Contribution",
-                                                "features": FEATS, "values": iso_scores}
-
-            if ae is not None:
-                # Per-feature mean squared reconstruction error on test set
-                ae_recon = ae.predict(X_te)
-                ae_feat_err = np.mean((X_te - ae_recon) ** 2, axis=0).tolist()
-                insights["autoencoder"] = {"type": "reconstruction_error", "label": "Per-Feature Reconstruction Error",
-                                           "features": FEATS, "values": ae_feat_err}
-
-            if sd is not None:
-                coef = sd.coef_[0].tolist() if hasattr(sd, 'coef_') and sd.coef_ is not None else []
-                insights["sequence_detector"] = {"type": "coefficients", "label": "Feature Coefficients (SGD Weights)",
-                                                 "features": SEQ_FEATS_INS, "values": [abs(c) for c in coef]}
-
-            with open(os.path.join(MODELS_DIR, "model_insights.json"), "w") as f:
-                json.dump(insights, f, indent=2)
+            fi = dict(zip(feats, rf.feature_importances_.tolist()))
+            with open(os.path.join(MODELS_DIR, "feature_importance.json"), "w") as f:
+                json.dump(fi, f, indent=2)
 
             aml_engine._load_models()
             logger.info("Model retraining complete")
@@ -4318,10 +2802,8 @@ def retrain_models():
 @app.route("/api/audit/log", methods=["GET"])
 @zero_trust_required
 def audit_log():
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     limit = int(request.args.get("limit", 50))
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT * FROM audit_log ORDER BY created_at DESC LIMIT ?", (limit,))
     rows = c.fetchall()
@@ -4335,7 +2817,7 @@ def audit_log():
 @app.route("/api/gdpr/erasure", methods=["POST"])
 @zero_trust_required
 def gdpr_erasure():
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
+    if request.user.get("role") not in ("admin", "compliance"):
         return jsonify({"error": "Insufficient permissions"}), 403
 
     data = request.get_json(force=True)
@@ -4344,7 +2826,7 @@ def gdpr_erasure():
     if not entity_id:
         return jsonify({"error": "entity_id required"}), 400
 
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
     # Anonymize PII
@@ -4366,7 +2848,7 @@ def gdpr_erasure():
 def health_check():
     checks = {"api": "healthy", "database": "unknown", "blockchain": "unknown", "models": "unknown"}
     try:
-        conn = open_db()
+        conn = sqlite3.connect(DB_PATH)
         conn.execute("SELECT 1")
         conn.close()
         checks["database"] = "healthy"
@@ -4381,12 +2863,12 @@ def health_check():
         checks["blockchain"] = "unhealthy"
     checks["models"] = "healthy" if aml_engine.models_loaded else "unhealthy"
     overall = "healthy" if all(v == "healthy" for v in checks.values()) else "degraded"
-    return jsonify({"status": overall, "checks": checks, "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()})
+    return jsonify({"status": overall, "checks": checks, "timestamp": datetime.utcnow().isoformat()})
 
 # --- Prometheus Metrics ---
 @app.route("/api/metrics", methods=["GET"])
 def prometheus_metrics():
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM settlements")
     total = c.fetchone()[0]
@@ -4448,14 +2930,12 @@ def fx_convert():
 @app.route("/api/compliance/sla-status", methods=["GET"])
 @zero_trust_required
 def compliance_sla_status():
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT id, case_number, severity, status, sla_deadline, created_at FROM compliance_cases WHERE status IN ('open','investigating','escalated')")
     rows = c.fetchall()
     conn.close()
-    now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+    now = datetime.utcnow().isoformat()
     cases = []
     for r in rows:
         deadline = r[4]
@@ -4479,7 +2959,7 @@ def sse_stream():
                 last_idx = len(sse_events)
             else:
                 # Heartbeat
-                yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': datetime.now(timezone.utc).replace(tzinfo=None).isoformat()})}\n\n"
+                yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': datetime.utcnow().isoformat()})}\n\n"
             time.sleep(2)
 
     return Response(generate(), mimetype='text/event-stream',
@@ -4503,166 +2983,11 @@ def shap_test():
 # DeFi & Advanced Analytics Endpoints
 # ============================================================
 
-# --- Risk Score Trend ---
-@app.route("/api/analytics/risk-trend", methods=["GET"])
-@zero_trust_required
-def risk_trend():
-    """Daily average risk score over the last 30 days."""
-    days = int(request.args.get("days", 30))
-    conn = open_db()
-    c = conn.cursor()
-    c.execute("""
-        SELECT DATE(created_at) as day,
-               ROUND(AVG(risk_score),1) as avg_risk,
-               COUNT(*) as tx_count,
-               SUM(CASE WHEN status='blocked' THEN 1 ELSE 0 END) as blocked_count
-        FROM settlements
-        WHERE created_at >= DATE('now', ?)
-        GROUP BY DATE(created_at)
-        ORDER BY day ASC
-    """, (f"-{days} days",))
-    rows = c.fetchall()
-    # Also get 7-day rolling stats
-    c.execute("""
-        SELECT ROUND(AVG(risk_score),1), MAX(risk_score), MIN(risk_score),
-               COUNT(*), SUM(amount)
-        FROM settlements
-        WHERE created_at >= DATE('now','-7 days')
-    """)
-    summary = c.fetchone()
-    conn.close()
-    return jsonify({
-        "trend": [{"day": r[0], "avg_risk": r[1], "tx_count": r[2], "blocked": r[3]} for r in rows],
-        "summary_7d": {
-            "avg_risk": summary[0], "max_risk": summary[1], "min_risk": summary[2],
-            "tx_count": summary[3], "total_volume": round(summary[4] or 0, 2)
-        }
-    })
-
-# --- Account Statement ---
-@app.route("/api/accounts/statement", methods=["GET"])
-@zero_trust_required
-def account_statement():
-    """Generate a monthly account statement for the logged-in user."""
-    username = request.user.get("sub", "")
-    month = request.args.get("month", datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m"))  # YYYY-MM
-    fmt = request.args.get("format", "json")  # json or pdf
-    try:
-        year, mon = int(month.split("-")[0]), int(month.split("-")[1])
-    except Exception:
-        return jsonify({"error": "Invalid month format. Use YYYY-MM"}), 400
-
-    from calendar import monthrange
-    _, last_day = monthrange(year, mon)
-    start = f"{year}-{mon:02d}-01 00:00:00"
-    end   = f"{year}-{mon:02d}-{last_day} 23:59:59"
-
-    conn = open_db()
-    c = conn.cursor()
-    # Outbound
-    c.execute("""SELECT id, beneficiary_name, amount, currency, status, risk_score, created_at, tx_hash
-                 FROM settlements WHERE sender_username=? AND created_at BETWEEN ? AND ?
-                 ORDER BY created_at""", (username, start, end))
-    outbound = c.fetchall()
-    # Inbound P2P
-    c.execute("""SELECT id, sender, amount, created_at FROM settlements
-                 WHERE receiver_username=? AND status IN ('settled','flagged') AND created_at BETWEEN ? AND ?
-                 ORDER BY created_at""", (username, start, end))
-    inbound = c.fetchall()
-    acct = get_user_account_info(username)
-    conn.close()
-
-    out_total = sum(r[2] for r in outbound if r[4] not in ('blocked','reversed'))
-    in_total  = sum(r[2] for r in inbound)
-    balance   = get_user_balance(username)
-
-    statement = {
-        "username":    username,
-        "full_name":   acct["full_name"] if acct else username,
-        "month":       month,
-        "currency":    "USD",
-        "closing_balance": balance,
-        "outbound_count": len(outbound),
-        "outbound_total": round(out_total, 2),
-        "inbound_count":  len(inbound),
-        "inbound_total":  round(in_total, 2),
-        "net_flow":       round(in_total - out_total, 2),
-        "transactions": [
-            {"type":"debit","id":r[0],"description":f"Payment to {r[1]}","amount":-r[2],
-             "currency":r[3],"status":r[4],"risk_score":r[5],"date":r[6],"ref":r[7]}
-            for r in outbound
-        ] + [
-            {"type":"credit","id":r[0],"description":f"Received from {r[1]}","amount":r[2],
-             "currency":"USD","status":"settled","risk_score":0,"date":r[3],"ref":r[0]}
-            for r in inbound
-        ],
-        "generated_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
-    }
-    # Sort by date
-    statement["transactions"].sort(key=lambda x: x["date"])
-
-    if fmt == "pdf":
-        try:
-            from reportlab.lib.pagesizes import A4
-            from reportlab.lib import colors
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-            from reportlab.lib.styles import getSampleStyleSheet
-            import io
-            buf = io.BytesIO()
-            doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=50, bottomMargin=40)
-            styles = getSampleStyleSheet()
-            elems = []
-            elems.append(Paragraph("IPTS — Account Statement", styles["Title"]))
-            elems.append(Paragraph(f"Account: {statement['full_name']} (@{username})", styles["Normal"]))
-            elems.append(Paragraph(f"Period: {month} | Generated: {statement['generated_at'][:10]}", styles["Normal"]))
-            elems.append(Spacer(1, 12))
-            summary_data = [
-                ["Closing Balance", f"${balance:,.2f}"],
-                ["Total Debits",    f"${out_total:,.2f}"],
-                ["Total Credits",   f"${in_total:,.2f}"],
-                ["Net Flow",        f"${in_total - out_total:+,.2f}"],
-            ]
-            t = Table(summary_data, colWidths=[150, 150])
-            t.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.grey),
-                ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-                ('ALIGN', (1,0), (1,-1), 'RIGHT'),
-                ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-            ]))
-            elems.append(t)
-            elems.append(Spacer(1, 12))
-            tx_data = [["Date", "Description", "Amount", "Status"]]
-            for tx in statement["transactions"]:
-                sign = f"${abs(tx['amount']):,.2f}"
-                sign = f"-{sign}" if tx["type"] == "debit" else f"+{sign}"
-                tx_data.append([tx["date"][:16], tx["description"][:40], sign, tx["status"]])
-            t2 = Table(tx_data, colWidths=[100, 230, 80, 70])
-            t2.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1a56db')),
-                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f3f4f6')]),
-                ('GRID', (0,0), (-1,-1), 0.25, colors.lightgrey),
-                ('FONTSIZE', (0,0), (-1,-1), 8),
-            ]))
-            elems.append(t2)
-            doc.build(elems)
-            buf.seek(0)
-            from flask import send_file
-            return send_file(buf, as_attachment=True,
-                             download_name=f"IPTS_Statement_{username}_{month}.pdf",
-                             mimetype="application/pdf")
-        except Exception as e:
-            return jsonify({"error": f"PDF generation failed: {e}"}), 500
-
-    return jsonify(statement)
-
 # --- Proof of Reserve ---
 @app.route("/api/defi/proof-of-reserve", methods=["GET"])
 @zero_trust_required
 def proof_of_reserve():
-    if request.user.get("role") not in ("admin", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT COALESCE(SUM(balance), 0) FROM user_accounts")
     offchain_total = c.fetchone()[0]
@@ -4680,16 +3005,14 @@ def proof_of_reserve():
         "onchain_total": round(onchain_total, 2),
         "ratio": round(ratio, 4),
         "backed": ratio >= 0.99,
-        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+        "timestamp": datetime.utcnow().isoformat()
     })
 
 # --- SAR Auto-Generation ---
 @app.route("/api/compliance/cases/<case_id>/sar-report", methods=["GET"])
 @zero_trust_required
 def sar_auto_report(case_id):
-    if request.user.get("role") not in ("admin", "compliance", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM compliance_cases WHERE id = ?", (case_id,))
@@ -4705,7 +3028,7 @@ def sar_auto_report(case_id):
     report = {
         "report_type": "Suspicious Activity Report (SAR)",
         "format_version": "FinCEN BSA E-Filing v2.0",
-        "generated_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+        "generated_at": datetime.utcnow().isoformat(),
         "filing_institution": {"name": "IPTS Financial Services", "ein": "XX-XXXXXXX"},
         "case_reference": {"case_id": case["id"], "case_number": case["case_number"], "sar_number": case["sar_number"] or "PENDING"},
         "subject_information": {"sender_name": case["sender_name"], "beneficiary_name": case["beneficiary_name"], "activity_type": case["case_type"], "severity": case["severity"]},
@@ -4733,9 +3056,7 @@ COUNTRY_COORDS = {
 @app.route("/api/analytics/fraud-heatmap", methods=["GET"])
 @zero_trust_required
 def fraud_heatmap():
-    if request.user.get("role") not in ("admin", "compliance", "operator", "datascientist", "auditor"):
-        return jsonify({"error": "Insufficient permissions"}), 403
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT beneficiary_name, risk_score, amount FROM settlements WHERE risk_score >= 60")
     rows = c.fetchall()
@@ -4763,92 +3084,9 @@ def fraud_heatmap():
                 "count": data["count"], "avg_risk": round(data["total_risk"] / data["count"], 1), "total_amount": round(data["total_amount"], 2)})
     return jsonify(sorted(result, key=lambda x: -x["avg_risk"]))
 
-# --- AI-Identified Risk Entities ---
-@app.route("/api/analytics/risk-entities", methods=["GET"])
-@zero_trust_required
-def risk_entities():
-    if request.user.get("role") not in ("admin", "compliance", "operator", "datascientist", "auditor", "client"):
-        return jsonify({"error": "Insufficient permissions"}), 403
-    """
-    Returns high and critical risk entities as identified by the AI/ML models.
-    Sources:
-      1. Settlements with high risk scores (>= 70) grouped by beneficiary name
-      2. Watchlist entity matches found in transaction history
-    """
-    conn = open_db()
-    c = conn.cursor()
-
-    # Aggregate settlement data per beneficiary
-    c.execute("""
-        SELECT beneficiary_name,
-               COUNT(*)                        AS tx_count,
-               ROUND(AVG(risk_score), 1)       AS avg_risk,
-               ROUND(MAX(risk_score), 1)       AS max_risk,
-               ROUND(SUM(amount), 2)           AS total_volume,
-               SUM(CASE WHEN status='BLOCKED' THEN 1 ELSE 0 END) AS blocked_count,
-               MAX(created_at)                 AS last_seen
-        FROM   settlements
-        WHERE  risk_score >= 70
-        GROUP  BY beneficiary_name
-        ORDER  BY avg_risk DESC
-    """)
-    rows = c.fetchall()
-    conn.close()
-
-    entities = []
-    for row in rows:
-        name, tx_count, avg_risk, max_risk, total_volume, blocked_count, last_seen = row
-        if not name:
-            continue
-
-        # Classify risk level based on score
-        if max_risk >= 85:
-            level = "critical"
-            triggers = []
-            if max_risk >= 90:
-                triggers.append("Extreme risk score (≥90)")
-            if blocked_count > 0:
-                triggers.append(f"{blocked_count} blocked transaction(s)")
-            # Watchlist check
-            name_lower = (name or "").lower()
-            watchlist_hit = any(w in name_lower for w in WATCHLIST_ENTITIES)
-            if watchlist_hit:
-                triggers.append("Watchlist entity match")
-            if total_volume >= 100000:
-                triggers.append(f"High volume (${total_volume:,.0f})")
-            triggers.append("Anomaly pattern detected by ensemble models")
-        else:
-            level = "high"
-            triggers = []
-            if blocked_count > 0:
-                triggers.append(f"{blocked_count} blocked transaction(s)")
-            if total_volume >= 50000:
-                triggers.append(f"Elevated transaction volume (${total_volume:,.0f})")
-            triggers.append("Risk score above threshold (≥70)")
-            name_lower = (name or "").lower()
-            if any(w in name_lower for w in WATCHLIST_ENTITIES):
-                triggers.append("Partial watchlist match")
-
-        entities.append({
-            "name": name,
-            "level": level,
-            "avg_risk": avg_risk,
-            "max_risk": max_risk,
-            "tx_count": tx_count,
-            "blocked_count": blocked_count,
-            "total_volume": total_volume,
-            "last_seen": last_seen,
-            "triggers": triggers,
-            "models": ["XGBoost", "Isolation Forest", "Random Forest", "LSTM", "Autoencoder"],
-        })
-
-    # If no real data yet, return empty — the UI handles it gracefully
-    return jsonify({"entities": entities, "total": len(entities)})
-
-
 # --- AMM Pools ---
 def _init_amm_pools():
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS amm_pools (pair TEXT PRIMARY KEY, reserve_base REAL, reserve_quote REAL, k_constant REAL, total_volume REAL DEFAULT 0, swap_count INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     c.execute("""CREATE TABLE IF NOT EXISTS swap_history (id TEXT PRIMARY KEY, username TEXT, pair TEXT, direction TEXT, amount_in REAL, amount_out REAL, price REAL, price_impact REAL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
@@ -4866,9 +3104,7 @@ _init_amm_pools()
 @app.route("/api/defi/pools", methods=["GET"])
 @zero_trust_required
 def amm_pools():
-    if request.user.get("role") not in ("admin", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM amm_pools")
@@ -4885,8 +3121,6 @@ def amm_pools():
 @app.route("/api/defi/swap", methods=["POST"])
 @zero_trust_required
 def amm_swap():
-    if request.user.get("role") not in ("admin", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     data = request.get_json(force=True)
     pair = data.get("pair")
     amount_in = float(data.get("amount", 0))
@@ -4894,7 +3128,7 @@ def amm_swap():
     username = request.user.get("sub")
     if not pair or amount_in <= 0:
         return jsonify({"error": "pair and positive amount required"}), 400
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM amm_pools WHERE pair = ?", (pair,))
@@ -4930,7 +3164,7 @@ def amm_swap():
         c.execute("UPDATE user_accounts SET balance = balance + ? WHERE username = ?", (amount_out_after_fee, username))
     swap_id = str(uuid.uuid4())
     c.execute("INSERT INTO swap_history (id, username, pair, direction, amount_in, amount_out, price, price_impact, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
-              (swap_id, username, pair, direction, amount_in, round(amount_out_after_fee, 6), round(price, 6), round(price_impact, 4), datetime.now(timezone.utc).replace(tzinfo=None).isoformat()))
+              (swap_id, username, pair, direction, amount_in, round(amount_out_after_fee, 6), round(price, 6), round(price_impact, 4), datetime.utcnow().isoformat()))
     conn.commit()
     c.execute("SELECT balance FROM user_accounts WHERE username = ?", (username,))
     new_balance = c.fetchone()[0]
@@ -4947,10 +3181,8 @@ STAKING_POOLS = {"flexible": {"name": "Flexible", "apy": 3.5, "lock_days": 0, "m
 @app.route("/api/defi/staking", methods=["GET"])
 @zero_trust_required
 def get_staking():
-    if request.user.get("role") not in ("admin", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     username = request.user.get("sub")
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM staking_positions WHERE username = ? ORDER BY staked_at DESC", (username,))
@@ -4958,7 +3190,7 @@ def get_staking():
     for r in c.fetchall():
         p = dict(r)
         staked_at = datetime.fromisoformat(p["staked_at"])
-        days_elapsed = (datetime.now(timezone.utc).replace(tzinfo=None) - staked_at).total_seconds() / 86400
+        days_elapsed = (datetime.utcnow() - staked_at).total_seconds() / 86400
         p["accrued_yield"] = round(p["amount"] * (p["apy"] / 365 / 100) * days_elapsed, 2)
         p["days_elapsed"] = round(days_elapsed, 1)
         positions.append(p)
@@ -4968,8 +3200,6 @@ def get_staking():
 @app.route("/api/defi/stake", methods=["POST"])
 @zero_trust_required
 def stake_funds():
-    if request.user.get("role") not in ("admin", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     data = request.get_json(force=True)
     pool_id = data.get("pool", "flexible")
     amount = float(data.get("amount", 0))
@@ -4984,11 +3214,11 @@ def stake_funds():
         return jsonify({"error": "Insufficient balance"}), 400
     update_user_balance(username, balance - amount)
     pos_id = str(uuid.uuid4())
-    unlock_at = (datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=pool["lock_days"])).isoformat() if pool["lock_days"] > 0 else None
-    conn = open_db()
+    unlock_at = (datetime.utcnow() + timedelta(days=pool["lock_days"])).isoformat() if pool["lock_days"] > 0 else None
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("INSERT INTO staking_positions (id, username, amount, pool, apy, staked_at, unlock_at, status) VALUES (?,?,?,?,?,?,?,?)",
-              (pos_id, username, amount, pool_id, pool["apy"], datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), unlock_at, "active"))
+              (pos_id, username, amount, pool_id, pool["apy"], datetime.utcnow().isoformat(), unlock_at, "active"))
     conn.commit()
     conn.close()
     log_audit("stake", username, {"pool": pool_id, "amount": amount, "apy": pool["apy"]}, request.remote_addr)
@@ -4997,10 +3227,8 @@ def stake_funds():
 @app.route("/api/defi/unstake/<position_id>", methods=["POST"])
 @zero_trust_required
 def unstake_funds(position_id):
-    if request.user.get("role") not in ("admin", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     username = request.user.get("sub")
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM staking_positions WHERE id = ? AND username = ?", (position_id, username))
@@ -5011,11 +3239,11 @@ def unstake_funds(position_id):
     if pos["status"] != "active":
         conn.close()
         return jsonify({"error": "Position already closed"}), 400
-    if pos["unlock_at"] and datetime.now(timezone.utc).replace(tzinfo=None) < datetime.fromisoformat(pos["unlock_at"]):
+    if pos["unlock_at"] and datetime.utcnow() < datetime.fromisoformat(pos["unlock_at"]):
         conn.close()
         return jsonify({"error": f"Locked until {pos['unlock_at']}"}), 400
     staked_at = datetime.fromisoformat(pos["staked_at"])
-    days_elapsed = (datetime.now(timezone.utc).replace(tzinfo=None) - staked_at).total_seconds() / 86400
+    days_elapsed = (datetime.utcnow() - staked_at).total_seconds() / 86400
     accrued_yield = round(pos["amount"] * (pos["apy"] / 365 / 100) * days_elapsed, 2)
     total_return = pos["amount"] + accrued_yield
     balance = get_user_balance(username)
@@ -5029,17 +3257,15 @@ def unstake_funds(position_id):
 @app.route("/api/defi/escrow", methods=["GET"])
 @zero_trust_required
 def list_escrows():
-    if request.user.get("role") not in ("admin", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     username = request.user.get("sub")
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM escrow_contracts WHERE sender = ? OR receiver = ? ORDER BY created_at DESC", (username, username))
     escrows = []
     for r in c.fetchall():
         e = dict(r)
-        if e["status"] == "locked" and e["timelock"] and datetime.now(timezone.utc).replace(tzinfo=None) > datetime.fromisoformat(e["timelock"]):
+        if e["status"] == "locked" and e["timelock"] and datetime.utcnow() > datetime.fromisoformat(e["timelock"]):
             e["status"] = "expired"
         e["is_sender"] = e["sender"] == username
         escrows.append(e)
@@ -5049,8 +3275,6 @@ def list_escrows():
 @app.route("/api/defi/escrow/create", methods=["POST"])
 @zero_trust_required
 def create_escrow():
-    if request.user.get("role") not in ("admin", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     data = request.get_json(force=True)
     receiver = data.get("receiver")
     amount = float(data.get("amount", 0))
@@ -5058,7 +3282,7 @@ def create_escrow():
     username = request.user.get("sub")
     if not receiver or amount <= 0:
         return jsonify({"error": "receiver and positive amount required"}), 400
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT username FROM user_accounts WHERE username = ? OR LOWER(full_name) = LOWER(?) OR LOWER(username) = LOWER(?)",
               (receiver, receiver, receiver))
@@ -5074,7 +3298,7 @@ def create_escrow():
     import secrets, hashlib
     secret = secrets.token_hex(32)
     hashlock = hashlib.sha256(bytes.fromhex(secret)).hexdigest()
-    timelock = (datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=timelock_hours)).isoformat()
+    timelock = (datetime.utcnow() + timedelta(hours=timelock_hours)).isoformat()
     escrow_id = str(uuid.uuid4())
     update_user_balance(username, balance - amount)
     c.execute("INSERT INTO escrow_contracts (id, sender, receiver, amount, hashlock, timelock, status, secret) VALUES (?,?,?,?,?,?,?,?)",
@@ -5087,12 +3311,10 @@ def create_escrow():
 @app.route("/api/defi/escrow/<escrow_id>/claim", methods=["POST"])
 @zero_trust_required
 def claim_escrow(escrow_id):
-    if request.user.get("role") not in ("admin", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     data = request.get_json(force=True)
     pre_image = data.get("secret", "")
     username = request.user.get("sub")
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM escrow_contracts WHERE id = ?", (escrow_id,))
@@ -5106,7 +3328,7 @@ def claim_escrow(escrow_id):
     if escrow["status"] != "locked":
         conn.close()
         return jsonify({"error": f"Escrow is {escrow['status']}"}), 400
-    if datetime.now(timezone.utc).replace(tzinfo=None) > datetime.fromisoformat(escrow["timelock"]):
+    if datetime.utcnow() > datetime.fromisoformat(escrow["timelock"]):
         conn.close()
         return jsonify({"error": "Escrow has expired"}), 400
     import hashlib
@@ -5115,7 +3337,7 @@ def claim_escrow(escrow_id):
         return jsonify({"error": "Invalid secret"}), 400
     balance = get_user_balance(username)
     update_user_balance(username, balance + escrow["amount"])
-    c.execute("UPDATE escrow_contracts SET status = 'claimed', claimed_at = ? WHERE id = ?", (datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), escrow_id))
+    c.execute("UPDATE escrow_contracts SET status = 'claimed', claimed_at = ? WHERE id = ?", (datetime.utcnow().isoformat(), escrow_id))
     conn.commit()
     conn.close()
     return jsonify({"status": "claimed", "amount": escrow["amount"], "new_balance": round(get_user_balance(username), 2)})
@@ -5123,10 +3345,8 @@ def claim_escrow(escrow_id):
 @app.route("/api/defi/escrow/<escrow_id>/refund", methods=["POST"])
 @zero_trust_required
 def refund_escrow(escrow_id):
-    if request.user.get("role") not in ("admin", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
     username = request.user.get("sub")
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM escrow_contracts WHERE id = ?", (escrow_id,))
@@ -5140,365 +3360,24 @@ def refund_escrow(escrow_id):
     if escrow["status"] != "locked":
         conn.close()
         return jsonify({"error": f"Escrow is {escrow['status']}"}), 400
-    if datetime.now(timezone.utc).replace(tzinfo=None) < datetime.fromisoformat(escrow["timelock"]):
+    if datetime.utcnow() < datetime.fromisoformat(escrow["timelock"]):
         conn.close()
         return jsonify({"error": "Timelock has not expired yet"}), 400
     balance = get_user_balance(username)
     update_user_balance(username, balance + escrow["amount"])
-    c.execute("UPDATE escrow_contracts SET status = 'refunded', refunded_at = ? WHERE id = ?", (datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), escrow_id))
+    c.execute("UPDATE escrow_contracts SET status = 'refunded', refunded_at = ? WHERE id = ?", (datetime.utcnow().isoformat(), escrow_id))
     conn.commit()
     conn.close()
     return jsonify({"status": "refunded", "amount": escrow["amount"], "new_balance": round(get_user_balance(username), 2)})
-
-# ============================================================
-# DeFi Admin — Protocol Governance & Management
-# ============================================================
-
-def _init_defi_admin_tables():
-    conn = open_db()
-    c = conn.cursor()
-    c.execute("""CREATE TABLE IF NOT EXISTS defi_protocol_params (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_by TEXT DEFAULT 'system'
-    )""")
-    c.execute("""CREATE TABLE IF NOT EXISTS defi_emergency_status (
-        control TEXT PRIMARY KEY,
-        is_paused INTEGER DEFAULT 0,
-        activated_at TIMESTAMP,
-        activated_by TEXT,
-        reason TEXT
-    )""")
-    c.execute("""CREATE TABLE IF NOT EXISTS governance_proposals (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        description TEXT,
-        category TEXT,
-        params_json TEXT,
-        status TEXT DEFAULT 'active',
-        created_by TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        votes_for INTEGER DEFAULT 0,
-        votes_against INTEGER DEFAULT 0,
-        quorum_required INTEGER DEFAULT 3,
-        executed_at TIMESTAMP,
-        execution_result TEXT
-    )""")
-    # Seed default protocol params if missing
-    defaults = [
-        ("collateral_ratio", "150"),
-        ("debt_ceiling_usd", "10000000"),
-        ("reserve_factor_pct", "10"),
-        ("liquidation_threshold", "130"),
-        ("ltv_max_pct", "75"),
-        ("stability_fee_pct", "2.5"),
-        ("flash_loan_fee_bps", "9"),
-        ("protocol_fee_pct", "0.05"),
-        ("fee_switch_enabled", "false"),
-        ("min_collateral_usd", "1000"),
-    ]
-    for key, val in defaults:
-        c.execute("INSERT OR IGNORE INTO defi_protocol_params (key, value) VALUES (?,?)", (key, val))
-    # Seed default emergency controls
-    controls = ["deposits", "withdrawals", "borrowing", "swaps", "liquidations", "global"]
-    for ctrl in controls:
-        c.execute("INSERT OR IGNORE INTO defi_emergency_status (control, is_paused) VALUES (?,0)", (ctrl,))
-    conn.commit()
-    conn.close()
-
-_init_defi_admin_tables()
-
-@app.route("/api/defi/admin/overview", methods=["GET"])
-@zero_trust_required
-def defi_admin_overview():
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    conn = open_db()
-    c = conn.cursor()
-    # Pool stats
-    c.execute("SELECT pair, reserve_base, reserve_quote, total_volume, swap_count FROM amm_pools")
-    pools = [{"pair": r[0], "reserve_base": round(r[1],2), "reserve_quote": round(r[2],2),
-              "tvl": round(r[1]+r[2],2), "volume": round(r[3],2), "swaps": r[4]} for r in c.fetchall()]
-    total_tvl = sum(p["tvl"] for p in pools)
-    total_vol = sum(p["volume"] for p in pools)
-    # Protocol params
-    c.execute("SELECT key, value FROM defi_protocol_params")
-    params = {r[0]: r[1] for r in c.fetchall()}
-    # Emergency status
-    c.execute("SELECT control, is_paused, activated_at, activated_by, reason FROM defi_emergency_status")
-    emergency = {r[0]: {"paused": bool(r[1]), "at": r[2], "by": r[3], "reason": r[4]} for r in c.fetchall()}
-    # Governance
-    c.execute("SELECT COUNT(*) FROM governance_proposals WHERE status='active'")
-    active_props = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM governance_proposals WHERE status='executed'")
-    executed_props = c.fetchone()[0]
-    # Staking stats
-    c.execute("SELECT COUNT(*), COALESCE(SUM(amount),0) FROM staking_positions WHERE status='active'")
-    sr = c.fetchone(); stake_count, stake_total = sr[0], round(float(sr[1]),2)
-    # Fee accrual (estimate: 0.05% of total swap volume)
-    fee_rate = float(params.get("protocol_fee_pct","0.05"))/100 if params.get("fee_switch_enabled","false")=="true" else 0
-    accrued_fees = round(total_vol * fee_rate, 2)
-    conn.close()
-    return jsonify({
-        "pools": pools, "total_tvl": round(total_tvl,2), "total_volume": round(total_vol,2),
-        "params": params, "emergency": emergency,
-        "governance": {"active": active_props, "executed": executed_props},
-        "staking": {"positions": stake_count, "total_staked": stake_total},
-        "accrued_fees": accrued_fees,
-    })
-
-@app.route("/api/defi/admin/params", methods=["GET", "POST"])
-@zero_trust_required
-def defi_admin_params():
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    conn = open_db(); c = conn.cursor()
-    if request.method == "GET":
-        c.execute("SELECT key, value, updated_at, updated_by FROM defi_protocol_params")
-        params = {r[0]: {"value": r[1], "updated_at": r[2], "updated_by": r[3]} for r in c.fetchall()}
-        conn.close(); return jsonify({"params": params})
-    body = request.get_json() or {}
-    updates = body.get("updates", {})
-    now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
-    by = request.user.get("sub", "admin")
-    for key, val in updates.items():
-        c.execute("INSERT INTO defi_protocol_params (key,value,updated_at,updated_by) VALUES (?,?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at, updated_by=excluded.updated_by",
-                  (key, str(val), now, by))
-    conn.commit(); conn.close()
-    return jsonify({"status": "updated", "updated": list(updates.keys()), "updated_by": by, "updated_at": now})
-
-@app.route("/api/defi/admin/pool/<pair>/fee", methods=["POST"])
-@zero_trust_required
-def defi_admin_pool_fee(pair):
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    body = request.get_json() or {}
-    fee_bps = body.get("fee_bps")  # e.g. 30 = 0.30%
-    if fee_bps is None:
-        return jsonify({"error": "fee_bps required"}), 400
-    conn = open_db(); c = conn.cursor()
-    c.execute("SELECT pair FROM amm_pools WHERE pair=?", (pair,))
-    if not c.fetchone():
-        conn.close(); return jsonify({"error": "Pool not found"}), 404
-    # Store per-pool fee override in protocol_params
-    c.execute("INSERT INTO defi_protocol_params (key,value,updated_at,updated_by) VALUES (?,?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at, updated_by=excluded.updated_by",
-              (f"pool_fee_bps_{pair}", str(fee_bps), datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), request.user.get("sub","admin")))
-    conn.commit(); conn.close()
-    return jsonify({"status": "updated", "pair": pair, "fee_bps": fee_bps, "fee_pct": round(fee_bps/100, 4)})
-
-@app.route("/api/defi/admin/pool/<pair>/liquidity", methods=["POST"])
-@zero_trust_required
-def defi_admin_pool_liquidity(pair):
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    body = request.get_json() or {}
-    action = body.get("action", "add")  # add | remove
-    amount_base = float(body.get("amount_base", 0))
-    amount_quote = float(body.get("amount_quote", 0))
-    if amount_base <= 0 or amount_quote <= 0:
-        return jsonify({"error": "Amounts must be > 0"}), 400
-    conn = open_db(); c = conn.cursor()
-    c.execute("SELECT reserve_base, reserve_quote FROM amm_pools WHERE pair=?", (pair,))
-    row = c.fetchone()
-    if not row:
-        conn.close(); return jsonify({"error": "Pool not found"}), 404
-    rb, rq = row
-    if action == "add":
-        nb, nq = rb + amount_base, rq + amount_quote
-    else:
-        nb, nq = max(0, rb - amount_base), max(0, rq - amount_quote)
-    c.execute("UPDATE amm_pools SET reserve_base=?, reserve_quote=?, k_constant=? WHERE pair=?", (round(nb,6), round(nq,6), round(nb*nq,6), pair))
-    conn.commit(); conn.close()
-    return jsonify({"status": action+"ed", "pair": pair, "new_reserve_base": round(nb,2), "new_reserve_quote": round(nq,2), "new_tvl": round(nb+nq,2)})
-
-@app.route("/api/defi/admin/emergency", methods=["GET"])
-@zero_trust_required
-def defi_admin_emergency_get():
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    conn = open_db(); c = conn.cursor()
-    c.execute("SELECT control, is_paused, activated_at, activated_by, reason FROM defi_emergency_status")
-    status = {r[0]: {"paused": bool(r[1]), "at": r[2], "by": r[3], "reason": r[4]} for r in c.fetchall()}
-    conn.close()
-    return jsonify({"emergency": status})
-
-@app.route("/api/defi/admin/emergency/<control>", methods=["POST"])
-@zero_trust_required
-def defi_admin_emergency_toggle(control):
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    valid = ["deposits", "withdrawals", "borrowing", "swaps", "liquidations", "global"]
-    if control not in valid:
-        return jsonify({"error": f"Unknown control. Valid: {valid}"}), 400
-    body = request.get_json() or {}
-    pause = bool(body.get("pause", True))
-    reason = body.get("reason", "Admin action")
-    now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
-    by = request.user.get("sub", "admin")
-    conn = open_db(); c = conn.cursor()
-    c.execute("UPDATE defi_emergency_status SET is_paused=?, activated_at=?, activated_by=?, reason=? WHERE control=?",
-              (1 if pause else 0, now if pause else None, by if pause else None, reason if pause else None, control))
-    if control == "global" and pause:
-        for ctrl in valid[:-1]:
-            c.execute("UPDATE defi_emergency_status SET is_paused=1, activated_at=?, activated_by=?, reason=? WHERE control=?", (now, by, "Global pause", ctrl))
-    conn.commit(); conn.close()
-    action = "paused" if pause else "resumed"
-    logger.warning(f"[DEFI EMERGENCY] {control} {action} by {by}: {reason}")
-    return jsonify({"status": action, "control": control, "by": by, "at": now, "reason": reason})
-
-@app.route("/api/defi/governance/proposals", methods=["GET"])
-@zero_trust_required
-def get_governance_proposals():
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    conn = open_db(); c = conn.cursor()
-    c.execute("SELECT id, title, description, category, params_json, status, created_by, created_at, votes_for, votes_against, quorum_required, executed_at, execution_result FROM governance_proposals ORDER BY created_at DESC")
-    rows = c.fetchall()
-    conn.close()
-    proposals = [{"id":r[0],"title":r[1],"description":r[2],"category":r[3],"params":json.loads(r[4] or "{}"),
-                  "status":r[5],"created_by":r[6],"created_at":r[7],"votes_for":r[8],"votes_against":r[9],
-                  "quorum":r[10],"executed_at":r[11],"execution_result":r[12]} for r in rows]
-    return jsonify({"proposals": proposals})
-
-@app.route("/api/defi/governance/proposals", methods=["POST"])
-@zero_trust_required
-def create_governance_proposal():
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    body = request.get_json() or {}
-    title = body.get("title","").strip()
-    if not title:
-        return jsonify({"error": "title required"}), 400
-    pid = str(uuid.uuid4())[:8].upper()
-    conn = open_db(); c = conn.cursor()
-    c.execute("INSERT INTO governance_proposals (id, title, description, category, params_json, status, created_by, quorum_required) VALUES (?,?,?,?,?,?,?,?)",
-              (pid, title, body.get("description",""), body.get("category","general"),
-               json.dumps(body.get("params",{})), "active", request.user.get("sub","admin"),
-               int(body.get("quorum",3))))
-    conn.commit(); conn.close()
-    return jsonify({"status": "created", "proposal_id": pid, "title": title})
-
-@app.route("/api/defi/governance/proposals/<pid>/vote", methods=["POST"])
-@zero_trust_required
-def vote_governance_proposal(pid):
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    body = request.get_json() or {}
-    vote = body.get("vote")  # "for" | "against"
-    if vote not in ("for", "against"):
-        return jsonify({"error": "vote must be 'for' or 'against'"}), 400
-    conn = open_db(); c = conn.cursor()
-    c.execute("SELECT id, status FROM governance_proposals WHERE id=?", (pid,))
-    row = c.fetchone()
-    if not row:
-        conn.close(); return jsonify({"error": "Proposal not found"}), 404
-    if row[1] != "active":
-        conn.close(); return jsonify({"error": f"Proposal is {row[1]}"}), 400
-    if vote == "for":
-        c.execute("UPDATE governance_proposals SET votes_for = votes_for + 1 WHERE id=?", (pid,))
-    else:
-        c.execute("UPDATE governance_proposals SET votes_against = votes_against + 1 WHERE id=?", (pid,))
-    conn.commit(); conn.close()
-    return jsonify({"status": "voted", "vote": vote, "proposal_id": pid})
-
-@app.route("/api/defi/governance/proposals/<pid>/execute", methods=["POST"])
-@zero_trust_required
-def execute_governance_proposal(pid):
-    if request.user.get("role") != "admin":
-        return jsonify({"error": "Admin only"}), 403
-    conn = open_db(); c = conn.cursor()
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT * FROM governance_proposals WHERE id=?", (pid,))
-    prop = c.fetchone()
-    if not prop:
-        conn.close(); return jsonify({"error": "Proposal not found"}), 404
-    prop = dict(prop)
-    if prop["status"] != "active":
-        conn.close(); return jsonify({"error": f"Proposal is {prop['status']}"}), 400
-    if prop["votes_for"] < prop["quorum_required"]:
-        conn.close(); return jsonify({"error": f"Insufficient votes ({prop['votes_for']}/{prop['quorum_required']} required)"}), 400
-    now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
-    params = json.loads(prop.get("params_json") or "{}")
-    result = "Executed successfully"
-    # Apply param changes if proposal includes them
-    if params:
-        conn2 = open_db(); c2 = conn2.cursor()
-        for k, v in params.items():
-            c2.execute("INSERT INTO defi_protocol_params (key,value,updated_at,updated_by) VALUES (?,?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at, updated_by=excluded.updated_by",
-                       (k, str(v), now, f"proposal:{pid}"))
-        conn2.commit(); conn2.close()
-        result = f"Applied {len(params)} parameter change(s)"
-    conn.row_factory = None; c = conn.cursor()
-    c.execute("UPDATE governance_proposals SET status='executed', executed_at=?, execution_result=? WHERE id=?", (now, result, pid))
-    conn.commit(); conn.close()
-    return jsonify({"status": "executed", "proposal_id": pid, "result": result, "params_applied": params})
 
 # --- Support Chat (Ollama LLM) ---
 import threading
 _chat_sessions = {}
 _chat_lock = threading.Lock()
 
-SUPPORT_SYSTEM_PROMPT = """You are the IPTS Support Assistant for the Integrated Payment Transformation System (IPTS), an enterprise banking and payments platform.
-
-CRITICAL — NAVIGATION RULES:
-- There is NO "Transfer Tab" in this system. NEVER mention a Transfer Tab.
-- To send money / make a payment, users must go to the PAYMENTS tab.
-- Always use the exact tab names listed below. Do not invent tab names.
-
-EXACT TAB NAMES AND WHAT THEY DO:
-1. Dashboard       — Overview of KPIs, account balance, FX ledger, settlement volume chart, AML telemetry.
-2. Payments        — Send money, schedule payments, P2P transfers, view transaction history, track payment journey. THIS is where users go to transfer money.
-3. Beneficiaries   — Manage recipients/payees: add, edit, delete beneficiaries before sending payments.
-4. Approvals       — Pending transactions awaiting HITL (Human-In-The-Loop) approval. Admins/operators approve or reject flagged transactions here. Each item shows a linked compliance case and a "View Case" button.
-5. AI/ML           — Fraud detection model metrics, SHAP explainability charts, fraud heatmap, risk analysis.
-6. Compliance      — AML watchlist screening, sanctions checks, Nostro reconciliation, SWIFT GPI tracker, compliance cases.
-7. Case Management — Open, investigate, escalate, and resolve compliance cases. Cases block approvals until resolved. Assignee must be set before resolving.
-8. Security        — KYC document verification, fraud alerts, biometric settings, account lockout management.
-9. Cards           — Virtual debit/credit card management. Clients request cards; admins approve/reject requests.
-10. DeFi           — Decentralised Finance features: token swap (AMM/DEX), yield farming/staking, programmable HTLC escrow.
-11. Admin          — User management, role changes, balance adjustments, audit log, system stats. Visible to admin role only.
-12. Documents      — Upload and manage KYC/compliance documents.
-13. Network Graph  — Visual graph of transaction relationships between entities for AML investigation.
-14. 360° Spending  — Spending analytics, category breakdown charts, transaction history. Visible to clients.
-
-HOW TO SEND MONEY (step by step):
-1. Click the "Payments" tab in the left sidebar.
-2. In the "Send Payment" section, select your source account.
-3. Enter or select a beneficiary (add one in the Beneficiaries tab first if needed).
-4. Enter the amount and currency.
-5. For amounts ≥ $3,000, fill in the Travel Rule fields (originator/beneficiary info required by regulation).
-6. Click "Send Payment". The system shows a live fee preview and checks your daily limit ($1,000,000).
-7. If flagged by AI/ML, the payment enters the Approvals queue and an admin must approve it.
-
-ROLES:
-- Admin / CTO (mohamad)                    — Full access. Manages system, DeFi governance, final approval authority. Daily limit: $10M.
-- Chief Compliance & AML Officer (rohit)   — Reviews flagged transactions, approves HITL queue, manages cases, SAR filing.
-- Head of Payment Operations (sriram)      — Initiates and approves payments, manages beneficiaries. Daily limit: $5M.
-- Internal Auditor & Risk Manager (walid)  — Read-only oversight of compliance, cases, audit logs, security reports.
-- Lead Data Scientist (vibin)              — Manages AI/ML models, MLOps pipeline, model retraining.
-- Corporate Treasury Client (sara)         — Initiates payments, manages beneficiaries and virtual cards. Daily limit: $1M.
-
-DAILY LIMITS: $1,000,000/day for clients. $5,000,000/day for operators. $10,000,000/day for admin.
-
-TRANSACTION APPROVAL RULES:
-- High-risk or large transactions are automatically flagged and routed to the Approvals tab.
-- A transaction cannot be approved if it has a linked compliance case that is not yet resolved.
-- To unblock an approval: go to Case Management, open the case, assign it to a team member, then resolve it. After resolution the system redirects to Approvals automatically.
-
-CARDS:
-- Clients request a virtual card from the Cards tab.
-- Admins see and approve/reject card requests in the Cards tab.
-
-COMPLIANCE CASES:
-- Cases are auto-created when a payment is flagged or blocked.
-- A case cannot be resolved without setting an Assignee (Mohamad, Walid, Rohit, Vibin, or Sriram).
-- SLA deadlines: Critical = 4h, High = 24h, Medium = 72h, Low = 168h.
-
-FEES: Tiered fee schedule (0.05%–0.25%) + SWIFT wire fee $18 + FX fee 0.1% for cross-currency payments.
-
-Keep responses concise (2–4 sentences). Only answer questions about IPTS. If you don't know, say so honestly."""
+SUPPORT_SYSTEM_PROMPT = """You are IPTS Support Bot for the Integrated Payment Transformation System.
+You help with: account balances, payments, cards, KYC, compliance, platform navigation (13 tabs).
+Keep responses concise (2-3 sentences). Do not discuss topics outside IPTS."""
 
 @app.route("/api/support/message", methods=["POST"])
 @zero_trust_required
@@ -5510,7 +3389,7 @@ def support_chat():
         return jsonify({"error": "message required"}), 400
     username = request.user.get("sub", "unknown")
     role = request.user.get("role", "unknown")
-    conn = open_db()
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT full_name, balance FROM user_accounts WHERE username = ?", (username,))
     row = c.fetchone()
@@ -5540,69 +3419,10 @@ def support_chat():
             return jsonify({"response": "I'm currently offline. Please ensure Ollama is running."})
         return jsonify({"response": "I encountered an issue. Please try again."})
 
-# --- Global error handler (logs traceback) ---
-import traceback as _traceback
-@app.errorhandler(Exception)
-def handle_exception(e):
-    tb = _traceback.format_exc()
-    logger.error(f"Unhandled exception: {e}\n{tb}")
-    print(f"[500 ERROR] {e}\n{tb}", flush=True)
-    return jsonify({"error": "Internal server error", "detail": str(e)}), 500
-
 # --- Serve Frontend ---
-@app.route("/api/analytics/volume-history", methods=["GET"])
-@zero_trust_required
-def volume_history():
-    """
-    Returns daily settlement volume for the past N days (default 14).
-    Response: { labels: [...], settled: [...], blocked: [...], amounts: [...] }
-    """
-    days = min(int(request.args.get("days", 14)), 90)
-    conn = open_db()
-    c = conn.cursor()
-    c.execute("""
-        SELECT
-            date(created_at) AS day,
-            SUM(CASE WHEN status NOT IN ('BLOCKED','blocked') THEN 1 ELSE 0 END) AS settled_count,
-            SUM(CASE WHEN status IN ('BLOCKED','blocked') THEN 1 ELSE 0 END)     AS blocked_count,
-            ROUND(SUM(CASE WHEN status NOT IN ('BLOCKED','blocked') THEN amount ELSE 0 END), 2) AS settled_volume
-        FROM settlements
-        WHERE created_at >= date('now', ? || ' days')
-        GROUP BY day
-        ORDER BY day ASC
-    """, (f"-{days}",))
-    rows = c.fetchall()
-    conn.close()
-
-    # Fill every day in range (including days with no transactions)
-    from datetime import date, timedelta
-    row_map = {r[0]: r for r in rows}
-    today = date.today()
-    labels, settled, blocked, amounts = [], [], [], []
-    for i in range(days - 1, -1, -1):
-        d = (today - timedelta(days=i)).isoformat()
-        r = row_map.get(d)
-        labels.append(d[5:])          # "MM-DD"
-        settled.append(r[1] if r else 0)
-        blocked.append(r[2] if r else 0)
-        amounts.append(r[3] if r else 0)
-
-    return jsonify({
-        "labels":  labels,
-        "settled": settled,
-        "blocked": blocked,
-        "amounts": amounts,
-    })
-
-
 @app.route("/")
 def index():
-    from flask import make_response
-    resp = make_response(render_template("index.html"))
-    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    resp.headers["Pragma"] = "no-cache"
-    resp.headers["Expires"] = "0"
-    return resp
+    return render_template("index.html")
 
 # ============================================================
 # Main
