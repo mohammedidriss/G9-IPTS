@@ -3053,6 +3053,73 @@ COUNTRY_COORDS = {
     "ZA": {"lat": -30.6, "lng": 22.9, "name": "South Africa"}, "HK": {"lat": 22.3, "lng": 114.2, "name": "Hong Kong"},
 }
 
+@app.route("/api/analytics/volume-history", methods=["GET"])
+@zero_trust_required
+def volume_history():
+    """Settlement volume per day for last N days — used by the Dashboard chart."""
+    from datetime import datetime, timedelta
+    days = int(request.args.get("days", 14))
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    labels, settled_counts, blocked_counts = [], [], []
+    today = datetime.utcnow().date()
+    for i in range(days - 1, -1, -1):
+        day = today - timedelta(days=i)
+        day_str = day.strftime("%Y-%m-%d")
+        label = day.strftime("%b %d")
+        c.execute("SELECT COUNT(*) FROM settlements WHERE status='settled' AND created_at LIKE ?", (day_str + "%",))
+        s = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM settlements WHERE status='blocked' AND created_at LIKE ?", (day_str + "%",))
+        b = c.fetchone()[0]
+        labels.append(label)
+        settled_counts.append(s)
+        blocked_counts.append(b)
+    conn.close()
+    return jsonify({"labels": labels, "settled": settled_counts, "blocked": blocked_counts})
+
+
+@app.route("/api/analytics/risk-trend", methods=["GET"])
+@zero_trust_required
+def risk_trend():
+    """Average risk score per day for last N days — used by AI/ML tab."""
+    from datetime import datetime, timedelta
+    days = int(request.args.get("days", 30))
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    labels, scores = [], []
+    today = datetime.utcnow().date()
+    for i in range(days - 1, -1, -1):
+        day = today - timedelta(days=i)
+        day_str = day.strftime("%Y-%m-%d")
+        label = day.strftime("%b %d")
+        c.execute("SELECT AVG(risk_score) FROM settlements WHERE created_at LIKE ?", (day_str + "%",))
+        row = c.fetchone()
+        avg = round(row[0] or 0, 1)
+        labels.append(label)
+        scores.append(avg)
+    conn.close()
+    return jsonify({"labels": labels, "scores": scores})
+
+
+@app.route("/api/analytics/risk-entities", methods=["GET"])
+@zero_trust_required
+def risk_entities():
+    """Top senders/beneficiaries by risk score — used by Network graph."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        SELECT sender, AVG(risk_score) as avg_risk, COUNT(*) as tx_count, SUM(amount) as total_vol
+        FROM settlements
+        GROUP BY sender
+        ORDER BY avg_risk DESC
+        LIMIT 20
+    """)
+    rows = c.fetchall()
+    conn.close()
+    entities = [{"name": r[0], "avg_risk": round(r[1] or 0, 1), "tx_count": r[2], "total_volume": round(r[3] or 0, 2)} for r in rows]
+    return jsonify({"entities": entities})
+
+
 @app.route("/api/analytics/fraud-heatmap", methods=["GET"])
 @zero_trust_required
 def fraud_heatmap():
