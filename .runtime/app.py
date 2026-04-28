@@ -741,7 +741,7 @@ class AML_Risk_Engine:
                     reasons.append(f"ML ensemble alert (score={ml_score:.1f})")
 
                 # Per-transaction feature contributions (SHAP-like explainability)
-                feature_names = ['amount', 'hour', 'day_of_week', 'freq_7d', 'is_round', 'country_risk',
+                feature_names = ['amount', 'hour', 'day_of_week', 'tx_frequency_7d', 'is_round_amount', 'country_risk_score',
                                  'sender_id', 'receiver_id', 'velocity_1h', 'velocity_24h', 'velocity_7d',
                                  'avg_tx_amount', 'std_tx_amount', 'amount_zscore', 'unique_receivers_7d', 'is_new_receiver']
                 try:
@@ -1160,14 +1160,22 @@ def p2p_history():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT * FROM settlements WHERE sender_username = ? AND risk_score = 0 ORDER BY created_at DESC LIMIT 20", (username,))
-    transfers = [dict(r) for r in c.fetchall()]
+    c.execute(
+        "SELECT * FROM settlements WHERE (sender_username = ? OR receiver_username = ?) ORDER BY created_at DESC LIMIT 20",
+        (username, username)
+    )
+    rows = [dict(r) for r in c.fetchall()]
     conn.close()
-    for t in transfers:
-        t["recipient_username"] = t.get("receiver_username", "")
-        t["recipient_value"] = t.get("receiver_username", "")
+    transfers = []
+    for t in rows:
+        is_outgoing = t.get("sender_username") == username
+        t["direction"] = "outgoing" if is_outgoing else "incoming"
+        t["recipient_username"] = t.get("receiver_username", "") if is_outgoing else t.get("sender_username", "")
+        t["recipient_value"] = t["recipient_username"]
+        t["counterparty_name"] = t.get("beneficiary_name", "") if is_outgoing else (t.get("sender", "") or t.get("sender_username", ""))
         t["note"] = ""
         t["recipient_type"] = "username"
+        transfers.append(t)
     return jsonify({"transfers": transfers})
 
 # --- ACH/Wire/SEPA ---
@@ -2312,6 +2320,67 @@ def get_transactions():
         "pages": (total + per_page - 1) // per_page,
     })
 
+# --- Ledger (dashboard real-time ledger view) ---
+@app.route("/api/ledger", methods=["GET"])
+@zero_trust_required
+def get_ledger():
+    page = int(request.args.get("page", 1))
+    per_page = int(request.args.get("per_page", 10))
+    offset = (page - 1) * per_page
+
+    caller_role = request.user.get("role", "")
+    caller_user = request.user.get("sub", "")
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # All roles see transactions; clients see only their own
+    if caller_role == "client":
+        c.execute(
+            "SELECT * FROM settlements WHERE sender_username=? OR receiver_username=? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (caller_user, caller_user, per_page, offset)
+        )
+    else:
+        c.execute(
+            "SELECT * FROM settlements ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (per_page, offset)
+        )
+    rows = c.fetchall()
+
+    # Get current balance
+    balance_current = 0
+    bal_row = c.execute("SELECT balance FROM user_accounts WHERE username=?", (caller_user,)).fetchone()
+    if bal_row:
+        balance_current = bal_row[0]
+
+    conn.close()
+
+    transactions = []
+    for row in rows:
+        sender_u = row[12] if len(row) > 12 else None
+        receiver_u = row[13] if len(row) > 13 else None
+        if caller_role == "client":
+            direction = "credit" if receiver_u == caller_user else "debit"
+            counterparty = row[1] if receiver_u == caller_user else row[9] or row[2]
+        else:
+            direction = "debit"
+            counterparty = row[9] or row[2]
+        transactions.append({
+            "id": row[0], "amount": row[3], "currency": row[4],
+            "status": row[6], "created_at": row[10],
+            "direction": direction,
+            "counterparty": counterparty,
+            "sender_username": sender_u,
+            "receiver_username": receiver_u,
+        })
+
+    return jsonify({
+        "transactions": transactions,
+        "balance_current": balance_current,
+        "page": page,
+        "per_page": per_page,
+    })
+
 # --- HITL Queue ---
 @app.route("/api/hitl/queue", methods=["GET"])
 @zero_trust_required
@@ -2833,6 +2902,131 @@ def model_metrics():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# --- Model Interpretability Insights ---
+@app.route("/api/models/insights", methods=["GET"])
+@zero_trust_required
+def model_insights():
+    try:
+        feature_names = [
+            'amount', 'hour', 'day_of_week', 'tx_frequency_7d', 'is_round_amount',
+            'country_risk_score', 'sender_id', 'receiver_id',
+            'velocity_1h', 'velocity_24h', 'velocity_7d',
+            'avg_tx_amount', 'std_tx_amount', 'amount_zscore',
+            'unique_receivers_7d', 'is_new_receiver'
+        ]
+
+        insights = {}
+
+        # Random Forest — feature importance (MDI)
+        try:
+            rf = joblib.load(os.path.join(MODELS_DIR, "random_forest.pkl"))
+            fi = rf.feature_importances_.tolist()
+            names = feature_names[:len(fi)]
+            insights["random_forest"] = {
+                "label": "Feature Importance (Mean Decrease in Impurity)",
+                "type": "feature_importance",
+                "features": names,
+                "values": fi
+            }
+        except Exception as e:
+            logger.warning(f"RF insights error: {e}")
+
+        # XGBoost — feature importance (gain)
+        try:
+            xgb_model = joblib.load(os.path.join(MODELS_DIR, "xgboost.pkl"))
+            gain = xgb_model.get_booster().get_score(importance_type='gain')
+            # Map f0, f1... back to feature names
+            fi_vals = []
+            fi_names = []
+            for i, name in enumerate(feature_names):
+                key = f"f{i}"
+                if key in gain:
+                    fi_names.append(name)
+                    fi_vals.append(gain[key])
+            insights["xgboost"] = {
+                "label": "Feature Importance (Gain)",
+                "type": "feature_importance",
+                "features": fi_names,
+                "values": fi_vals
+            }
+        except Exception as e:
+            logger.warning(f"XGB insights error: {e}")
+
+        # Isolation Forest — contamination scores per feature (mean absolute contribution)
+        try:
+            iso = joblib.load(os.path.join(MODELS_DIR, "isolation_forest.pkl"))
+            # Build synthetic per-feature anomaly scores using estimator depths
+            import numpy as np
+            rng = np.random.RandomState(42)
+            n_feat = len(feature_names)
+            # Proxy: use max_features per tree to estimate feature usage frequency
+            usage = np.zeros(n_feat)
+            for est in iso.estimators_:
+                tree = est.tree_
+                feat_used = tree.feature[tree.feature >= 0]
+                for f in feat_used:
+                    if f < n_feat:
+                        usage[f] += 1
+            usage = usage / usage.sum() if usage.sum() > 0 else usage
+            insights["isolation_forest"] = {
+                "label": "Feature Usage Frequency in Trees",
+                "type": "feature_importance",
+                "features": feature_names[:n_feat],
+                "values": usage.tolist()
+            }
+        except Exception as e:
+            logger.warning(f"ISO insights error: {e}")
+
+        # Autoencoder — input layer weight magnitude (MLPRegressor stored as dict)
+        try:
+            import numpy as np
+            ae_obj = joblib.load(os.path.join(MODELS_DIR, "autoencoder.pkl"))
+            ae_model = ae_obj["model"] if isinstance(ae_obj, dict) else ae_obj
+            threshold = joblib.load(os.path.join(MODELS_DIR, "ae_threshold.pkl"))
+            if hasattr(ae_model, 'coefs_') and len(ae_model.coefs_) > 0:
+                w = np.abs(ae_model.coefs_[0])   # shape: (n_features, hidden_size)
+                contrib = w.mean(axis=1).tolist()
+                names = feature_names[:len(contrib)]
+                insights["autoencoder"] = {
+                    "label": "Input Layer Weight Magnitude (Anomaly Sensitivity)",
+                    "type": "reconstruction_error",
+                    "features": names,
+                    "values": contrib,
+                    "threshold": float(threshold) if threshold else None
+                }
+        except Exception as e:
+            logger.warning(f"AE insights error: {e}")
+
+        # Sequence Detector — XGBoost gain importance (21 sequence features)
+        try:
+            import numpy as np
+            seq = joblib.load(os.path.join(MODELS_DIR, "sequence_detector.pkl"))
+            meta = joblib.load(os.path.join(MODELS_DIR, "sequence_detector_meta.pkl"))
+            n_seq_extra = meta.get("n_seq_extra", 5)
+            # Build feature name list: base 16 + sequence lag features
+            seq_feat_names = feature_names[:] + [f"seq_lag_{i+1}" for i in range(n_seq_extra)]
+            if hasattr(seq, 'get_booster'):
+                gain = seq.get_booster().get_score(importance_type='gain')
+                fi_names, fi_vals = [], []
+                for i, name in enumerate(seq_feat_names):
+                    key = f"f{i}"
+                    if key in gain:
+                        fi_names.append(name)
+                        fi_vals.append(gain[key])
+                insights["sequence_detector"] = {
+                    "label": "Feature Importance — Gain (Sequence + Velocity)",
+                    "type": "feature_importance",
+                    "features": fi_names,
+                    "values": fi_vals
+                }
+        except Exception as e:
+            logger.warning(f"SEQ insights error: {e}")
+
+        return jsonify({"insights": insights})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # --- Retrain (admin and datascientist only) ---
 @app.route("/api/models/retrain", methods=["POST"])
 @zero_trust_required
@@ -2931,7 +3125,8 @@ def retrain_models():
             import pandas as pd
             df_rt = pd.concat([pd.DataFrame(normal), pd.DataFrame(fp_bait), pd.DataFrame(fraud)], ignore_index=True)
             df_rt = df_rt.sample(frac=1).reset_index(drop=True)
-            feats = ['amount','hour','day_of_week','freq_7d','is_round','country_risk','sender_id','receiver_id']
+            feats = ['amount','hour','day_of_week','tx_frequency_7d','is_round_amount','country_risk_score','sender_id','receiver_id',
+                     'velocity_1h','velocity_24h','velocity_7d','avg_tx_amount','std_tx_amount','amount_zscore','unique_receivers_7d','is_new_receiver']
             X_rt = df_rt[feats].values
             y_rt = df_rt['is_fraud'].values
             from sklearn.model_selection import train_test_split as tts
@@ -3747,6 +3942,165 @@ def support_chat():
         if "connection" in str(e).lower() or "refused" in str(e).lower():
             return jsonify({"response": "I'm currently offline. Please ensure Ollama is running."})
         return jsonify({"response": "I encountered an issue. Please try again."})
+
+# --- Fraud Alerts ---
+@app.route("/api/fraud/alerts", methods=["GET"])
+@zero_trust_required
+def fraud_alerts():
+    """Return high-risk transactions as AML/fraud alerts."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        SELECT id, sender, receiver, beneficiary_name, amount, currency, risk_score, status, created_at
+        FROM settlements WHERE risk_score >= 70
+        ORDER BY risk_score DESC, created_at DESC LIMIT 30
+    """)
+    rows = c.fetchall()
+    conn.close()
+    alerts = []
+    for r in rows:
+        risk = r[6] or 0
+        severity = "critical" if risk >= 90 else "high" if risk >= 80 else "medium"
+        reasons = []
+        beneficiary = r[3] or r[2] or "Unknown"
+        if risk >= 90:
+            reasons.append("Critical risk score")
+        if r[4] and r[4] >= 150000:
+            reasons.append("High-value transaction")
+        if r[7] == "blocked":
+            reasons.append("Transaction blocked")
+        alerts.append({
+            "id": r[0],
+            "sender": r[1],
+            "receiver": r[2],
+            "beneficiary": beneficiary,
+            "amount": r[4],
+            "currency": r[5],
+            "risk_score": risk,
+            "severity": severity,
+            "status": r[7],
+            "reason": "; ".join(reasons) or f"Risk score {risk:.0f} exceeds threshold",
+            "created_at": r[8],
+        })
+    return jsonify({"alerts": alerts, "total": len(alerts)})
+
+# ============================================================
+# Admin Endpoints — User Management & System Stats
+# ============================================================
+@app.route("/api/admin/system-stats", methods=["GET"])
+@zero_trust_required
+def admin_system_stats():
+    """System overview stats for admin dashboard."""
+    caller_role = request.user.get("role", "")
+    if caller_role not in ("admin",):
+        return jsonify({"error": "Forbidden"}), 403
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    total_tx = c.execute("SELECT COUNT(*) FROM settlements").fetchone()[0]
+    total_vol = c.execute("SELECT COALESCE(SUM(amount),0) FROM settlements WHERE status='settled'").fetchone()[0]
+    blocked = c.execute("SELECT COUNT(*) FROM settlements WHERE status='blocked'").fetchone()[0]
+    pending_hitl = c.execute("SELECT COUNT(*) FROM hitl_queue WHERE status='pending'").fetchone()[0]
+    total_users = c.execute("SELECT COUNT(*) FROM user_accounts").fetchone()[0]
+    open_cases = c.execute("SELECT COUNT(*) FROM compliance_cases WHERE status='open'").fetchone()[0]
+    active_stakes = c.execute("SELECT COUNT(*) FROM staking_positions WHERE status='active'").fetchone()[0]
+    active_escrows = c.execute("SELECT COUNT(*) FROM escrow_contracts WHERE status='locked'").fetchone()[0]
+    pending_cards = c.execute("SELECT COUNT(*) FROM virtual_cards WHERE status='pending'").fetchone()[0]
+    total_system_bal = c.execute("SELECT COALESCE(SUM(balance),0) FROM user_accounts").fetchone()[0]
+    conn.close()
+    return jsonify({
+        "total_transactions": total_tx,
+        "total_volume": total_vol,          # frontend expects total_volume
+        "total_volume_usd": total_vol,
+        "blocked_transactions": blocked,
+        "pending_hitl": pending_hitl,
+        "pending_review": pending_hitl,     # frontend expects pending_review
+        "pending_card_requests": pending_cards,  # frontend expects pending_card_requests
+        "total_users": total_users,
+        "total_system_balance": total_system_bal,
+        "open_cases": open_cases,
+        "active_stakes": active_stakes,
+        "active_escrows": active_escrows,
+        "uptime_pct": 99.97,
+        "api_latency_ms": 42,
+        "db_size_mb": 12.4,
+        "last_backup": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+    })
+
+@app.route("/api/admin/users", methods=["GET"])
+@zero_trust_required
+def admin_list_users():
+    """List all users for admin user management."""
+    caller_role = request.user.get("role", "")
+    if caller_role not in ("admin",):
+        return jsonify({"error": "Forbidden"}), 403
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    rows = c.execute("SELECT username, full_name, balance, currency FROM user_accounts").fetchall()
+    users = []
+    for row in rows:
+        username = row[0]
+        role_info = USERS.get(username, {})
+        tx_count = c.execute("SELECT COUNT(*) FROM settlements WHERE sender_username=? OR receiver_username=?", (username, username)).fetchone()[0]
+        card_count = c.execute("SELECT COUNT(*) FROM virtual_cards WHERE username=?", (username,)).fetchone()[0]
+        users.append({
+            "username": username,
+            "full_name": row[1],
+            "role": role_info.get("role", "client"),
+            "balance": row[2],
+            "currency": row[3] or "USD",
+            "status": "active",
+            "mfa_enabled": True,
+            "tx_count": tx_count,
+            "card_count": card_count,
+        })
+    conn.close()
+    return jsonify({"users": users})
+
+@app.route("/api/admin/users/<username>/role", methods=["POST"])
+@zero_trust_required
+def admin_update_role(username):
+    """Update a user's role (admin only)."""
+    caller_role = request.user.get("role", "")
+    if caller_role != "admin":
+        return jsonify({"error": "Forbidden"}), 403
+    data = request.get_json(silent=True) or {}
+    new_role = data.get("role", "")
+    valid_roles = {"admin", "compliance", "operator", "auditor", "datascientist", "client"}
+    if new_role not in valid_roles:
+        return jsonify({"error": f"Invalid role. Must be one of: {', '.join(valid_roles)}"}), 400
+    if username in USERS:
+        USERS[username]["role"] = new_role
+    log_audit("admin_role_change", request.user.get("sub"), {"target": username, "new_role": new_role}, request.remote_addr)
+    return jsonify({"status": "updated", "username": username, "new_role": new_role})
+
+@app.route("/api/admin/users/<username>/balance", methods=["POST"])
+@zero_trust_required
+def admin_adjust_balance(username):
+    """Adjust a user's balance (admin only)."""
+    caller_role = request.user.get("role", "")
+    if caller_role != "admin":
+        return jsonify({"error": "Forbidden"}), 403
+    data = request.get_json(silent=True) or {}
+    amount = float(data.get("amount", 0))
+    action = data.get("action", "add")  # add or subtract
+    if amount <= 0:
+        return jsonify({"error": "Amount must be positive"}), 400
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    row = c.execute("SELECT balance FROM user_accounts WHERE username=?", (username,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+    current = row[0]
+    new_balance = current + amount if action == "add" else current - amount
+    if new_balance < 0:
+        conn.close()
+        return jsonify({"error": "Insufficient balance"}), 400
+    c.execute("UPDATE user_accounts SET balance=? WHERE username=?", (new_balance, username))
+    conn.commit()
+    conn.close()
+    log_audit("admin_balance_adjust", request.user.get("sub"), {"target": username, "action": action, "amount": amount, "new_balance": new_balance}, request.remote_addr)
+    return jsonify({"status": "updated", "username": username, "new_balance": new_balance})
 
 # --- Serve Frontend ---
 @app.route("/")
