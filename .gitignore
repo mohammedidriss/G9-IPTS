@@ -24,7 +24,7 @@ env/
 .runtime/logs/
 .runtime/models/
 .runtime/templates/
-
+.runtime/datasets/creditcard.csv
 # Python cache
 __pycache__/
 *.pyc

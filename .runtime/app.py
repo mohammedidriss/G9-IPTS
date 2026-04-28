@@ -1563,6 +1563,96 @@ def provision_card(id):
     wallet = data.get("wallet", "apple")
     return jsonify({"message": f"Successfully securely provisioned to {wallet.title()} Pay."})
 
+
+@app.route("/api/cards/request", methods=["POST"])
+@zero_trust_required
+def request_card():
+    """Client submits a card request — creates a card with status='pending_request' awaiting admin approval."""
+    username = request.user.get("sub", "")
+    data = request.get_json(force=True)
+    label          = data.get("label", "Virtual Card")
+    card_type      = data.get("card_type", "debit")
+    card_network   = data.get("card_network", "Visa")
+    spending_limit = float(data.get("spending_limit", 5000))
+
+    # Generate masked card details (not active yet)
+    import random
+    c_id       = str(uuid.uuid4())
+    card_number = "**** **** **** " + str(random.randint(1000, 9999))
+    exp_month  = random.randint(1, 12)
+    exp_year   = datetime.utcnow().year + 3
+    cvv        = str(random.randint(100, 999))
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""INSERT INTO virtual_cards
+        (id, username, label, card_network, card_number, expiry_month, expiry_year, cvv, spending_limit, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_request')""",
+        (c_id, username, label, card_network, card_number, exp_month, exp_year, cvv, spending_limit))
+    conn.commit()
+    conn.close()
+    log_audit("card_request_submitted", username, {"id": c_id, "label": label, "limit": spending_limit}, request.remote_addr)
+    return jsonify({"status": "pending", "id": c_id, "message": "Card request submitted. An admin will review and activate your card shortly."})
+
+
+@app.route("/api/cards/requests", methods=["GET"])
+@zero_trust_required
+def get_card_requests():
+    """Admin: list all pending card requests."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("""SELECT id, username, label, card_network, spending_limit, created_at
+                 FROM virtual_cards WHERE status='pending_request' ORDER BY created_at DESC""")
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    # Add card_type field (not stored separately, derive from label)
+    for r in rows:
+        r["card_type"] = "debit"
+    return jsonify({"requests": rows, "total": len(rows)})
+
+
+@app.route("/api/cards/<id>/approve", methods=["POST"])
+@zero_trust_required
+def approve_card(id):
+    """Admin approves a pending card request — sets status to 'active'."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT status, username FROM virtual_cards WHERE id=?", (id,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "Card not found"}), 404
+    if row[0] != "pending_request":
+        conn.close()
+        return jsonify({"error": f"Card is not pending (status: {row[0]})"}), 400
+    c.execute("UPDATE virtual_cards SET status='active' WHERE id=?", (id,))
+    conn.commit()
+    conn.close()
+    log_audit("card_approved", request.user.get("sub"), {"card_id": id, "card_owner": row[1]}, request.remote_addr)
+    return jsonify({"status": "active", "id": id, "message": "Card approved and activated."})
+
+
+@app.route("/api/cards/<id>/reject", methods=["POST"])
+@zero_trust_required
+def reject_card(id):
+    """Admin rejects a pending card request — sets status to 'rejected'."""
+    data   = request.get_json(force=True)
+    reason = data.get("reason", "")
+    conn   = sqlite3.connect(DB_PATH)
+    c      = conn.cursor()
+    c.execute("SELECT status, username FROM virtual_cards WHERE id=?", (id,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "Card not found"}), 404
+    c.execute("UPDATE virtual_cards SET status='rejected' WHERE id=?", (id,))
+    conn.commit()
+    conn.close()
+    log_audit("card_rejected", request.user.get("sub"), {"card_id": id, "card_owner": row[1], "reason": reason}, request.remote_addr)
+    return jsonify({"status": "rejected", "id": id})
+
+
 # --- E-KYC ---
 @app.route("/api/kyc/status", methods=["GET"])
 @zero_trust_required
@@ -3231,6 +3321,67 @@ def amm_pools():
         p["price"] = round(p["reserve_quote"] / p["reserve_base"], 6) if p["reserve_base"] > 0 else 0
         p["tvl"] = round(p["reserve_base"] * 2, 2)
     return jsonify(pools)
+
+@app.route("/api/defi/admin/overview", methods=["GET"])
+@zero_trust_required
+def defi_admin_overview():
+    """DeFi dashboard stats — used for KPI cards by both clients and admins."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    # Pools — TVL and 24h swap volume
+    c.execute("SELECT * FROM amm_pools")
+    pools_raw = [dict(r) for r in c.fetchall()]
+    pools = []
+    total_tvl = 0.0
+    for p in pools_raw:
+        base, quote = p["pair"].split("/")
+        price = round(p["reserve_quote"] / p["reserve_base"], 6) if p["reserve_base"] > 0 else 0
+        tvl   = round(p["reserve_base"] * 2, 2)
+        total_tvl += tvl
+        pools.append({**p, "base": base, "quote": quote, "price": price, "tvl": tvl})
+
+    # 24h swap volume from swap_history
+    cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+    c.execute("SELECT COALESCE(SUM(amount_in), 0) FROM swap_history WHERE created_at >= ?", (cutoff,))
+    total_volume = float(c.fetchone()[0] or 0)
+
+    # Accrued fees — 0.3% of all-time swap volume
+    c.execute("SELECT COALESCE(SUM(amount_in), 0) FROM swap_history")
+    all_time_volume = float(c.fetchone()[0] or 0)
+    accrued_fees = round(all_time_volume * 0.003, 2)
+
+    # Staking positions
+    c.execute("SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM staking_positions WHERE status='active'")
+    row = c.fetchone()
+    staking_count  = row[0] or 0
+    staking_staked = float(row[1] or 0)
+
+    # Protocol params (fee rate, emergency pause)
+    params = {
+        "swap_fee":    0.003,
+        "paused":      False,
+        "min_liquidity": 1000
+    }
+
+    # Emergency state
+    emergency = {"paused": False}
+
+    conn.close()
+    return jsonify({
+        "total_tvl":    round(total_tvl, 2),
+        "total_volume": round(total_volume, 2),
+        "accrued_fees": accrued_fees,
+        "pools":        pools,
+        "params":       params,
+        "emergency":    emergency,
+        "staking": {
+            "positions":    staking_count,
+            "total_staked": round(staking_staked, 2)
+        }
+    })
+
 
 @app.route("/api/defi/swap", methods=["POST"])
 @zero_trust_required
