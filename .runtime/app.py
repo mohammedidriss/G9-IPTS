@@ -1910,21 +1910,51 @@ def spending_360():
     c.execute("SELECT beneficiary_name, SUM(amount), COUNT(*) FROM settlements WHERE sender_username=? GROUP BY beneficiary_name ORDER BY SUM(amount) DESC LIMIT 5", (username,))
     by_ben = [{"beneficiary": r[0] or "Unknown", "amount": r[1], "count": r[2]} for r in c.fetchall()]
     
-    # 8. Monthly Trend (mock generating last 6 months since actual db might just be today)
+    # 8. Monthly Trend — per-status breakdown for last 6 months
     now = datetime.now()
-    monthly_trend = []
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    # Build a dict keyed by (year, month)
+    month_data = {}
     for i in range(5, -1, -1):
-        m = (now.month - i - 1) % 12
-        monthly_trend.append({"month": months[m], "amount": 0, "count": 0})
-        
-    c.execute("SELECT SUM(amount), COUNT(*) FROM settlements WHERE sender_username=?", (username,))
-    cur_month = c.fetchone()
-    if cur_month and cur_month[0]:
-        monthly_trend[-1]["amount"] = cur_month[0]
-        monthly_trend[-1]["count"] = cur_month[1]
+        yr = now.year if (now.month - i) > 0 else now.year - 1
+        mo = (now.month - i - 1) % 12 + 1
+        key = (yr, mo)
+        month_data[key] = {"month": months[mo - 1], "settled": 0, "blocked": 0, "other": 0, "count": 0}
+
+    c.execute("""SELECT strftime('%Y', created_at) as yr, strftime('%m', created_at) as mo,
+                        status, SUM(amount), COUNT(*)
+                 FROM settlements WHERE sender_username=?
+                 GROUP BY yr, mo, status""", (username,))
+    for r in c.fetchall():
+        key = (int(r[0]), int(r[1]))
+        if key in month_data:
+            st = r[2] or "unknown"
+            amt = r[3] or 0
+            cnt = r[4] or 0
+            if st == "settled":
+                month_data[key]["settled"] += amt
+            elif st in ("blocked", "flagged"):
+                month_data[key]["blocked"] += amt
+            else:
+                month_data[key]["other"] += amt
+            month_data[key]["count"] += cnt
+
+    monthly_trend = list(month_data.values())
+
+    # 9b. Risk Distribution
+    c.execute("SELECT risk_score FROM settlements WHERE sender_username=? AND risk_score IS NOT NULL", (username,))
+    risk_dist = {"low": 0, "medium": 0, "high": 0, "critical": 0}
+    for (rs,) in c.fetchall():
+        if rs < 30:
+            risk_dist["low"] += 1
+        elif rs < 60:
+            risk_dist["medium"] += 1
+        elif rs < 80:
+            risk_dist["high"] += 1
+        else:
+            risk_dist["critical"] += 1
     
-    # 9. Recent
+    # 10. Recent
     c.execute("SELECT id, amount, status, beneficiary_name, created_at FROM settlements WHERE sender_username=? ORDER BY created_at DESC LIMIT 5", (username,))
     recent = []
     for r in c.fetchall():
@@ -1937,17 +1967,17 @@ def spending_360():
     # Empty DB fallback
     if total_sent_count == 0:
         monthly_trend = [
-            {"month": months[(now.month - 6) % 12], "amount": 12000, "count": 4},
-            {"month": months[(now.month - 5) % 12], "amount": 15000, "count": 5},
-            {"month": months[(now.month - 4) % 12], "amount": 8000,  "count": 3},
-            {"month": months[(now.month - 3) % 12], "amount": 25000, "count": 8},
-            {"month": months[(now.month - 2) % 12], "amount": 18000, "count": 6},
-            {"month": months[(now.month - 1) % 12], "amount": 0, "count": 0}
+            {"month": months[(now.month - 6) % 12], "settled": 12000, "blocked": 0,    "other": 0, "count": 4},
+            {"month": months[(now.month - 5) % 12], "settled": 15000, "blocked": 5000, "other": 0, "count": 5},
+            {"month": months[(now.month - 4) % 12], "settled": 8000,  "blocked": 0,    "other": 0, "count": 3},
+            {"month": months[(now.month - 3) % 12], "settled": 25000, "blocked": 3000, "other": 0, "count": 8},
+            {"month": months[(now.month - 2) % 12], "settled": 18000, "blocked": 2000, "other": 0, "count": 6},
+            {"month": months[(now.month - 1) % 12], "settled": 0,     "blocked": 0,    "other": 0, "count": 0}
         ]
         by_status = [
             {"status": "settled", "count": 22, "amount": 65000},
-            {"status": "pending", "count": 2, "amount": 8000},
-            {"status": "blocked", "count": 2, "amount": 5000}
+            {"status": "pending", "count": 2,  "amount": 8000},
+            {"status": "blocked", "count": 2,  "amount": 5000}
         ]
         by_currency = [
             {"currency": "USD", "amount": 55000},
@@ -1955,10 +1985,11 @@ def spending_360():
             {"currency": "GBP", "amount": 8000}
         ]
         by_ben = [
-            {"beneficiary": "Acme Corp", "amount": 35000, "count": 10},
-            {"beneficiary": "Supplier Ltd", "amount": 20000, "count": 6},
+            {"beneficiary": "Acme Corp",      "amount": 35000, "count": 10},
+            {"beneficiary": "Supplier Ltd",   "amount": 20000, "count": 6},
             {"beneficiary": "Consulting LLC", "amount": 15000, "count": 5}
         ]
+        risk_dist = {"low": 18, "medium": 5, "high": 2, "critical": 1}
         total_sent_amount = 78000
         total_sent_count = 26
         avg_risk = 5.2
@@ -1977,6 +2008,7 @@ def spending_360():
         "by_status": by_status,
         "by_currency": by_currency,
         "by_beneficiary": by_ben,
+        "risk_distribution": risk_dist,
         "recent_transactions": recent
     })
 
