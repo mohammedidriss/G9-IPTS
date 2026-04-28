@@ -1954,12 +1954,25 @@ def spending_360():
         else:
             risk_dist["critical"] += 1
     
-    # 10. Recent
-    c.execute("SELECT id, amount, status, beneficiary_name, created_at FROM settlements WHERE sender_username=? ORDER BY created_at DESC LIMIT 5", (username,))
+    # 10. Recent — include both sent and received transactions
+    c.execute("""
+        SELECT id, amount, status, beneficiary_name, created_at,
+               sender_username, receiver_username, currency, risk_score
+        FROM settlements
+        WHERE sender_username=? OR receiver_username=?
+        ORDER BY created_at DESC LIMIT 10
+    """, (username, username))
     recent = []
     for r in c.fetchall():
+        direction = "incoming" if r[6] == username else "outgoing"
+        counterparty = r[5] if direction == "incoming" else (r[3] or r[6] or "Unknown")
         recent.append({
-            "id": r[0], "amount": r[1], "status": r[2], "beneficiary": r[3], "date": r[4]
+            "id": r[0], "amount": r[1], "status": r[2],
+            "beneficiary": counterparty,
+            "date": r[4], "created_at": r[4],
+            "direction": direction,
+            "currency": r[7] or "USD",
+            "risk_score": r[8] or 0
         })
         
     conn.close()
@@ -2249,16 +2262,33 @@ def create_settlement():
 def get_transactions():
     page = int(request.args.get("page", 1))
     per_page = int(request.args.get("per_page", 20))
+    limit_override = int(request.args.get("limit", 0))
+    if limit_override:
+        per_page = limit_override
     offset = (page - 1) * per_page
+
+    caller_role = request.user.get("role", "")
+    caller_user = request.user.get("sub", "")
 
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM settlements")
-    total = c.fetchone()[0]
-    c.execute(
-        "SELECT * FROM settlements ORDER BY created_at DESC LIMIT ? OFFSET ?",
-        (per_page, offset)
-    )
+
+    # Clients only see their own transactions (sent or received)
+    if caller_role == "client":
+        c.execute("SELECT COUNT(*) FROM settlements WHERE sender_username=? OR receiver_username=?",
+                  (caller_user, caller_user))
+        total = c.fetchone()[0]
+        c.execute(
+            "SELECT * FROM settlements WHERE sender_username=? OR receiver_username=? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (caller_user, caller_user, per_page, offset)
+        )
+    else:
+        c.execute("SELECT COUNT(*) FROM settlements")
+        total = c.fetchone()[0]
+        c.execute(
+            "SELECT * FROM settlements ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (per_page, offset)
+        )
     rows = c.fetchall()
     conn.close()
 
@@ -2269,7 +2299,9 @@ def get_transactions():
             "amount": row[3], "currency": row[4], "risk_score": row[5],
             "status": row[6], "tx_hash": row[7], "iso20022_hash": row[8],
             "beneficiary_name": row[9], "created_at": row[10],
-            "settlement_time_ms": row[11]
+            "settlement_time_ms": row[11],
+            "sender_username": row[12] if len(row) > 12 else None,
+            "receiver_username": row[13] if len(row) > 13 else None,
         })
 
     return jsonify({
