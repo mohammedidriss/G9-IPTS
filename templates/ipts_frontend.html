@@ -187,7 +187,7 @@ tailwind.config = {
       <i class="fas fa-credit-card mr-1"></i>Cards
     </button>
     <button onclick="switchTab('defi')" data-tab="defi" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
-      <i class="fas fa-shield-halved mr-1"></i>DeFi Admin
+      <i class="fas fa-cubes mr-1"></i>DeFi
     </button>
     <button onclick="switchTab('admin')" data-tab="admin" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-user-shield mr-1"></i>Admin
@@ -1737,11 +1737,11 @@ tailwind.config = {
     <!-- DEFI TAB -->
     <div id="tab-defi" class="tab-content hidden fade-in">
       <div class="flex items-center justify-between mb-5">
-        <div>
-          <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-shield-halved mr-2 text-accent"></i>DeFi Admin</h2>
-          <p class="text-xs text-gray-500 mt-0.5">Protocol governance, pool management, emergency controls &amp; treasury</p>
+        <div id="defiTabHeader">
+          <h2 class="text-xl font-bold text-gray-800" id="defiTabTitle"><i class="fas fa-cubes mr-2 text-accent"></i>DeFi</h2>
+          <p class="text-xs text-gray-500 mt-0.5" id="defiTabSubtitle">Swap, stake, and escrow your funds using decentralised finance</p>
         </div>
-        <button onclick="loadDefiAdmin()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium hover:bg-gray-200 transition">
+        <button onclick="loadDefiTab()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium hover:bg-gray-200 transition">
           <i class="fas fa-rotate-right"></i> Refresh
         </button>
       </div>
@@ -1765,6 +1765,9 @@ tailwind.config = {
           <p id="defiAdminStakes" class="text-xl font-bold text-gray-800">—</p>
         </div>
       </div>
+
+      <!-- Admin-only governance panel (hidden for clients) -->
+      <div id="defiAdminPanel">
 
       <!-- Sub-tabs -->
       <div class="flex flex-wrap gap-2 mb-5" id="defiAdminTabs">
@@ -1969,6 +1972,23 @@ tailwind.config = {
       </div>
 
     </div>
+      </div> <!-- end defiAdminPanel -->
+
+      <!-- Client DeFi sub-tab navigation -->
+      <div id="defiClientTabs" class="flex flex-wrap gap-2 mb-5 hidden">
+        <button onclick="showDefiClientSection('swap')" data-client-section="swap"
+          class="defi-client-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white transition">
+          <i class="fas fa-exchange-alt mr-1"></i>Swap
+        </button>
+        <button onclick="showDefiClientSection('stake')" data-client-section="stake"
+          class="defi-client-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+          <i class="fas fa-lock mr-1"></i>Staking
+        </button>
+        <button onclick="showDefiClientSection('escrow')" data-client-section="escrow"
+          class="defi-client-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+          <i class="fas fa-handshake mr-1"></i>Escrow
+        </button>
+      </div>
 
       <!-- SWAP SUB-TAB -->
       <div id="defiSwap" class="defi-sub">
@@ -2272,14 +2292,14 @@ function updateHeaderInfo() {
 function configureUIForRole() {
   // Tab visibility map: role -> array of tab data-tab values to SHOW
   const tabAccess = {
-    // Admin / CTO — full system access, DeFi governance, all oversight
-    admin:         ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'security', 'cards', 'defi', 'admin', 'graph', 'mlops'],
+    // Admin / CTO — full system access, all oversight (DeFi governance via Admin tab only)
+    admin:         ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'security', 'cards', 'admin', 'graph', 'mlops'],
     // Head of Payment Operations — initiates payments, approves transactions, manages operations
     operator:      ['dashboard', 'payments', 'beneficiaries', 'approvals', 'security', 'cards'],
     // Chief Compliance & AML Officer — HITL approvals, case management, AML, compliance reporting
     compliance:    ['dashboard', 'approvals', 'compliance', 'cases', 'aiml', 'security', 'graph', 'mlops'],
-    // Corporate Treasury Client — payments, beneficiaries, cards, spending analytics
-    client:        ['dashboard', 'payments', 'beneficiaries', 'cards', 'documents', 'spending360', 'security', 'aiml'],
+    // Corporate Treasury Client — payments, beneficiaries, cards, spending analytics, DeFi
+    client:        ['dashboard', 'payments', 'beneficiaries', 'cards', 'documents', 'spending360', 'security', 'aiml', 'defi'],
     // Internal Auditor & Risk Manager — read-only oversight across all risk/compliance areas
     auditor:       ['dashboard', 'compliance', 'cases', 'security', 'graph', 'admin'],
     // Lead Data Scientist — AI/ML models, MLOps pipeline, compliance data analysis
@@ -2440,7 +2460,7 @@ function switchTab(tab) {
   if (tab === 'cards') { loadCards(); if (ROLE === 'admin') loadCardRequests(); }
   if (tab === 'security') { loadKYCStatus(); loadFraudAlerts(); }
   if (tab === 'documents') { loadDocuments(); initStatementMonthPicker(); }
-  if (tab === 'defi') { loadDefiAdmin(); }
+  if (tab === 'defi') { loadDefiTab(); }
 }
 
 // ============================================================
@@ -5935,6 +5955,58 @@ function buildEntityCard(entity, level) {
     + '<div class="mb-3"><div class="text-xs text-gray-500 mb-1.5 font-medium">Risk Triggers Identified by AI:</div><div class="flex flex-wrap">' + triggersHtml + '</div></div>'
     + '<div><div class="text-xs text-gray-500 mb-1.5 font-medium">Detected by Models:</div><div class="flex flex-wrap gap-1">' + modelsHtml + '</div></div>'
     + '</div>';
+}
+
+// ============================================================
+// DeFi Tab — Role-aware entry point
+// ============================================================
+function loadDefiTab() {
+  const isClient = ROLE === 'client';
+
+  // Header
+  const title    = document.getElementById('defiTabTitle');
+  const subtitle = document.getElementById('defiTabSubtitle');
+  if (isClient) {
+    if (title)    title.innerHTML    = '<i class="fas fa-cubes mr-2 text-accent"></i>DeFi';
+    if (subtitle) subtitle.textContent = 'Swap currencies, stake funds for yield, and create escrow contracts.';
+  } else {
+    if (title)    title.innerHTML    = '<i class="fas fa-shield-halved mr-2 text-accent"></i>DeFi Admin';
+    if (subtitle) subtitle.textContent = 'Protocol governance, pool management, emergency controls & treasury';
+  }
+
+  // Show/hide governance panel vs client sub-tabs
+  const adminPanel   = document.getElementById('defiAdminPanel');
+  const clientTabs   = document.getElementById('defiClientTabs');
+  if (adminPanel) adminPanel.classList.toggle('hidden', isClient);
+  if (clientTabs) clientTabs.classList.toggle('hidden', !isClient);
+
+  if (isClient) {
+    // Default to Swap view for clients
+    showDefiClientSection('swap');
+    loadPools();
+  } else {
+    loadDefiAdmin();
+  }
+}
+
+function showDefiClientSection(section) {
+  // Update tab button styles
+  document.querySelectorAll('.defi-client-tab').forEach(btn => {
+    const active = btn.getAttribute('data-client-section') === section;
+    btn.classList.toggle('bg-accent', active);
+    btn.classList.toggle('text-white', active);
+    btn.classList.toggle('bg-gray-100', !active);
+    btn.classList.toggle('text-gray-600', !active);
+  });
+  // Show matching sub-tab
+  document.querySelectorAll('.defi-sub').forEach(el => el.classList.add('hidden'));
+  const map = { swap: 'defiSwap', stake: 'defiStake', escrow: 'defiEscrow' };
+  const el = document.getElementById(map[section]);
+  if (el) el.classList.remove('hidden');
+  // Load data for section
+  if (section === 'swap')   loadPools();
+  if (section === 'stake')  loadStaking();
+  if (section === 'escrow') loadEscrows();
 }
 
 // ============================================================

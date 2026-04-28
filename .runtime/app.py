@@ -486,9 +486,22 @@ def get_user_account_info(username):
         "updated_at": row[6],
     }
 
-# Compliance case counter
+# Compliance case counter — seeded from DB so it never collides after a restart
 _case_counter_lock = threading.Lock()
-_case_counter = [0]
+
+def _init_case_counter():
+    """Read the highest existing case number from the DB and start from there."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("SELECT MAX(CAST(SUBSTR(case_number, 11) AS INTEGER)) FROM compliance_cases WHERE case_number LIKE 'CASE-2026-%'")
+        row = c.fetchone()
+        conn.close()
+        return [row[0] if row and row[0] else 0]
+    except Exception:
+        return [0]
+
+_case_counter = _init_case_counter()
 
 def generate_case_number():
     with _case_counter_lock:
@@ -2009,6 +2022,11 @@ def create_settlement():
     }
 
     if risk_result["decision"] == "blocked":
+        # Deduct sender balance immediately — funds are "on hold" while awaiting HITL approval.
+        # This prevents the sender from spending the same funds multiple times while pending.
+        new_sender_balance = sender_balance - amount
+        update_user_balance(sender_username, new_sender_balance)
+
         # Add to HITL queue
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
@@ -2038,6 +2056,7 @@ def create_settlement():
         result["status"] = "blocked"
         result["hitl_id"] = hitl_id
         result["case_number"] = case_number
+        result["new_balance"] = new_sender_balance  # funds on hold — update client balance display
         result["message"] = f"Transaction blocked. Compliance case {case_number} created. Added to HITL review queue."
 
         push_sse("settlement", {
@@ -2259,26 +2278,12 @@ def hitl_approve(hitl_id):
                 WHERE hitl_id=?""", (approver, datetime.utcnow().isoformat(), hitl_id))
             logger.info(f"FOUR-EYES COMPLETE: first={first_approver}, second={approver}, amount={settle_amount}")
 
-        # === Balance check and transfer ===
+        # === Balance already deducted at block time (funds were put on hold) ===
+        # Just read the current balance for the response — no further deduction needed.
         c.execute("SELECT balance FROM user_accounts WHERE username = ?", (sender_username,))
         bal_row = c.fetchone()
-        sender_balance = bal_row[0] if bal_row else 0.0
-        logger.info(f"HITL APPROVE: sender_balance={sender_balance}, sender={sender_username}")
-
-        if settle_amount > sender_balance:
-            conn.rollback()
-            conn.close()
-            return jsonify({
-                "error": "Insufficient funds - sender balance changed since transaction was blocked",
-                "current_balance": sender_balance,
-                "required_amount": settle_amount,
-            }), 400
-
-        # Deduct sender balance
-        new_sender_balance = sender_balance - settle_amount
-        c.execute("UPDATE user_accounts SET balance = ?, updated_at = ? WHERE username = ?",
-                  (new_sender_balance, datetime.utcnow().isoformat(), sender_username))
-        logger.info(f"HITL APPROVE: deducted {settle_amount} from {sender_username}: {sender_balance} -> {new_sender_balance}")
+        new_sender_balance = bal_row[0] if bal_row else 0.0
+        logger.info(f"HITL APPROVE: sender on-hold balance={new_sender_balance} (already deducted at block time), sender={sender_username}")
 
         # Credit receiver if they are a system user
         if receiver_username and receiver_username in USER_ACCOUNTS:
@@ -2346,15 +2351,38 @@ def hitl_reject(hitl_id):
         conn.close()
         return jsonify({"error": "HITL item not found"}), 404
 
+    settlement_id = item[1]
+    held_amount   = float(item[4] or 0)
+
+    # Refund held amount back to sender — funds were deducted when the transaction was blocked
+    c.execute("SELECT sender_username FROM settlements WHERE id = ?", (settlement_id,))
+    row = c.fetchone()
+    sender_username = row[0] if row else None
+    refunded_balance = None
+    if sender_username:
+        c.execute("SELECT balance FROM user_accounts WHERE username = ?", (sender_username,))
+        bal_row = c.fetchone()
+        if bal_row:
+            refunded_balance = bal_row[0] + held_amount
+            c.execute("UPDATE user_accounts SET balance = ?, updated_at = ? WHERE username = ?",
+                      (refunded_balance, datetime.utcnow().isoformat(), sender_username))
+            logger.info(f"HITL REJECT: refunded {held_amount} to {sender_username}, new balance={refunded_balance}")
+
     c.execute("""UPDATE hitl_queue SET status='rejected', reviewed_by=?, reviewed_at=?
         WHERE id=?""", (request.user.get("sub"), datetime.utcnow().isoformat(), hitl_id))
-    c.execute("UPDATE settlements SET status='rejected' WHERE id=?", (item[1],))
+    c.execute("UPDATE settlements SET status='rejected' WHERE id=?", (settlement_id,))
     conn.commit()
     conn.close()
 
-    log_audit("hitl_reject", request.user.get("sub"), {"hitl_id": hitl_id}, request.remote_addr)
-    push_sse("hitl", {"id": hitl_id, "action": "rejected"})
-    return jsonify({"status": "rejected", "hitl_id": hitl_id})
+    log_audit("hitl_reject", request.user.get("sub"), {
+        "hitl_id": hitl_id, "refunded_amount": held_amount,
+        "sender": sender_username, "new_balance": refunded_balance
+    }, request.remote_addr)
+    push_sse("hitl", {"id": hitl_id, "action": "rejected", "refunded_amount": held_amount})
+    return jsonify({
+        "status": "rejected", "hitl_id": hitl_id,
+        "refunded_amount": held_amount, "sender_new_balance": refunded_balance
+    })
 
 # --- Sanctions ---
 @app.route("/api/compliance/sanctions", methods=["GET"])
@@ -2658,9 +2686,28 @@ def retrain_models():
     if request.user.get("role") not in ("admin", "datascientist"):
         return jsonify({"error": "Insufficient permissions. Only admin and datascientist can retrain."}), 403
 
+    use_real_data = os.path.exists(os.path.join(os.path.dirname(__file__), "datasets", "creditcard.csv"))
+
     def _retrain():
         try:
             logger.info("Model retraining initiated")
+
+            # ── Use real ULB dataset if available ────────────────────────────
+            if use_real_data:
+                logger.info("Using real ULB Credit Card Fraud dataset for training")
+                import sys, importlib.util
+                script = os.path.join(os.path.dirname(__file__), "train_on_real_data.py")
+                spec = importlib.util.spec_from_file_location("train_real", script)
+                mod  = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                metrics = mod.run(progress_callback=lambda m: socketio.emit('retrain', {'message': m}) if 'socketio' in dir() else None)
+                # Emit completion
+                socketio.emit('retrain', {'model': 'all', 'status': 'complete',
+                    'message': 'All models retrained on ULB real dataset (284,807 txns)'})
+                return
+
+            # ── Fallback: synthetic data ──────────────────────────────────────
+            logger.info("Real dataset not found — falling back to synthetic data")
             from sklearn.ensemble import IsolationForest, RandomForestClassifier
             from sklearn.neural_network import MLPRegressor
             import xgboost as xgb_mod
