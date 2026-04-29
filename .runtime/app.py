@@ -4614,10 +4614,20 @@ def _init_corridors_table():
         daily_limit   REAL DEFAULT 500000,
         purpose       TEXT DEFAULT 'General Transfer',
         status        TEXT DEFAULT 'active',
+        node_validators INTEGER DEFAULT 3,
+        node_full       INTEGER DEFAULT 4,
+        node_relay      INTEGER DEFAULT 2,
+        node_light      INTEGER DEFAULT 2,
         created_by    TEXT,
         created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
+    # Add node columns to existing tables (migration)
+    for col, default in [('node_validators','3'),('node_full','4'),('node_relay','2'),('node_light','2')]:
+        try:
+            c.execute(f"ALTER TABLE corridors ADD COLUMN {col} INTEGER DEFAULT {default}")
+        except Exception:
+            pass
     # Seed default corridors (the 5 from the Payment Corridor map)
     defaults = [
         ('India → KSA', 'India', 'Saudi Arabia', '🇮🇳', '🇸🇦', 'INR', 'SAR', 0.0327, 0.75, 500, 50000, 500000, 'Labor Remittance'),
@@ -4650,6 +4660,8 @@ def list_corridors():
     cols = [d[0] for d in c.description]
     rows = [dict(zip(cols, r)) for r in c.fetchall()]
     conn.close()
+    for row in rows:
+        row["node_total"] = (row.get("node_validators") or 3) + (row.get("node_full") or 4) + (row.get("node_relay") or 2) + (row.get("node_light") or 2)
     return jsonify({"corridors": rows})
 
 @app.route("/api/corridors", methods=["POST"])
@@ -4666,8 +4678,9 @@ def create_corridor():
     c = conn.cursor()
     c.execute("""INSERT INTO corridors
         (name,source_country,dest_country,source_flag,dest_flag,source_currency,dest_currency,
-         exchange_rate,fee_pct,min_amount,max_amount,daily_limit,purpose,status,created_by)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+         exchange_rate,fee_pct,min_amount,max_amount,daily_limit,purpose,status,created_by,
+         node_validators,node_full,node_relay,node_light)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
         data["name"], data["source_country"], data["dest_country"],
         data.get("source_flag","🌐"), data.get("dest_flag","🌐"),
         data["source_currency"], data["dest_currency"],
@@ -4676,7 +4689,9 @@ def create_corridor():
         float(data.get("daily_limit",500000)),
         data.get("purpose","General Transfer"),
         data.get("status","active"),
-        request.user.get("sub","admin")
+        request.user.get("sub","admin"),
+        int(data.get("node_validators",3)), int(data.get("node_full",4)),
+        int(data.get("node_relay",2)), int(data.get("node_light",2))
     ))
     corridor_id = c.lastrowid
     conn.commit()
@@ -4694,7 +4709,8 @@ def update_corridor(corridor_id):
     c = conn.cursor()
     fields = ["name","source_country","dest_country","source_flag","dest_flag",
               "source_currency","dest_currency","exchange_rate","fee_pct",
-              "min_amount","max_amount","daily_limit","purpose","status"]
+              "min_amount","max_amount","daily_limit","purpose","status",
+              "node_validators","node_full","node_relay","node_light"]
     updates = []
     values  = []
     for f in fields:
