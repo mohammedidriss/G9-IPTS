@@ -3517,19 +3517,60 @@ def risk_trend():
 @app.route("/api/analytics/risk-entities", methods=["GET"])
 @zero_trust_required
 def risk_entities():
-    """Top senders/beneficiaries by risk score — used by Network graph."""
+    """Top senders/beneficiaries by risk score — enriched for AI Risk Entities panel."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
-        SELECT sender, AVG(risk_score) as avg_risk, COUNT(*) as tx_count, SUM(amount) as total_vol
+        SELECT
+            sender,
+            AVG(risk_score)  AS avg_risk,
+            MAX(risk_score)  AS max_risk,
+            COUNT(*)         AS tx_count,
+            SUM(amount)      AS total_vol,
+            SUM(CASE WHEN status IN ('blocked','rejected') OR risk_score >= 80 THEN 1 ELSE 0 END) AS blocked_count,
+            MAX(created_at)  AS last_seen
         FROM settlements
         GROUP BY sender
+        HAVING avg_risk >= 50
         ORDER BY avg_risk DESC
         LIMIT 20
     """)
     rows = c.fetchall()
     conn.close()
-    entities = [{"name": r[0], "avg_risk": round(r[1] or 0, 1), "tx_count": r[2], "total_volume": round(r[3] or 0, 2)} for r in rows]
+
+    def _level(avg):
+        if avg >= 75: return 'critical'
+        if avg >= 50: return 'high'
+        return 'medium'
+
+    def _triggers(avg, max_r, blocked, tx_count):
+        t = []
+        if avg >= 75:    t.append('Sustained high-risk pattern')
+        if max_r >= 90:  t.append('Extreme risk transaction detected')
+        if blocked > 0:  t.append('Blocked / rejected transactions')
+        if tx_count > 5: t.append('High transaction frequency')
+        if avg >= 60:    t.append('Above-average risk score')
+        if not t:        t.append('Elevated risk profile')
+        return t
+
+    entities = []
+    for r in rows:
+        avg = round(r[1] or 0, 1)
+        max_r = round(r[2] or 0, 1)
+        tx_count = r[3]
+        blocked = r[5] or 0
+        entities.append({
+            "name":          r[0],
+            "avg_risk":      avg,
+            "max_risk":      max_r,
+            "tx_count":      tx_count,
+            "total_volume":  round(r[4] or 0, 2),
+            "blocked_count": blocked,
+            "last_seen":     r[6],
+            "level":         _level(avg),
+            "triggers":      _triggers(avg, max_r, blocked, tx_count),
+            "models":        ['XGBoost', 'Isolation Forest'] if avg >= 70 else ['XGBoost']
+        })
     return jsonify({"entities": entities})
 
 
