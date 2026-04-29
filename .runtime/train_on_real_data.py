@@ -39,15 +39,20 @@ FEATURE_NAMES = [
 
 # ── 1. Load & validate ────────────────────────────────────────────────────────
 
+DATASET_URL = "https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv"
+
 def load_dataset():
     print(f"[1/6] Loading dataset from {DATASET_PATH}")
     if not os.path.exists(DATASET_PATH):
-        raise FileNotFoundError(
-            f"Dataset not found at {DATASET_PATH}\n"
-            "Download with:\n"
-            "  curl -L https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv "
-            "-o .runtime/datasets/creditcard.csv"
-        )
+        print(f"    Dataset not found — downloading from Google (~144 MB)...")
+        os.makedirs(os.path.dirname(DATASET_PATH), exist_ok=True)
+        import urllib.request
+        def _progress(count, block_size, total_size):
+            pct = int(count * block_size * 100 / total_size) if total_size > 0 else 0
+            print(f"\r    Downloading... {min(pct,100)}%", end="", flush=True)
+        urllib.request.urlretrieve(DATASET_URL, DATASET_PATH, reporthook=_progress)
+        print()  # newline after progress
+        print(f"    ✓ Dataset saved to {DATASET_PATH}")
     df = pd.read_csv(DATASET_PATH)
     n_fraud = df['Class'].sum()
     n_total = len(df)

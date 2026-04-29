@@ -38,10 +38,17 @@ except ImportError:
 APP_SECRET = os.environ.get("IPTS_SECRET_KEY", "ipts_enterprise_secret_2026_xK9mPq_FALLBACK_NOT_FOR_PRODUCTION")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 1
-DB_PATH = "ipts_vault.db"
-MODELS_DIR = "models"
-CONTRACTS_DIR = "contracts"
-LOG_DIR = "logs"
+
+# All paths are absolute relative to this file so the app works from any cwd
+_BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
+DB_PATH       = os.path.join(_BASE_DIR, "ipts_vault.db")
+MODELS_DIR    = os.path.join(_BASE_DIR, "models")
+CONTRACTS_DIR = os.path.join(_BASE_DIR, "contracts")
+LOG_DIR       = os.path.join(_BASE_DIR, "logs")
+
+# Ensure all required directories exist before anything else runs
+for _d in [MODELS_DIR, LOG_DIR, os.path.join(_BASE_DIR, "datasets")]:
+    os.makedirs(_d, exist_ok=True)
 
 # Fixed conversion rate for USD/ETH display
 ETH_USD_RATE = 3500.0
@@ -269,11 +276,13 @@ app.config['SECRET_KEY'] = APP_SECRET
 app.config['TEMPLATES_AUTO_RELOAD'] = True      # Always reload templates from disk
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0     # Never cache static files in development
 
-logging.basicConfig(
-    filename=os.path.join(LOG_DIR, "ipts_api.log"),
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s"
-)
+# Log to both file and stdout so it works on any platform (Docker, RHEL, macOS)
+_log_fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+_file_handler   = logging.FileHandler(os.path.join(LOG_DIR, "ipts_api.log"))
+_stream_handler = logging.StreamHandler(sys.stdout)
+for _h in [_file_handler, _stream_handler]:
+    _h.setFormatter(_log_fmt)
+logging.basicConfig(level=logging.INFO, handlers=[_file_handler, _stream_handler])
 logger = logging.getLogger("IPTS")
 
 # ============================================================
