@@ -1058,83 +1058,225 @@ tailwind.config = {
 
     <!-- COMPLIANCE TAB -->
     <div id="tab-compliance" class="tab-content hidden fade-in">
-      <!-- Sanctions Management -->
-      <div class="glass rounded-xl p-6 mb-6">
-        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-gavel mr-2 text-red-400"></i>Sanctions List Management</h3>
-        <div class="flex gap-3 mb-4">
-          <input id="sanctionName" type="text" class="flex-1 px-3 py-2 rounded-lg text-sm" placeholder="Entity name">
-          <select id="sanctionType" class="px-3 py-2 rounded-lg text-sm">
-            <option value="individual">Individual</option>
-            <option value="organization">Organization</option>
-            <option value="vessel">Vessel</option>
-          </select>
-          <button onclick="addSanction()" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-500 transition">
-            <i class="fas fa-plus mr-1"></i>Add
-          </button>
+
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-balance-scale mr-2 text-indigo-500"></i>Compliance Center</h2>
+          <p class="text-sm text-gray-500">Regulatory reporting, screening, risk management &amp; due diligence</p>
         </div>
-        <div class="overflow-x-auto max-h-48 overflow-y-auto">
+        <button onclick="loadSanctions();loadNostro();loadComplianceFeatures();" class="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition"><i class="fas fa-rotate-right mr-1.5"></i>Refresh All</button>
+      </div>
+
+      <!-- ── Row 1: Risk Appetite + Regulatory Calendar ── -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+        <!-- Risk Appetite Dashboard -->
+        <div class="glass rounded-xl p-5">
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-gauge-high mr-2 text-orange-400"></i>Risk Appetite Dashboard</h3>
+          <div id="riskAppetiteGrid" class="grid grid-cols-2 gap-3"></div>
+        </div>
+
+        <!-- Regulatory Reporting Calendar -->
+        <div class="glass rounded-xl p-5">
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-calendar-check mr-2 text-indigo-400"></i>Regulatory Reporting Calendar</h3>
+          <div id="regCalendarGrid" class="space-y-2 max-h-72 overflow-y-auto"></div>
+        </div>
+
+      </div>
+
+      <!-- ── Row 2: Watchlist Screening + AML Rules ── -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+        <!-- Watchlist Screening -->
+        <div class="glass rounded-xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-radar mr-2 text-red-400"></i>Watchlist Screening</h3>
+            <select id="wlScreenFilter" onchange="renderWatchlistScreening()" class="px-2 py-1 rounded-lg border border-gray-200 text-xs">
+              <option value="all">All</option>
+              <option value="matched">Matched</option>
+              <option value="pending">Pending</option>
+              <option value="cleared">Cleared</option>
+            </select>
+          </div>
+          <div id="watchlistScreeningList" class="space-y-2 max-h-80 overflow-y-auto"></div>
+        </div>
+
+        <!-- AML Transaction Monitoring Rules -->
+        <div class="glass rounded-xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-sliders mr-2 text-purple-400"></i>AML Monitoring Rules</h3>
+            <span id="amlRulesSummary" class="text-xs text-gray-400"></span>
+          </div>
+          <div id="amlRulesList" class="space-y-2 max-h-80 overflow-y-auto"></div>
+        </div>
+
+      </div>
+
+      <!-- ── Row 3: Travel Rule + CTR ── -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+        <!-- Travel Rule Compliance -->
+        <div class="glass rounded-xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-route mr-2 text-cyan-400"></i>Travel Rule Compliance (FATF)</h3>
+            <span id="travelRuleSummary" class="text-xs text-gray-400"></span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="text-gray-500 border-b border-gray-200">
+                  <th class="text-left py-2 px-2">Txn ID</th>
+                  <th class="text-right py-2 px-2">Amount</th>
+                  <th class="text-center py-2 px-2">Originator</th>
+                  <th class="text-center py-2 px-2">Beneficiary</th>
+                  <th class="text-center py-2 px-2">Status</th>
+                </tr>
+              </thead>
+              <tbody id="travelRuleBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Currency Transaction Reports (CTR) -->
+        <div class="glass rounded-xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-file-invoice-dollar mr-2 text-green-400"></i>Currency Transaction Reports (CTR)</h3>
+            <span id="ctrSummary" class="text-xs text-gray-400"></span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="text-gray-500 border-b border-gray-200">
+                  <th class="text-left py-2 px-2">CTR ID</th>
+                  <th class="text-left py-2 px-2">Entity</th>
+                  <th class="text-right py-2 px-2">Amount</th>
+                  <th class="text-left py-2 px-2">Date</th>
+                  <th class="text-center py-2 px-2">Status</th>
+                  <th class="text-center py-2 px-2">Action</th>
+                </tr>
+              </thead>
+              <tbody id="ctrBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Row 4: UBO Registry + Correspondent Banks ── -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+        <!-- Beneficial Ownership (UBO) Registry -->
+        <div class="glass rounded-xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-sitemap mr-2 text-blue-400"></i>Beneficial Ownership (UBO) Registry</h3>
+            <span id="uboSummary" class="text-xs text-gray-400"></span>
+          </div>
+          <div id="uboList" class="space-y-2 max-h-80 overflow-y-auto"></div>
+        </div>
+
+        <!-- Correspondent Bank Registry -->
+        <div class="glass rounded-xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-building-columns mr-2 text-yellow-400"></i>Correspondent Bank Registry</h3>
+            <span id="corrBankSummary" class="text-xs text-gray-400"></span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="text-gray-500 border-b border-gray-200">
+                  <th class="text-left py-2 px-2">Bank</th>
+                  <th class="text-left py-2 px-2">Country</th>
+                  <th class="text-center py-2 px-2">Risk</th>
+                  <th class="text-center py-2 px-2">DD Status</th>
+                  <th class="text-left py-2 px-2">Last Review</th>
+                  <th class="text-left py-2 px-2">Next Review</th>
+                  <th class="text-center py-2 px-2">Status</th>
+                </tr>
+              </thead>
+              <tbody id="corrBankBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Row 5: Third-Party Due Diligence ── -->
+      <div class="glass rounded-xl p-5 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-handshake mr-2 text-teal-400"></i>Third-Party Due Diligence (TPDD)</h3>
+          <span id="tpddSummary" class="text-xs text-gray-400"></span>
+        </div>
+        <div class="overflow-x-auto">
           <table class="w-full text-xs">
-            <thead class="sticky top-0 bg-white">
+            <thead>
               <tr class="text-gray-500 border-b border-gray-200">
-                <th class="text-left py-2 px-2">Entity Name</th>
-                <th class="text-left py-2 px-2">Type</th>
-                <th class="text-left py-2 px-2">Added By</th>
-                <th class="text-left py-2 px-2">Date</th>
+                <th class="text-left py-2 px-3">Vendor</th>
+                <th class="text-left py-2 px-3">Category</th>
+                <th class="text-center py-2 px-3">KYB Status</th>
+                <th class="text-center py-2 px-3">Risk Score</th>
+                <th class="text-left py-2 px-3">Contract Expiry</th>
+                <th class="text-left py-2 px-3">Last Review</th>
+                <th class="text-center py-2 px-3">Action</th>
               </tr>
             </thead>
-            <tbody id="sanctionsBody">
-              <tr><td colspan="4" class="text-center py-4 text-gray-600">Loading...</td></tr>
-            </tbody>
+            <tbody id="tpddBody"></tbody>
           </table>
         </div>
       </div>
 
-      <!-- SWIFT GPI Tracker -->
-      <div class="glass rounded-xl p-6 mb-6">
-        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-search mr-2 text-blue-400"></i>SWIFT GPI Tracker</h3>
-        <div class="flex gap-3 mb-4">
-          <input id="gpiUetr" type="text" class="flex-1 px-3 py-2 rounded-lg text-sm" placeholder="Enter UETR (UUID)">
-          <button onclick="trackGPI()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-500 transition">
-            <i class="fas fa-magnifying-glass mr-1"></i>Track
-          </button>
+      <!-- ── Row 6: Policy Library + Sanctions ── -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+        <!-- Policy & Procedure Library -->
+        <div class="glass rounded-xl p-5">
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-book-open mr-2 text-orange-400"></i>Policy &amp; Procedure Library</h3>
+          <div id="policyLibrary" class="space-y-2 max-h-80 overflow-y-auto"></div>
         </div>
-        <div id="gpiResult" class="text-gray-500 text-sm"></div>
+
+        <!-- Sanctions List Management -->
+        <div class="glass rounded-xl p-5">
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-gavel mr-2 text-red-400"></i>Sanctions List Management</h3>
+          <div class="flex gap-3 mb-4">
+            <input id="sanctionName" type="text" class="flex-1 px-3 py-2 rounded-lg text-sm" placeholder="Entity name">
+            <select id="sanctionType" class="px-3 py-2 rounded-lg text-sm">
+              <option value="individual">Individual</option>
+              <option value="organization">Organization</option>
+              <option value="vessel">Vessel</option>
+            </select>
+            <button onclick="addSanction()" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-500 transition">
+              <i class="fas fa-plus mr-1"></i>Add
+            </button>
+          </div>
+          <div class="overflow-x-auto max-h-64 overflow-y-auto">
+            <table class="w-full text-xs">
+              <thead class="sticky top-0 bg-white">
+                <tr class="text-gray-500 border-b border-gray-200">
+                  <th class="text-left py-2 px-2">Entity Name</th>
+                  <th class="text-left py-2 px-2">Type</th>
+                  <th class="text-left py-2 px-2">Added By</th>
+                  <th class="text-left py-2 px-2">Date</th>
+                </tr>
+              </thead>
+              <tbody id="sanctionsBody">
+                <tr><td colspan="4" class="text-center py-4 text-gray-600">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
 
-      <!-- FX Converter Tool -->
-      <div class="glass rounded-xl p-6 mb-6">
-        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-calculator mr-2 text-accent"></i>FX Converter</h3>
-        <div class="grid grid-cols-5 gap-3 items-end">
-          <div class="col-span-2">
-            <label class="block text-xs text-gray-500 mb-1">Amount</label>
-            <input id="fxConvertAmount" type="number" value="10000" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="Amount">
+      <!-- ── Row 7: Nostro Balances ── -->
+      <div class="mb-6">
+        <!-- Nostro Balances -->
+        <div class="glass rounded-xl p-5">
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-dollar-sign mr-2 text-blue-400"></i>Nostro Balances (USD)</h3>
+          <div id="nostroBalances" class="space-y-2">
+            <p class="text-gray-500 text-sm">Loading...</p>
           </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">From</label>
-            <select id="fxConvertFrom" class="w-full px-3 py-2 rounded-lg text-sm">
-              <option value="USD">USD</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">To</label>
-            <select id="fxConvertTo" class="w-full px-3 py-2 rounded-lg text-sm">
-              <option value="EUR">EUR</option>
-            </select>
-          </div>
-          <button onclick="convertFX()" class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition">
-            <i class="fas fa-exchange-alt mr-1"></i>Convert
-          </button>
         </div>
-        <div id="fxConvertResult" class="mt-3 text-sm text-gray-500"></div>
       </div>
 
-      <!-- Nostro Balances -->
-      <div class="glass rounded-xl p-6">
-        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-dollar-sign mr-2 text-blue-400"></i>Nostro Balances (USD)</h3>
-        <div id="nostroBalances" class="space-y-2">
-          <p class="text-gray-500 text-sm">Loading...</p>
-        </div>
-      </div>
     </div>
 
     <!-- CASE MANAGEMENT TAB -->
@@ -2837,7 +2979,7 @@ function switchTab(tab) {
     if (typeof loadAudit === 'function') loadAudit();
     if (ROLE === 'admin') { if (typeof loadSystemStats === 'function') loadSystemStats(); if (typeof loadAdminUsers === 'function') loadAdminUsers(); }
   }
-  if (tab === 'compliance') { if (typeof loadSanctions === 'function') loadSanctions(); if (typeof loadNostro === 'function') loadNostro(); }
+  if (tab === 'compliance') { if (typeof loadSanctions === 'function') loadSanctions(); if (typeof loadNostro === 'function') loadNostro(); if (typeof loadComplianceFeatures === 'function') loadComplianceFeatures(); }
   if (tab === 'cases') { if (typeof loadCases === 'function') loadCases(); }
   if (tab === 'beneficiaries') { if (typeof loadBeneficiaries === 'function') loadBeneficiaries(); }
   if (tab === 'spending360') { if (typeof loadSpending360 === 'function') loadSpending360(); }
