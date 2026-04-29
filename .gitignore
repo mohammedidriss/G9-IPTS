@@ -19,29 +19,21 @@ env/
 # ── Database (live data — never commit) ───────────────────────
 *.db
 *.sqlite3
-.runtime/*.db
-.runtime/ipts_vault.db
-.runtime/ipts_vault_backup_*.db
 
 # ── ML Models (large binaries — regenerate with train_on_real_data.py) ──
-.runtime/models/*.pkl
-.runtime/models/*.joblib
-.runtime/models/*.h5
 models/*.pkl
 models/*.joblib
 models/*.h5
 
 # ── Dataset (144MB — downloaded on first run) ─────────────────
-.runtime/datasets/
 datasets/
 
 # ── Logs ──────────────────────────────────────────────────────
-.runtime/logs/
 logs/
 *.log
 
-# ── Runtime scratch data ──────────────────────────────────────
-.runtime/data/
+# ── Runtime directory (local execution only — all source mirrored to root) ──
+.runtime/
 
 # ── OS ────────────────────────────────────────────────────────
 .DS_Store

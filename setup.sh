@@ -44,10 +44,8 @@ echo "  ✓ All packages installed"
 # ── 4. Train ML models ────────────────────────────────────────
 echo "[4/5] Training ML models on real data..."
 echo "      (downloads 144 MB dataset on first run — takes ~90 seconds)"
-cd .runtime
 python3 train_on_real_data.py
-cd ..
-echo "  ✓ Models trained and saved to .runtime/models/"
+echo "  ✓ Models trained and saved to models/"
 
 # ── 5. Start server ───────────────────────────────────────────
 echo "[5/5] Starting IPTS server..."
@@ -59,5 +57,4 @@ echo "  │  Server starting at: http://localhost:5001      │"
 echo "  │  Press Ctrl+C to stop                           │"
 echo "  └─────────────────────────────────────────────────┘"
 echo ""
-cd .runtime
 python3 app.py
