@@ -269,6 +269,14 @@ RATE_LIMIT_MAX = 100  # requests per minute per IP
 RATE_LIMIT_WINDOW = 60
 
 # ============================================================
+# Feature globals — Sessions, Revoked tokens, Maintenance, Announcement
+# ============================================================
+_active_sessions = {}   # jti -> {username, ip, role, login_at, last_seen}
+_revoked_tokens  = set()  # set of revoked JTIs
+_maintenance_mode = False
+_announcement = {"message": "", "active": False, "created_at": ""}
+
+# ============================================================
 # Flask App Setup
 # ============================================================
 app = Flask(__name__, template_folder="templates")
@@ -631,6 +639,41 @@ def handle_options():
         resp = app.make_default_options_response()
         return resp
 
+@app.before_request
+def update_session_last_seen():
+    """Update last_seen for active sessions and enforce maintenance mode."""
+    path = request.path
+    # Maintenance mode enforcement
+    if _maintenance_mode:
+        exempt = ['/api/login', '/api/admin/maintenance', '/api/admin/announcement']
+        is_exempt = any(path.startswith(e) for e in exempt)
+        if not is_exempt and path.startswith('/api/'):
+            # Check if admin
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                try:
+                    token = auth_header.split("Bearer ")[-1].strip()
+                    payload = jwt.decode(token, APP_SECRET, algorithms=[JWT_ALGORITHM])
+                    if payload.get("role") == "admin":
+                        pass  # admin bypasses maintenance
+                    else:
+                        return jsonify({"error": "System under maintenance", "maintenance": True}), 503
+                except Exception:
+                    return jsonify({"error": "System under maintenance", "maintenance": True}), 503
+            else:
+                return jsonify({"error": "System under maintenance", "maintenance": True}), 503
+    # Update last_seen
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        try:
+            token = auth_header.split("Bearer ")[-1].strip()
+            payload = jwt.decode(token, APP_SECRET, algorithms=[JWT_ALGORITHM])
+            jti = payload.get("jti", "")
+            if jti and jti in _active_sessions:
+                _active_sessions[jti]["last_seen"] = datetime.utcnow().isoformat()
+        except Exception:
+            pass
+
 # ============================================================
 # Rate Limiting
 # ============================================================
@@ -673,6 +716,10 @@ def zero_trust_required(f):
         token = auth_header.split("Bearer ")[-1].strip()
         try:
             payload = jwt.decode(token, APP_SECRET, algorithms=[JWT_ALGORITHM])
+            # Check revoked tokens
+            jti = payload.get("jti", "")
+            if jti in _revoked_tokens:
+                return jsonify({"error": "Token has been revoked"}), 401
             request.user = payload
         except jwt.ExpiredSignatureError:
             return jsonify({"error": "Token expired"}), 401
@@ -1118,17 +1165,34 @@ def login():
     token = generate_token(username, user["role"])
     log_audit("login_success", username, {"role": user["role"]}, request.remote_addr)
 
+    # Track active session
+    try:
+        payload_dec = jwt.decode(token, APP_SECRET, algorithms=[JWT_ALGORITHM])
+        jti = payload_dec.get("jti", "")
+        _active_sessions[jti] = {
+            "username": username,
+            "ip": request.remote_addr or "unknown",
+            "role": user["role"],
+            "login_at": datetime.utcnow().isoformat(),
+            "last_seen": datetime.utcnow().isoformat(),
+        }
+    except Exception:
+        pass
+
     # Get user account info
     acct = get_user_account_info(username)
     full_name = acct["full_name"] if acct else username
 
-    return jsonify({
+    resp_data = {
         "token": token,
         "username": username,
         "role": user["role"],
         "full_name": full_name,
         "expires_in": JWT_EXPIRY_HOURS * 3600,
-    })
+    }
+    if user.get("must_change_password"):
+        resp_data["must_change_password"] = True
+    return jsonify(resp_data)
 
 # --- Account Info ---
 @app.route("/api/accounts/me", methods=["GET"])
@@ -5576,6 +5640,238 @@ def aiml_narrative(tx_id):
     key_factors = [{"feature": f, "importance": round(v, 4)} for f, v in sorted_features[:5]]
     return jsonify({"narrative": narrative, "confidence": confidence, "key_factors": key_factors})
 
+
+# ============================================================
+# Feature 1 — Session Management
+# ============================================================
+@app.route("/api/admin/sessions", methods=["GET"])
+@zero_trust_required
+def get_sessions():
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    sessions = [{"jti": jti, **info} for jti, info in _active_sessions.items()]
+    return jsonify({"sessions": sessions, "count": len(sessions)})
+
+@app.route("/api/admin/sessions/<jti>/revoke", methods=["POST"])
+@zero_trust_required
+def revoke_session(jti):
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    _revoked_tokens.add(jti)
+    _active_sessions.pop(jti, None)
+    log_audit("session_revoked", request.user.get("sub"), {"jti": jti[:8]}, request.remote_addr)
+    return jsonify({"status": "revoked"})
+
+# ============================================================
+# Feature 2 — Password Reset
+# ============================================================
+@app.route("/api/admin/users/<username>/reset-password", methods=["POST"])
+@zero_trust_required
+def admin_reset_password(username):
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    if username == "mohamad":
+        return jsonify({"error": "Cannot reset the admin account password"}), 403
+    if username not in USERS:
+        return jsonify({"error": "User not found"}), 404
+    temp_password = f"Temp@{random.randint(100000,999999)}!"
+    USERS[username]["password"] = temp_password
+    USERS[username]["must_change_password"] = True
+    log_audit("password_reset", request.user.get("sub"), {"target": username}, request.remote_addr)
+    return jsonify({"temp_password": temp_password})
+
+@app.route("/api/auth/change-password", methods=["POST"])
+@zero_trust_required
+def change_password():
+    username = request.user.get("sub", "")
+    data = request.get_json(force=True) or {}
+    current_password = data.get("current_password", "")
+    new_password = data.get("new_password", "")
+    if not current_password or not new_password:
+        return jsonify({"error": "current_password and new_password required"}), 400
+    user = USERS.get(username)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    if user["password"] != current_password:
+        return jsonify({"error": "Current password is incorrect"}), 400
+    if len(new_password) < 8:
+        return jsonify({"error": "New password must be at least 8 characters"}), 400
+    USERS[username]["password"] = new_password
+    USERS[username]["must_change_password"] = False
+    log_audit("password_changed", username, {}, request.remote_addr)
+    return jsonify({"status": "password changed"})
+
+# ============================================================
+# Feature 3 — Maintenance Mode
+# ============================================================
+@app.route("/api/admin/maintenance", methods=["GET"])
+def get_maintenance():
+    return jsonify({"enabled": _maintenance_mode, "message": "System is under maintenance. Please try again later."})
+
+@app.route("/api/admin/maintenance", methods=["POST"])
+@zero_trust_required
+def set_maintenance():
+    global _maintenance_mode
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    data = request.get_json(force=True) or {}
+    _maintenance_mode = bool(data.get("enabled", False))
+    log_audit("maintenance_mode", request.user.get("sub"), {"enabled": _maintenance_mode}, request.remote_addr)
+    return jsonify({"enabled": _maintenance_mode})
+
+# ============================================================
+# Feature 5 — Failed Login Monitor
+# ============================================================
+@app.route("/api/admin/failed-logins", methods=["GET"])
+@zero_trust_required
+def failed_logins():
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""SELECT actor, ip_address, created_at, details FROM audit_log
+                 WHERE event_type='login_failed' ORDER BY created_at DESC LIMIT 50""")
+    rows = c.fetchall()
+    conn.close()
+    result = []
+    cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+    count_24h = 0
+    for row in rows:
+        actor, ip, created_at, details = row
+        try:
+            det = json.loads(details) if details else {}
+        except Exception:
+            det = {"reason": details or ""}
+        entry = {"username": actor, "ip": ip or "unknown", "created_at": created_at, "reason": det.get("reason", "")}
+        result.append(entry)
+        if created_at and created_at > cutoff:
+            count_24h += 1
+    return jsonify({"entries": result, "count_24h": count_24h})
+
+# ============================================================
+# Feature 7 — System Configuration
+# ============================================================
+def _ensure_system_config():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS system_config (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        description TEXT,
+        updated_at TEXT
+    )""")
+    defaults = [
+        ("jwt_expiry_hours", "1", "JWT token expiry in hours"),
+        ("max_transaction_usd", "100000", "Maximum single transaction amount (USD)"),
+        ("max_login_attempts", "5", "Max failed logins before lockout"),
+        ("session_timeout_minutes", "60", "Idle session timeout in minutes"),
+        ("require_4eyes_above_usd", "75000", "Require 4-eyes approval above this amount"),
+        ("auto_block_risk_score", "85", "Auto-block transactions above this risk score"),
+    ]
+    for key, value, desc in defaults:
+        c.execute("INSERT OR IGNORE INTO system_config (key, value, description, updated_at) VALUES (?,?,?,?)",
+                  (key, value, desc, datetime.utcnow().isoformat()))
+    conn.commit()
+    conn.close()
+
+_ensure_system_config()
+
+@app.route("/api/admin/config", methods=["GET"])
+@zero_trust_required
+def get_system_config():
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT key, value, description, updated_at FROM system_config")
+    rows = c.fetchall()
+    conn.close()
+    config = [{"key": r[0], "value": r[1], "description": r[2], "updated_at": r[3]} for r in rows]
+    return jsonify({"config": config})
+
+@app.route("/api/admin/config", methods=["POST"])
+@zero_trust_required
+def update_system_config():
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    data = request.get_json(force=True) or {}
+    key = data.get("key", "")
+    value = str(data.get("value", ""))
+    if not key:
+        return jsonify({"error": "key required"}), 400
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("UPDATE system_config SET value=?, updated_at=? WHERE key=?",
+              (value, datetime.utcnow().isoformat(), key))
+    conn.commit()
+    conn.close()
+    log_audit("config_updated", request.user.get("sub"), {"key": key, "value": value}, request.remote_addr)
+    return jsonify({"status": "updated"})
+
+# ============================================================
+# Feature 8 — Database Backup & Export
+# ============================================================
+@app.route("/api/admin/backup/database", methods=["GET"])
+@zero_trust_required
+def backup_database():
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    import io, shutil
+    date_str = datetime.utcnow().strftime("%Y-%m-%d")
+    filename = f"ipts_backup_{date_str}.db"
+    try:
+        buf = io.BytesIO()
+        with open(DB_PATH, "rb") as f:
+            buf.write(f.read())
+        buf.seek(0)
+        log_audit("db_backup", request.user.get("sub"), {"filename": filename}, request.remote_addr)
+        return Response(buf, mimetype="application/octet-stream",
+                        headers={"Content-Disposition": f"attachment; filename={filename}"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/admin/backup/audit-csv", methods=["GET"])
+@zero_trust_required
+def backup_audit_csv():
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    import csv, io
+    date_str = datetime.utcnow().strftime("%Y-%m-%d")
+    filename = f"audit_log_{date_str}.csv"
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT id, event_type, actor, details, ip_address, created_at FROM audit_log ORDER BY created_at DESC")
+    rows = c.fetchall()
+    conn.close()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["id", "event_type", "actor", "details", "ip_address", "created_at"])
+    writer.writerows(rows)
+    log_audit("audit_csv_export", request.user.get("sub"), {"filename": filename}, request.remote_addr)
+    return Response(output.getvalue(), mimetype="text/csv",
+                    headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+# ============================================================
+# Feature 9 — Announcement Banner
+# ============================================================
+@app.route("/api/admin/announcement", methods=["GET"])
+def get_announcement():
+    return jsonify(_announcement)
+
+@app.route("/api/admin/announcement", methods=["POST"])
+@zero_trust_required
+def set_announcement():
+    global _announcement
+    if request.user.get("role") != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    data = request.get_json(force=True) or {}
+    _announcement = {
+        "message": data.get("message", ""),
+        "active": bool(data.get("active", False)),
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    log_audit("announcement_set", request.user.get("sub"), {"active": _announcement["active"]}, request.remote_addr)
+    return jsonify(_announcement)
 
 if __name__ == "__main__":
     print("\n  IPTS Flask API starting on port 5001...")

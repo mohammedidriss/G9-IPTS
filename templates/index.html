@@ -105,6 +105,15 @@ tailwind.config = {
 
 <!-- Main App -->
 <div id="mainApp" class="hidden">
+  <!-- Maintenance Banner (non-admin users) -->
+  <div id="maintenanceBanner" class="hidden fixed top-0 left-0 right-0 z-[210] bg-red-600 text-white text-sm py-2 px-4 text-center font-semibold">
+    <i class="fas fa-tools mr-2"></i>System is under maintenance. Please try again later.
+  </div>
+  <!-- Announcement Banner -->
+  <div id="announcementBanner" class="hidden fixed left-0 right-0 z-[205] bg-amber-400 text-gray-900 text-sm py-2 px-4 flex items-center justify-between" style="top:40px;">
+    <span id="announcementBannerText"></span>
+    <button onclick="dismissAnnouncement()" class="ml-4 text-gray-700 hover:text-gray-900"><i class="fas fa-times"></i></button>
+  </div>
   <!-- Session Warning Banner -->
   <div id="sessionWarnBanner" class="hidden fixed top-0 left-0 right-0 z-[200] bg-amber-500 text-white text-sm py-2 px-4 flex items-center justify-between">
     <span><i class="fas fa-clock mr-2"></i>Your session expires in <strong>5 minutes</strong>. Save your work.</span>
@@ -1115,15 +1124,32 @@ tailwind.config = {
       </div>
 
       <!-- User Management (Admin only) -->
-      <div id="adminUserMgmt" class="glass rounded-xl p-6">
+      <div id="adminUserMgmt" class="glass rounded-xl p-6 mb-6">
         <div class="flex justify-between items-center mb-4">
           <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-users-cog mr-2 text-accent"></i>User Management</h3>
           <button onclick="loadAdminUsers()" class="text-xs text-accent hover:underline"><i class="fas fa-refresh mr-1"></i>Refresh</button>
+        </div>
+        <!-- Bulk action bar (hidden by default) -->
+        <div id="bulkActionBar" class="hidden mb-3 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+          <span id="bulkSelCount" class="text-xs font-semibold text-blue-700">0 selected</span>
+          <button onclick="bulkAction('lock')" class="text-xs px-3 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 transition"><i class="fas fa-lock mr-1"></i>Lock Selected</button>
+          <button onclick="bulkAction('unlock')" class="text-xs px-3 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 transition"><i class="fas fa-lock-open mr-1"></i>Unlock Selected</button>
+          <select id="bulkRoleSelect" class="text-xs border border-gray-200 rounded px-2 py-1">
+            <option value="">Change Role...</option>
+            <option value="admin">admin</option>
+            <option value="operator">operator</option>
+            <option value="compliance">compliance</option>
+            <option value="client">client</option>
+            <option value="auditor">auditor</option>
+            <option value="datascientist">datascientist</option>
+          </select>
+          <button onclick="bulkAction('role')" class="text-xs px-3 py-1 rounded bg-purple-100 text-purple-700 hover:bg-purple-200 transition">Apply Role</button>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-xs">
             <thead>
               <tr class="text-gray-500 border-b border-gray-200">
+                <th class="py-2 px-2"><input type="checkbox" id="bulkSelectAll" onchange="toggleSelectAll(this)" class="rounded"/></th>
                 <th class="text-left py-2 px-2">User</th>
                 <th class="text-left py-2 px-2">Role</th>
                 <th class="text-center py-2 px-2">Status</th>
@@ -1133,11 +1159,156 @@ tailwind.config = {
               </tr>
             </thead>
             <tbody id="adminUsersBody">
-              <tr><td colspan="6" class="text-center py-6 text-gray-400">Loading...</td></tr>
+              <tr><td colspan="7" class="text-center py-6 text-gray-400">Loading...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
+
+      <!-- Feature 1: Active Sessions -->
+      <div id="adminSessions" class="glass rounded-xl p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-display mr-2 text-teal-400"></i>Active Sessions <span id="sessionCountBadge" class="ml-2 px-2 py-0.5 rounded-full text-xs bg-teal-100 text-teal-700 font-medium">0</span></h3>
+          <button onclick="loadSessions()" class="text-xs text-accent hover:underline"><i class="fas fa-refresh mr-1"></i>Refresh</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-gray-500 border-b border-gray-200">
+                <th class="text-left py-2 px-2">User</th>
+                <th class="text-left py-2 px-2">IP</th>
+                <th class="text-left py-2 px-2">Login Time</th>
+                <th class="text-left py-2 px-2">Last Seen</th>
+                <th class="text-center py-2 px-2">Action</th>
+              </tr>
+            </thead>
+            <tbody id="sessionsBody">
+              <tr><td colspan="5" class="text-center py-4 text-gray-400">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Feature 5: Failed Login Monitor -->
+      <div id="adminFailedLogins" class="glass rounded-xl p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-shield-exclamation mr-2 text-red-400"></i>Failed Login Monitor <span id="failedLoginBadge" class="ml-2 px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700 font-medium hidden">0</span></h3>
+          <button onclick="loadFailedLogins()" class="text-xs text-accent hover:underline"><i class="fas fa-refresh mr-1"></i>Refresh</button>
+        </div>
+        <div class="overflow-x-auto max-h-64 overflow-y-auto">
+          <table class="w-full text-xs">
+            <thead class="sticky top-0 bg-white">
+              <tr class="text-gray-500 border-b border-gray-200">
+                <th class="text-left py-2 px-2">Timestamp</th>
+                <th class="text-left py-2 px-2">Username</th>
+                <th class="text-left py-2 px-2">IP Address</th>
+                <th class="text-left py-2 px-2">Reason</th>
+              </tr>
+            </thead>
+            <tbody id="failedLoginsBody">
+              <tr><td colspan="4" class="text-center py-4 text-gray-400">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Feature 3: Maintenance Mode (inside System Stats) -->
+      <div id="adminMaintenanceCard" class="glass rounded-xl p-6 mb-6">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-tools mr-2 text-amber-400"></i>Maintenance Mode</h3>
+        </div>
+        <div class="flex items-center gap-4">
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="maintenanceToggle" onchange="toggleMaintenance(this.checked)" class="sr-only peer">
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+          </label>
+          <span id="maintenanceLabel" class="text-sm font-medium text-gray-700">Maintenance Mode — <span id="maintenanceStatus">OFF</span></span>
+        </div>
+        <p class="text-xs text-gray-400 mt-2">When enabled, all non-admin API requests return 503. Admins can still access the system.</p>
+      </div>
+
+      <!-- Feature 9: Announcement Banner -->
+      <div id="adminAnnouncementCard" class="glass rounded-xl p-6 mb-6">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-bullhorn mr-2 text-yellow-400"></i>Announcement Banner</h3>
+        </div>
+        <textarea id="announcementText" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-700 resize-none mb-3" rows="3" placeholder="Enter announcement message..."></textarea>
+        <div class="flex gap-2">
+          <button onclick="publishAnnouncement()" class="px-4 py-1.5 rounded bg-yellow-400 text-white text-xs font-semibold hover:bg-yellow-500 transition"><i class="fas fa-paper-plane mr-1"></i>Publish</button>
+          <button onclick="clearAnnouncement()" class="px-4 py-1.5 rounded bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition"><i class="fas fa-times mr-1"></i>Clear</button>
+        </div>
+      </div>
+
+      <!-- Feature 7: System Configuration -->
+      <div id="adminConfigCard" class="glass rounded-xl p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-sliders mr-2 text-indigo-400"></i>System Configuration</h3>
+          <button onclick="loadSystemConfig()" class="text-xs text-accent hover:underline"><i class="fas fa-refresh mr-1"></i>Refresh</button>
+        </div>
+        <div id="systemConfigList" class="space-y-3">
+          <p class="text-xs text-gray-400 text-center py-4">Loading...</p>
+        </div>
+      </div>
+
+      <!-- Feature 8: Backup & Export -->
+      <div id="adminBackupCard" class="glass rounded-xl p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-database mr-2 text-green-400"></i>Backup &amp; Export</h3>
+        </div>
+        <div class="flex gap-3">
+          <button onclick="downloadDBBackup()" class="px-4 py-2 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-500 transition"><i class="fas fa-download mr-1.5"></i>Download DB Backup (.db)</button>
+          <button onclick="exportAuditCSV()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-500 transition"><i class="fas fa-file-csv mr-1.5"></i>Export Audit Log (.csv)</button>
+        </div>
+      </div>
+
+      <!-- Feature 10: Quick Corridor Controls -->
+      <div id="adminCorridorControls" class="glass rounded-xl p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-route mr-2 text-purple-400"></i>Quick Corridor Controls <span id="corridorSuspendedBadge" class="ml-2 px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-700 font-medium hidden">0 suspended</span></h3>
+          <button onclick="loadAdminCorridors()" class="text-xs text-accent hover:underline"><i class="fas fa-refresh mr-1"></i>Refresh</button>
+        </div>
+        <div id="adminCorridorList" class="space-y-2">
+          <p class="text-xs text-gray-400 text-center py-4">Loading...</p>
+        </div>
+      </div>
+
+      <!-- Feature 4: Role Permission Matrix -->
+      <div id="adminRoleMatrix" class="glass rounded-xl p-6 mb-6">
+        <button onclick="toggleRoleMatrix()" class="w-full flex justify-between items-center text-left">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-table mr-2 text-cyan-400"></i>Role Permission Matrix</h3>
+          <span id="roleMatrixChevron" class="text-gray-400"><i class="fas fa-chevron-down"></i></span>
+        </button>
+        <div id="roleMatrixContent" class="hidden mt-4 overflow-x-auto">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Password Reset Modal -->
+      <div id="pwResetModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+          <h4 class="text-sm font-bold text-gray-800 mb-2"><i class="fas fa-key mr-2 text-yellow-400"></i>Temporary Password</h4>
+          <p class="text-xs text-red-600 font-medium mb-3"><i class="fas fa-exclamation-triangle mr-1"></i>Show this once — copy it before closing!</p>
+          <div class="bg-gray-900 rounded-lg p-3 mb-4 flex items-center justify-between gap-2">
+            <code id="pwResetValue" class="text-green-400 font-mono text-sm break-all"></code>
+            <button onclick="copyTempPassword()" class="text-xs text-gray-400 hover:text-white transition"><i class="fas fa-copy"></i></button>
+          </div>
+          <button onclick="document.getElementById('pwResetModal').classList.add('hidden')" class="w-full py-2 rounded-lg bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-200 transition">Close</button>
+        </div>
+      </div>
+
+      <!-- Force Password Change Modal -->
+      <div id="forceChangePasswordModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+          <h4 class="text-sm font-bold text-gray-800 mb-1"><i class="fas fa-lock-open mr-2 text-orange-400"></i>Password Change Required</h4>
+          <p class="text-xs text-gray-500 mb-4">Your password has been reset. Please set a new password before continuing.</p>
+          <div class="space-y-3">
+            <input type="password" id="fcpCurrent" placeholder="Current (temporary) password" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs"/>
+            <input type="password" id="fcpNew" placeholder="New password (min 8 chars)" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs"/>
+          </div>
+          <button onclick="submitForcePasswordChange()" class="mt-4 w-full py-2 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent/90 transition">Change Password</button>
+        </div>
+      </div>
+
     </div>
 
     <!-- COMPLIANCE TAB -->

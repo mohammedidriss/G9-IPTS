@@ -57,6 +57,12 @@ async function doLogin() {
       if (data.tx_limits) showTxLimits(data.tx_limits);
       await fetchAccountInfo();
       showApp();
+      if (data.must_change_password) {
+        setTimeout(() => {
+          const modal = document.getElementById('forceChangePasswordModal');
+          if (modal) modal.classList.remove('hidden');
+        }, 800);
+      }
     } else {
       document.getElementById('loginError').textContent = data.error || 'Login failed';
       document.getElementById('loginError').classList.remove('hidden');
@@ -221,6 +227,11 @@ function showApp() {
   setInterval(loadNotifications, 30000);
   connectSSE();
   startSessionTimer();
+  // Poll maintenance mode and announcement banners
+  pollMaintenanceBanner();
+  pollAnnouncementBanner();
+  setInterval(pollMaintenanceBanner, 30000);
+  setInterval(pollAnnouncementBanner, 120000);
   switchTab('dashboard');
 }
 
@@ -262,7 +273,15 @@ function switchTab(tab) {
   if (tab === 'mlops') loadMLOps();
   if (tab === 'admin') {
     loadHITL(); loadAudit();
-    if (ROLE === 'admin') { loadSystemStats(); loadAdminUsers(); }
+    if (ROLE === 'admin') {
+      loadSystemStats(); loadAdminUsers();
+      loadSessions(); loadFailedLogins(); loadSystemConfig(); loadAdminCorridors(); loadMaintenanceState();
+      // Start auto-refresh for failed logins
+      if (typeof _failedLoginInterval !== 'undefined' && _failedLoginInterval) clearInterval(_failedLoginInterval);
+      if (typeof loadFailedLogins === 'function') {
+        window._failedLoginInterval = setInterval(loadFailedLogins, 60000);
+      }
+    }
   }
   if (tab === 'compliance') { loadSanctions(); loadNostro(); loadComplianceFeatures(); }
   if (tab === 'cases') { loadCases(); }
@@ -1008,3 +1027,55 @@ document.addEventListener('DOMContentLoaded', () => {
   const pass = document.getElementById('loginPass');
   if (pass) pass.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
 });
+
+// ============================================================
+// Maintenance Banner + Announcement Banner (core polling)
+// ============================================================
+async function pollMaintenanceBanner() {
+  try {
+    const d = await fetch((typeof API !== 'undefined' ? API : '') + '/api/admin/maintenance').then(r => r.json());
+    const banner = document.getElementById('maintenanceBanner');
+    if (banner) {
+      if (d.enabled && (typeof ROLE === 'undefined' || ROLE !== 'admin')) {
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+    // Update admin toggle if on admin tab
+    if (typeof loadMaintenanceState === 'function') loadMaintenanceState();
+  } catch(e) {}
+}
+
+let _lastAnnouncementMsg = '';
+async function pollAnnouncementBanner() {
+  try {
+    const d = await fetch((typeof API !== 'undefined' ? API : '') + '/api/admin/announcement').then(r => r.json());
+    const banner = document.getElementById('announcementBanner');
+    const textEl = document.getElementById('announcementBannerText');
+    if (!banner || !textEl) return;
+    if (d.active && d.message) {
+      // Check sessionStorage dismissal
+      const dismissed = sessionStorage.getItem('ipts_announcement_dismissed');
+      if (dismissed === d.message && d.message === _lastAnnouncementMsg) {
+        banner.classList.add('hidden');
+        return;
+      }
+      if (dismissed !== d.message) {
+        sessionStorage.removeItem('ipts_announcement_dismissed');
+      }
+      textEl.textContent = d.message;
+      banner.classList.remove('hidden');
+      _lastAnnouncementMsg = d.message;
+    } else {
+      banner.classList.add('hidden');
+    }
+  } catch(e) {}
+}
+
+function dismissAnnouncement() {
+  const textEl = document.getElementById('announcementBannerText');
+  if (textEl) sessionStorage.setItem('ipts_announcement_dismissed', textEl.textContent);
+  const banner = document.getElementById('announcementBanner');
+  if (banner) banner.classList.add('hidden');
+}
