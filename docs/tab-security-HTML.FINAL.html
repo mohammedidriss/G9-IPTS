@@ -1,0 +1,263 @@
+    <div id="tab-security" class="tab-content hidden fade-in">
+
+      <!-- ── ADMIN: Security Operations Center ── -->
+      <div id="secAdminSOC" class="hidden">
+        <div class="flex items-center justify-between mb-5">
+          <div>
+            <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-shield-halved mr-2 text-red-500"></i>Security Operations Center</h2>
+            <p class="text-gray-500 text-xs mt-0.5">Real-time threat monitoring, incident management &amp; platform security posture</p>
+          </div>
+          <button onclick="loadSOC()" class="text-xs text-accent hover:underline flex items-center gap-1"><i class="fas fa-rotate-right"></i> Refresh</button>
+        </div>
+
+        <!-- SOC KPI Row -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="glass rounded-xl p-4 border-l-4 border-red-500">
+            <p class="text-xs text-gray-500 mb-1">Active Threats</p>
+            <p id="socKpiThreats" class="text-2xl font-bold text-red-500">—</p>
+            <p class="text-xs text-gray-400 mt-1">Open incidents</p>
+          </div>
+          <div class="glass rounded-xl p-4 border-l-4 border-orange-400">
+            <p class="text-xs text-gray-500 mb-1">High-Risk Alerts</p>
+            <p id="socKpiAlerts" class="text-2xl font-bold text-orange-400">—</p>
+            <p class="text-xs text-gray-400 mt-1">Risk score ≥ 80</p>
+          </div>
+          <div class="glass rounded-xl p-4 border-l-4 border-yellow-400">
+            <p class="text-xs text-gray-500 mb-1">Blocked IPs</p>
+            <p id="socKpiBlocked" class="text-2xl font-bold text-yellow-500">—</p>
+            <p class="text-xs text-gray-400 mt-1">Last 24 hours</p>
+          </div>
+          <div class="glass rounded-xl p-4 border-l-4 border-green-500">
+            <p class="text-xs text-gray-500 mb-1">System Health</p>
+            <p id="socKpiHealth" class="text-2xl font-bold text-green-500">—</p>
+            <p class="text-xs text-gray-400 mt-1">Uptime this month</p>
+          </div>
+        </div>
+
+        <!-- Threat Feed + Incident Panel -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <!-- Live Threat Feed -->
+          <div class="glass rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-rss mr-2 text-red-400"></i>Live Threat Feed</h3>
+              <span id="socThreatBadge" class="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-600">Loading…</span>
+            </div>
+            <div id="socThreatFeed" class="space-y-2 max-h-72 overflow-y-auto">
+              <p class="text-gray-400 text-xs text-center py-6">Loading threats…</p>
+            </div>
+          </div>
+
+          <!-- Incident Management -->
+          <div class="glass rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-triangle-exclamation mr-2 text-orange-400"></i>Incident Queue</h3>
+              <button onclick="socCreateIncident()" class="px-3 py-1 text-xs font-semibold rounded-lg bg-red-600/10 text-red-500 hover:bg-red-600/20 transition"><i class="fas fa-plus mr-1"></i>New Incident</button>
+            </div>
+            <div id="socIncidentQueue" class="space-y-2 max-h-72 overflow-y-auto">
+              <p class="text-gray-400 text-xs text-center py-6">Loading incidents…</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Auth Events + Blocked IPs -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <!-- Authentication Events -->
+          <div class="glass rounded-xl p-5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-door-open mr-2 text-blue-400"></i>Authentication Events</h3>
+            <div id="socAuthEvents" class="space-y-1.5 max-h-56 overflow-y-auto">
+              <p class="text-gray-400 text-xs text-center py-6">Loading…</p>
+            </div>
+          </div>
+
+          <!-- IP Blocklist -->
+          <div class="glass rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-ban mr-2 text-red-400"></i>IP Blocklist</h3>
+              <div class="flex gap-2">
+                <input id="socBlockIpInput" type="text" placeholder="x.x.x.x" class="px-2 py-1 rounded-lg text-xs border border-gray-200 w-28">
+                <button onclick="socBlockIP()" class="px-3 py-1 text-xs font-semibold rounded-lg bg-red-600/10 text-red-500 hover:bg-red-600/20 transition">Block</button>
+              </div>
+            </div>
+            <div id="socBlocklist" class="space-y-1.5 max-h-56 overflow-y-auto">
+              <p class="text-gray-400 text-xs text-center py-6">Loading…</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Security Posture Score + Threat Origin Map -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <!-- Security Posture Score -->
+          <div class="glass rounded-xl p-5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-gauge-high mr-2 text-indigo-400"></i>Security Posture Score</h3>
+            <div class="flex flex-col items-center mb-4">
+              <div class="relative w-28 h-28">
+                <canvas id="socPostureCanvas" width="112" height="112"></canvas>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                  <span id="socPostureScore" class="text-2xl font-bold text-gray-800">—</span>
+                  <span class="text-xs text-gray-500">/ 100</span>
+                </div>
+              </div>
+            </div>
+            <div id="socPostureBreakdown" class="space-y-2"></div>
+          </div>
+
+          <!-- Threat Origin Map -->
+          <div class="glass rounded-xl p-5 lg:col-span-2">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-earth-americas mr-2 text-blue-400"></i>Threat Origin Map</h3>
+              <span id="socMapBadge" class="text-xs text-gray-400"></span>
+            </div>
+            <div id="socThreatMap" style="width:100%;height:220px;border-radius:8px;overflow:hidden;position:relative;background:#0a1628;"></div>
+          </div>
+        </div>
+
+        <!-- Active Sessions + Vulnerability Tracker -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <!-- Active Sessions -->
+          <div class="glass rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-users mr-2 text-cyan-400"></i>Active Sessions</h3>
+              <span id="socSessionCount" class="text-xs text-gray-400"></span>
+            </div>
+            <div id="socSessionList" class="space-y-2 max-h-64 overflow-y-auto">
+              <p class="text-gray-400 text-xs text-center py-6">Loading…</p>
+            </div>
+          </div>
+
+          <!-- Vulnerability Tracker -->
+          <div class="glass rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-bug mr-2 text-red-400"></i>Vulnerability Tracker</h3>
+              <span id="socVulnSummary" class="text-xs text-gray-400"></span>
+            </div>
+            <div id="socVulnList" class="space-y-2 max-h-64 overflow-y-auto">
+              <p class="text-gray-400 text-xs text-center py-6">Loading…</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- API Abuse Monitor + Data Access Log -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <!-- API Abuse Monitor -->
+          <div class="glass rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-gauge mr-2 text-orange-400"></i>API Abuse Monitor</h3>
+              <span class="text-xs text-gray-400">Last 24h</span>
+            </div>
+            <div id="socApiAbuse" class="space-y-2 max-h-60 overflow-y-auto"></div>
+          </div>
+
+          <!-- Privileged Access Log -->
+          <div class="glass rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-user-shield mr-2 text-purple-400"></i>Privileged Access Log</h3>
+              <span class="text-xs text-gray-400">Sensitive operations</span>
+            </div>
+            <div id="socPrivAccessLog" class="space-y-1.5 max-h-60 overflow-y-auto"></div>
+          </div>
+        </div>
+
+        <!-- Security Policy Controls -->
+        <div class="glass rounded-xl p-5">
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-sliders mr-2 text-indigo-400"></i>Security Policy Controls</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="flex items-center justify-between bg-gray-50 rounded-xl p-4">
+              <div><p class="text-sm font-medium text-gray-800">2FA Enforcement</p><p class="text-xs text-gray-500">Require for all users</p></div>
+              <label class="relative inline-flex cursor-pointer"><input type="checkbox" id="soc2FA" class="sr-only peer" checked><div class="w-9 h-5 bg-gray-300 rounded-full peer peer-checked:bg-accent after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div></label>
+            </div>
+            <div class="flex items-center justify-between bg-gray-50 rounded-xl p-4">
+              <div><p class="text-sm font-medium text-gray-800">Auto IP Block</p><p class="text-xs text-gray-500">Block after 5 failures</p></div>
+              <label class="relative inline-flex cursor-pointer"><input type="checkbox" id="socAutoBlock" class="sr-only peer" checked><div class="w-9 h-5 bg-gray-300 rounded-full peer peer-checked:bg-accent after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div></label>
+            </div>
+            <div class="flex items-center justify-between bg-gray-50 rounded-xl p-4">
+              <div><p class="text-sm font-medium text-gray-800">Anomaly Alerts</p><p class="text-xs text-gray-500">ML-based detection</p></div>
+              <label class="relative inline-flex cursor-pointer"><input type="checkbox" id="socAnomalyAlerts" class="sr-only peer" checked><div class="w-9 h-5 bg-gray-300 rounded-full peer peer-checked:bg-accent after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── NON-ADMIN: KYC + Biometrics ── -->
+      <div id="secClientView" class="hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- E-KYC -->
+          <div class="glass rounded-xl p-6">
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-id-card mr-2 text-blue-400"></i>E-KYC Verification</h3>
+            <div id="kycStatusPanel">
+              <div id="kycNotStarted" class="text-center py-6">
+                <div class="w-16 h-16 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-4">
+                  <i class="fas fa-id-card text-3xl text-yellow-400"></i>
+                </div>
+                <p class="text-gray-800 font-semibold mb-1">Identity Not Verified</p>
+                <p class="text-gray-500 text-xs mb-4">Complete KYC to unlock all features</p>
+                <div class="space-y-3">
+                  <div><label class="block text-xs text-gray-500 mb-1">Document Type</label>
+                    <select id="kycDocType" class="w-full px-3 py-2 rounded-lg text-sm">
+                      <option value="passport">Passport</option><option value="drivers_license">Driver's License</option><option value="national_id">National ID</option>
+                    </select>
+                  </div>
+                  <div>
+                    <input type="file" id="kycFileInput" accept=".jpg,.jpeg,.png,.pdf" class="hidden" onchange="onKycFileSelected(this)">
+                    <div id="kycDropZone" class="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-accent/50 transition" onclick="document.getElementById('kycFileInput').click()">
+                      <i class="fas fa-cloud-upload-alt text-2xl text-gray-500 mb-2"></i>
+                      <p class="text-gray-400 text-xs">Click to upload document</p>
+                      <p class="text-gray-600 text-[10px] mt-1">Accepted: JPG, PNG, PDF</p>
+                    </div>
+                    <div id="kycFileInfo" class="hidden mt-2 flex items-center gap-2 bg-accent/10 rounded-lg px-3 py-2">
+                      <i class="fas fa-file-check text-accent"></i>
+                      <span id="kycFileName" class="text-accent text-xs font-medium truncate"></span>
+                      <button onclick="clearKycFile()" class="ml-auto text-gray-500 hover:text-red-400 text-xs"><i class="fas fa-times"></i></button>
+                    </div>
+                  </div>
+                  <button onclick="submitKYC()" id="kycBtn" disabled class="w-full py-2.5 rounded-lg bg-blue-600/40 text-white/50 font-semibold cursor-not-allowed transition text-sm"><i class="fas fa-shield-check mr-2"></i>Upload document first</button>
+                </div>
+              </div>
+              <div id="kycVerifying" class="hidden text-center py-8">
+                <div class="w-20 h-20 rounded-full border-4 border-accent/30 border-t-accent animate-spin mx-auto mb-4"></div>
+                <p class="text-gray-800 font-semibold">Verifying Identity...</p>
+                <p class="text-gray-500 text-xs">Checking document &amp; liveness</p>
+              </div>
+              <div id="kycVerified" class="hidden text-center py-6">
+                <div id="kycResultIcon" class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"></div>
+                <p id="kycResultTitle" class="text-gray-800 font-semibold mb-1"></p>
+                <p id="kycScore" class="text-sm mb-2"></p>
+                <p id="kycDocInfo" class="text-gray-500 text-xs mb-3"></p>
+                <div id="kycDetails" class="text-left bg-gray-100 rounded-lg p-4 space-y-2 text-xs hidden">
+                  <div class="flex justify-between"><span class="text-gray-500">Document Detected</span><span id="kycDetDocType" class="text-gray-800"></span></div>
+                  <div class="flex justify-between"><span class="text-gray-500">Name on Document</span><span id="kycDetExtName" class="text-gray-800 font-mono"></span></div>
+                  <div class="flex justify-between"><span class="text-gray-500">Expected Name</span><span id="kycDetExpName" class="text-gray-800 font-mono"></span></div>
+                  <div class="flex justify-between"><span class="text-gray-500">Match Type</span><span id="kycDetMatchType" class="text-gray-800"></span></div>
+                  <hr class="border-gray-200">
+                  <div class="flex justify-between"><span class="text-gray-500">Doc Score</span><span id="kycDetDocScore" class="text-gray-800 font-mono"></span></div>
+                  <div class="flex justify-between"><span class="text-gray-500">Name Score</span><span id="kycDetNameScore" class="text-gray-800 font-mono"></span></div>
+                  <div class="flex justify-between font-semibold"><span class="text-gray-400">Total Score</span><span id="kycDetTotalScore" class="text-accent font-mono"></span></div>
+                </div>
+                <button id="kycRetryBtn" class="hidden mt-4 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition" onclick="resetKYC()"><i class="fas fa-redo mr-2"></i>Try Again</button>
+              </div>
+            </div>
+          </div>
+          <!-- Biometric & Auth -->
+          <div class="glass rounded-xl p-6">
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-fingerprint mr-2 text-purple-400"></i>Biometric Authentication</h3>
+            <div class="space-y-4">
+              <div class="flex items-center justify-between bg-gray-100 rounded-lg p-4">
+                <div class="flex items-center gap-3"><i class="fas fa-fingerprint text-xl text-purple-400"></i><div><p class="text-gray-800 text-sm font-medium">Fingerprint</p><p class="text-gray-500 text-xs">Touch ID / Fingerprint sensor</p></div></div>
+                <label class="relative inline-flex cursor-pointer"><input type="checkbox" id="bioFingerprint" class="sr-only peer" checked><div class="w-9 h-5 bg-gray-300 rounded-full peer peer-checked:bg-accent after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div></label>
+              </div>
+              <div class="flex items-center justify-between bg-gray-100 rounded-lg p-4">
+                <div class="flex items-center gap-3"><i class="fas fa-face-smile text-xl text-blue-400"></i><div><p class="text-gray-800 text-sm font-medium">Face ID</p><p class="text-gray-500 text-xs">Facial recognition login</p></div></div>
+                <label class="relative inline-flex cursor-pointer"><input type="checkbox" id="bioFaceID" class="sr-only peer"><div class="w-9 h-5 bg-gray-300 rounded-full peer peer-checked:bg-accent after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div></label>
+              </div>
+              <div class="flex items-center justify-between bg-gray-100 rounded-lg p-4">
+                <div class="flex items-center gap-3"><i class="fas fa-key text-xl text-yellow-400"></i><div><p class="text-gray-800 text-sm font-medium">PIN Code</p><p class="text-gray-500 text-xs">6-digit secure PIN</p></div></div>
+                <label class="relative inline-flex cursor-pointer"><input type="checkbox" id="bioPIN" class="sr-only peer" checked><div class="w-9 h-5 bg-gray-300 rounded-full peer peer-checked:bg-accent after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div></label>
+              </div>
+            </div>
+            <h3 class="text-sm font-semibold text-gray-800 mt-6 mb-4"><i class="fas fa-shield-halved mr-2 text-red-400"></i>Fraud Alerts</h3>
+            <div id="fraudAlertsList" class="space-y-2 max-h-64 overflow-y-auto"><p class="text-gray-600 text-sm text-center py-4">No fraud alerts</p></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+

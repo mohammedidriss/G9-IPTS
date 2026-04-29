@@ -1,0 +1,233 @@
+    <div id="tab-corridors" class="tab-content hidden fade-in">
+      <!-- Map/List toggle -->
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex gap-1 bg-gray-100 rounded-xl p-1">
+          <button id="corrViewMap"  onclick="toggleCorridorView('map')"  class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-white text-accent shadow-sm transition"><i class="fas fa-globe mr-1.5"></i>Map View</button>
+          <button id="corrViewList" onclick="toggleCorridorView('list')" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:text-gray-800 transition"><i class="fas fa-list mr-1.5"></i>List View</button>
+        </div>
+        <button onclick="showAddCorridorModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-accent text-white hover:bg-accent/90 transition shadow-sm"><i class="fas fa-plus mr-1.5"></i>Add Corridor</button>
+      </div>
+
+      <!-- MAP VIEW -->
+      <div id="corridorMapView" class="glass rounded-2xl p-5 mb-5">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-globe mr-2 text-accent"></i>Live Corridor Network Map</h3>
+            <p class="text-xs text-gray-400 mt-0.5">All corridors · hover nodes &amp; links for full details · drag to pan · scroll to zoom</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span id="corridorMapStats" class="text-xs text-gray-400"></span>
+            <button onclick="refreshCorridorMap()" class="px-3 py-1 rounded-lg text-xs font-semibold bg-accent/10 text-accent hover:bg-accent/20 transition"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+          <span class="text-xs font-semibold text-gray-500 mr-1">Filter:</span>
+          <button id="cmfAll"         onclick="corridorMapFilter('all')"         class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-accent text-white">All</button>
+          <button id="cmfActive"      onclick="corridorMapFilter('active')"      class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 hover:bg-gray-200">Active</button>
+          <button id="cmfInactive"    onclick="corridorMapFilter('inactive')"    class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 hover:bg-gray-200">Inactive</button>
+          <span class="mx-1 text-gray-200">|</span>
+          <button id="cmfRemittance"  onclick="corridorMapFilter('remittance')"  class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 hover:bg-gray-200">Remittance</button>
+          <button id="cmfTrade"       onclick="corridorMapFilter('trade')"       class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 hover:bg-gray-200">Trade</button>
+          <button id="cmfPayroll"     onclick="corridorMapFilter('payroll')"     class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 hover:bg-gray-200">Payroll</button>
+          <span class="flex-1"></span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400"><span class="w-6 h-0.5 bg-blue-400 inline-block rounded-full"></span>Active</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400"><span class="w-6 h-0.5 bg-gray-300 inline-block rounded-full"></span>Inactive</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400"><span class="w-3 h-3 rounded-full bg-green-400/30 border-2 border-green-400 inline-block"></span>Hub</span>
+        </div>
+        <div id="corridorTabMapContainer" style="width:100%;height:560px;border-radius:12px;overflow:hidden;position:relative;background:#060d1a;box-shadow:0 0 40px rgba(59,130,246,0.08),inset 0 0 60px rgba(0,0,0,0.4);"></div>
+        <div class="grid grid-cols-4 gap-3 mt-3">
+          <div class="bg-white/60 rounded-xl p-3 text-center border border-gray-100"><div class="text-lg font-bold text-accent" id="cmKpiTotal">—</div><div class="text-xs text-gray-500 mt-0.5">Total Corridors</div></div>
+          <div class="bg-white/60 rounded-xl p-3 text-center border border-gray-100"><div class="text-lg font-bold text-green-500" id="cmKpiActive">—</div><div class="text-xs text-gray-500 mt-0.5">Active</div></div>
+          <div class="bg-white/60 rounded-xl p-3 text-center border border-gray-100"><div class="text-lg font-bold text-blue-500" id="cmKpiCountries">—</div><div class="text-xs text-gray-500 mt-0.5">Countries</div></div>
+          <div class="bg-white/60 rounded-xl p-3 text-center border border-gray-100"><div class="text-lg font-bold text-purple-500" id="cmKpiCapacity">—</div><div class="text-xs text-gray-500 mt-0.5">Daily Capacity</div></div>
+        </div>
+      </div>
+
+      <!-- LIST VIEW -->
+      <div id="corridorTableView" class="hidden">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <span id="corridorCount" class="text-sm font-semibold text-gray-700"></span>
+            <div class="flex gap-1.5">
+              <button onclick="filterCorridors('all')"      id="cfAll"      class="px-3 py-1 rounded-lg text-xs font-semibold bg-accent text-white">All</button>
+              <button onclick="filterCorridors('active')"   id="cfActive"   class="px-3 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-500 hover:text-gray-800">Active</button>
+              <button onclick="filterCorridors('inactive')" id="cfInactive" class="px-3 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-500 hover:text-gray-800">Inactive</button>
+            </div>
+          </div>
+          <button onclick="loadCorridors()" class="text-xs text-accent hover:underline"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+        </div>
+        <div class="glass rounded-2xl overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead class="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Corridor</th>
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Route</th>
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Currencies</th>
+                  <th class="text-right px-4 py-3 font-semibold text-gray-600">Rate</th>
+                  <th class="text-right px-4 py-3 font-semibold text-gray-600">Fee</th>
+                  <th class="text-right px-4 py-3 font-semibold text-gray-600">Daily Limit</th>
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Purpose</th>
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Added</th>
+                  <th class="text-right px-4 py-3 font-semibold text-gray-600">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="corridorTableBody" class="divide-y divide-gray-50"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CORRIDOR APPROVAL PASSWORD MODAL -->
+    <div id="corridorApprovalModal" class="hidden fixed inset-0 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.55);z-index:9999;">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center" id="corridorApprovalIcon" style="background:#fef3c7;">
+            <i class="fas fa-lock text-yellow-500"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-gray-800" id="corridorApprovalTitle">Confirm Action</h3>
+            <p class="text-xs text-gray-400" id="corridorApprovalSubtitle">Enter approval password to proceed</p>
+          </div>
+        </div>
+        <div class="mb-4">
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Approval Password</label>
+          <input id="corridorApprovalPassword" type="password" placeholder="Enter password…"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            onkeydown="if(event.key==='Enter') confirmCorridorApproval()" />
+          <p id="corridorApprovalError" class="text-xs text-red-500 mt-1 hidden">Incorrect password. Please try again.</p>
+        </div>
+        <div class="flex gap-2 justify-end">
+          <button onclick="closeCorridorApprovalModal()" class="px-4 py-2 text-xs rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 font-semibold">Cancel</button>
+          <button onclick="confirmCorridorApproval()" id="corridorApprovalConfirmBtn" class="px-4 py-2 text-xs rounded-lg text-white font-semibold" style="background:#1a56db;">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CORRIDOR MODAL -->
+    <div id="corridorModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.4);">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between p-6 border-b border-gray-100">
+          <h3 class="text-sm font-bold text-gray-800" id="corridorModalTitle"><i class="fas fa-route mr-2 text-accent"></i>Add New Corridor</h3>
+          <button onclick="closeCorridorModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+        </div>
+        <form id="corridorForm" onsubmit="submitCorridorForm(event)" class="p-6 space-y-4">
+          <input type="hidden" id="corridorEditId">
+          <div id="corridorPreview" class="hidden bg-accent/5 border border-accent/20 rounded-xl px-4 py-2.5 text-sm font-semibold text-accent" id="corridorPreviewText"></div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Source Country</label>
+              <select id="corridorSourceCountry" class="w-full px-3 py-2 rounded-lg text-sm border border-gray-200 focus:border-accent" onchange="onCorridorCountryChange()" required>
+                <option value="">Select source…</option>
+                <option value="India|🇮🇳|INR">🇮🇳 India</option>
+                <option value="Saudi Arabia|🇸🇦|SAR">🇸🇦 Saudi Arabia</option>
+                <option value="United Arab Emirates|🇦🇪|AED">🇦🇪 UAE</option>
+                <option value="United Kingdom|🇬🇧|GBP">🇬🇧 United Kingdom</option>
+                <option value="United States|🇺🇸|USD">🇺🇸 United States</option>
+                <option value="Philippines|🇵🇭|PHP">🇵🇭 Philippines</option>
+                <option value="Pakistan|🇵🇰|PKR">🇵🇰 Pakistan</option>
+                <option value="Bangladesh|🇧🇩|BDT">🇧🇩 Bangladesh</option>
+                <option value="Nepal|🇳🇵|NPR">🇳🇵 Nepal</option>
+                <option value="Indonesia|🇮🇩|IDR">🇮🇩 Indonesia</option>
+                <option value="China|🇨🇳|CNY">🇨🇳 China</option>
+                <option value="Japan|🇯🇵|JPY">🇯🇵 Japan</option>
+                <option value="South Korea|🇰🇷|KRW">🇰🇷 South Korea</option>
+                <option value="Singapore|🇸🇬|SGD">🇸🇬 Singapore</option>
+                <option value="Malaysia|🇲🇾|MYR">🇲🇾 Malaysia</option>
+                <option value="Germany|🇩🇪|EUR">🇩🇪 Germany</option>
+                <option value="France|🇫🇷|EUR">🇫🇷 France</option>
+                <option value="Nigeria|🇳🇬|NGN">🇳🇬 Nigeria</option>
+                <option value="Kenya|🇰🇪|KES">🇰🇪 Kenya</option>
+                <option value="Ghana|🇬🇭|GHS">🇬🇭 Ghana</option>
+                <option value="Egypt|🇪🇬|EGP">🇪🇬 Egypt</option>
+                <option value="Mexico|🇲🇽|MXN">🇲🇽 Mexico</option>
+                <option value="Brazil|🇧🇷|BRL">🇧🇷 Brazil</option>
+                <option value="Canada|🇨🇦|CAD">🇨🇦 Canada</option>
+                <option value="Australia|🇦🇺|AUD">🇦🇺 Australia</option>
+                <option value="Qatar|🇶🇦|QAR">🇶🇦 Qatar</option>
+                <option value="Lebanon|🇱🇧|LBP">🇱🇧 Lebanon</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Destination Country</label>
+              <select id="corridorDestCountry" class="w-full px-3 py-2 rounded-lg text-sm border border-gray-200 focus:border-accent" onchange="onCorridorCountryChange()" required>
+                <option value="">Select destination…</option>
+                <option value="India|🇮🇳|INR">🇮🇳 India</option>
+                <option value="Saudi Arabia|🇸🇦|SAR">🇸🇦 Saudi Arabia</option>
+                <option value="United Arab Emirates|🇦🇪|AED">🇦🇪 UAE</option>
+                <option value="United Kingdom|🇬🇧|GBP">🇬🇧 United Kingdom</option>
+                <option value="United States|🇺🇸|USD">🇺🇸 United States</option>
+                <option value="Philippines|🇵🇭|PHP">🇵🇭 Philippines</option>
+                <option value="Pakistan|🇵🇰|PKR">🇵🇰 Pakistan</option>
+                <option value="Bangladesh|🇧🇩|BDT">🇧🇩 Bangladesh</option>
+                <option value="Nepal|🇳🇵|NPR">🇳🇵 Nepal</option>
+                <option value="Indonesia|🇮🇩|IDR">🇮🇩 Indonesia</option>
+                <option value="China|🇨🇳|CNY">🇨🇳 China</option>
+                <option value="Japan|🇯🇵|JPY">🇯🇵 Japan</option>
+                <option value="South Korea|🇰🇷|KRW">🇰🇷 South Korea</option>
+                <option value="Singapore|🇸🇬|SGD">🇸🇬 Singapore</option>
+                <option value="Malaysia|🇲🇾|MYR">🇲🇾 Malaysia</option>
+                <option value="Germany|🇩🇪|EUR">🇩🇪 Germany</option>
+                <option value="France|🇫🇷|EUR">🇫🇷 France</option>
+                <option value="Nigeria|🇳🇬|NGN">🇳🇬 Nigeria</option>
+                <option value="Kenya|🇰🇪|KES">🇰🇪 Kenya</option>
+                <option value="Ghana|🇬🇭|GHS">🇬🇭 Ghana</option>
+                <option value="Egypt|🇪🇬|EGP">🇪🇬 Egypt</option>
+                <option value="Mexico|🇲🇽|MXN">🇲🇽 Mexico</option>
+                <option value="Brazil|🇧🇷|BRL">🇧🇷 Brazil</option>
+                <option value="Canada|🇨🇦|CAD">🇨🇦 Canada</option>
+                <option value="Australia|🇦🇺|AUD">🇦🇺 Australia</option>
+                <option value="Qatar|🇶🇦|QAR">🇶🇦 Qatar</option>
+                <option value="Lebanon|🇱🇧|LBP">🇱🇧 Lebanon</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Corridor Name</label>
+            <input id="corridorName" type="text" class="w-full px-3 py-2 rounded-lg text-sm border border-gray-200 focus:border-accent" placeholder="Auto-filled from countries" oninput="this.dataset.autoFilled='0'" required>
+          </div>
+          <div class="grid grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Exchange Rate <span id="corridorRatePair" class="font-normal text-gray-400"></span></label>
+              <div class="flex gap-2">
+                <input id="corridorExchangeRate" type="number" step="0.0001" min="0" class="flex-1 px-3 py-2 rounded-lg text-sm border border-gray-200 focus:border-accent" placeholder="1.0000" required>
+                <button type="button" id="fetchRateBtn" onclick="fetchLiveRate()" disabled class="px-3 py-2 rounded-lg text-xs font-semibold bg-green-50 text-green-600 hover:bg-green-100 disabled:opacity-40 transition whitespace-nowrap">⚡ Live</button>
+              </div>
+              <p id="corridorRateSource" class="text-xs text-gray-400 mt-1 hidden"></p>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Fee %</label>
+              <input id="corridorFee" type="number" step="0.01" min="0" max="10" class="w-full px-3 py-2 rounded-lg text-sm border border-gray-200 focus:border-accent" placeholder="0.50" required>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Purpose</label>
+              <select id="corridorPurpose" class="w-full px-3 py-2 rounded-lg text-sm border border-gray-200 focus:border-accent">
+                <option>Labor Remittance</option><option>Family Remittance</option><option>Trade Settlement</option>
+                <option>Education Payments</option><option>Investment Transfer</option><option>Business Payment</option><option>General Transfer</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-4">
+            <div><label class="block text-xs font-semibold text-gray-600 mb-1">Min Amount (USD)</label><input id="corridorMinAmount" type="number" min="0" class="w-full px-3 py-2 rounded-lg text-sm border border-gray-200 focus:border-accent" placeholder="100" required></div>
+            <div><label class="block text-xs font-semibold text-gray-600 mb-1">Max Amount (USD)</label><input id="corridorMaxAmount" type="number" min="0" class="w-full px-3 py-2 rounded-lg text-sm border border-gray-200 focus:border-accent" placeholder="50000" required></div>
+            <div><label class="block text-xs font-semibold text-gray-600 mb-1">Daily Limit (USD)</label><input id="corridorDailyLimit" type="number" min="0" class="w-full px-3 py-2 rounded-lg text-sm border border-gray-200 focus:border-accent" placeholder="200000"></div>
+          </div>
+          <div class="border-t border-gray-100 pt-4">
+            <label class="block text-xs font-semibold text-gray-600 mb-2">Node Allocation</label>
+            <div class="grid grid-cols-4 gap-3">
+              <div><label class="text-xs text-purple-600 font-semibold mb-1 block">Validators</label><input id="corridorNodeValidators" type="number" min="1" max="20" class="w-full px-3 py-2 rounded-lg text-sm border border-gray-200 focus:border-accent" value="3" oninput="updateNodeTotal()"></div>
+              <div><label class="text-xs text-blue-600 font-semibold mb-1 block">Full Nodes</label><input id="corridorNodeFull" type="number" min="1" max="20" class="w-full px-3 py-2 rounded-lg text-sm border border-gray-200 focus:border-accent" value="4" oninput="updateNodeTotal()"></div>
+              <div><label class="text-xs text-green-600 font-semibold mb-1 block">Relay Nodes</label><input id="corridorNodeRelay" type="number" min="0" max="20" class="w-full px-3 py-2 rounded-lg text-sm border border-gray-200 focus:border-accent" value="2" oninput="updateNodeTotal()"></div>
+              <div><label class="text-xs text-amber-600 font-semibold mb-1 block">Light Nodes</label><input id="corridorNodeLight" type="number" min="0" max="20" class="w-full px-3 py-2 rounded-lg text-sm border border-gray-200 focus:border-accent" value="2" oninput="updateNodeTotal()"></div>
+            </div>
+            <div class="mt-2 text-xs text-gray-500">Total: <b id="corridorNodeTotal">11</b> nodes · Est. cost: $<span id="corridorNodeCost">2,200</span>/mo</div>
+          </div>
+          <div class="flex gap-3 pt-2">
+            <button type="button" onclick="closeCorridorModal()" class="flex-1 px-4 py-2 rounded-xl text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+            <button type="submit" class="flex-1 px-4 py-2 rounded-xl text-sm font-semibold bg-accent text-white hover:bg-accent/90 transition">Save Corridor</button>
+          </div>
+        </form>
+      </div>
+    </div>

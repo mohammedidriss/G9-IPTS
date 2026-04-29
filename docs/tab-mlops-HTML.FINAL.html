@@ -1,0 +1,117 @@
+    <!-- MLOPS TAB (admin only) -->
+    <div id="tab-mlops" class="tab-content hidden fade-in">
+      <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">MLOps Center</h2>
+        <p class="text-gray-500 text-sm mt-1">Monitor model performance and selectively retrain AI models</p>
+      </div>
+
+      <!-- Model Performance Header -->
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-gauge-high mr-2 text-accent"></i>Model Performance</h3>
+        <button onclick="refreshMLOpsMetrics()" id="mlops-metrics-refresh-btn"
+          class="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition">
+          <i class="fas fa-rotate-right"></i> Refresh
+        </button>
+      </div>
+
+      <!-- Model Cards Grid -->
+      <div id="mlops-model-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Retrain Panel -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-sync-alt mr-2 text-accent"></i>Selective Retraining</h3>
+          <div class="flex gap-2">
+            <button onclick="mlopsSelectAll(true)" class="text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition">Select All</button>
+            <button onclick="mlopsSelectAll(false)" class="text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition">Deselect All</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-5" id="mlops-model-checkboxes">
+          <label class="flex items-center gap-2 glass rounded-lg p-3 cursor-pointer hover:border-accent border border-transparent transition">
+            <input type="checkbox" value="isolation_forest" class="mlops-chk accent-purple-500 w-4 h-4" checked>
+            <div><div class="text-sm font-medium text-gray-800">Isolation Forest</div><div class="text-xs text-gray-500">Anomaly detection</div></div>
+          </label>
+          <label class="flex items-center gap-2 glass rounded-lg p-3 cursor-pointer hover:border-accent border border-transparent transition">
+            <input type="checkbox" value="random_forest" class="mlops-chk accent-purple-500 w-4 h-4" checked>
+            <div><div class="text-sm font-medium text-gray-800">Random Forest</div><div class="text-xs text-gray-500">Classification</div></div>
+          </label>
+          <label class="flex items-center gap-2 glass rounded-lg p-3 cursor-pointer hover:border-accent border border-transparent transition">
+            <input type="checkbox" value="xgboost" class="mlops-chk accent-purple-500 w-4 h-4" checked>
+            <div><div class="text-sm font-medium text-gray-800">XGBoost</div><div class="text-xs text-gray-500">Gradient boosting</div></div>
+          </label>
+          <label class="flex items-center gap-2 glass rounded-lg p-3 cursor-pointer hover:border-accent border border-transparent transition">
+            <input type="checkbox" value="autoencoder" class="mlops-chk accent-purple-500 w-4 h-4" checked>
+            <div><div class="text-sm font-medium text-gray-800">Autoencoder</div><div class="text-xs text-gray-500">Neural network</div></div>
+          </label>
+          <label class="flex items-center gap-2 glass rounded-lg p-3 cursor-pointer hover:border-accent border border-transparent transition">
+            <input type="checkbox" value="sequence_detector" class="mlops-chk accent-purple-500 w-4 h-4" checked>
+            <div><div class="text-sm font-medium text-gray-800">Sequence Detector</div><div class="text-xs text-gray-500">Temporal patterns</div></div>
+          </label>
+        </div>
+        <button onclick="retrainSelected()" id="mlops-retrain-btn"
+          class="btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2">
+          <i class="fas fa-play"></i> Retrain Selected
+        </button>
+      </div>
+
+      <!-- Training Log -->
+      <div id="mlops-log-wrap" class="glass rounded-xl p-5 mb-6 hidden">
+        <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-terminal mr-2 text-accent"></i>Training Log</h3>
+        <div id="mlops-log" class="font-mono text-xs text-green-400 bg-black/40 rounded-lg p-4 max-h-48 overflow-y-auto space-y-1"></div>
+      </div>
+
+      <!-- Per-Model Charts -->
+      <div class="glass rounded-xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-chart-bar mr-2 text-accent"></i>Model Interpretability Charts</h3>
+          <button onclick="refreshMLOpsCharts()" id="mlops-charts-refresh-btn"
+            class="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition">
+            <i class="fas fa-rotate-right"></i> Refresh
+          </button>
+        </div>
+
+        <!-- Model tabs -->
+        <div class="flex flex-wrap gap-2 mb-5" id="mlops-chart-tabs">
+          <button onclick="switchMLOpsChart('random_forest')" data-chart="random_forest"
+            class="mlops-chart-tab px-3 py-1.5 text-xs font-medium rounded-lg bg-accent text-white transition">
+            <i class="fas fa-trees mr-1"></i>Random Forest
+          </button>
+          <button onclick="switchMLOpsChart('xgboost')" data-chart="xgboost"
+            class="mlops-chart-tab px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+            <i class="fas fa-rocket mr-1"></i>XGBoost
+          </button>
+          <button onclick="switchMLOpsChart('isolation_forest')" data-chart="isolation_forest"
+            class="mlops-chart-tab px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+            <i class="fas fa-tree mr-1"></i>Isolation Forest
+          </button>
+          <button onclick="switchMLOpsChart('autoencoder')" data-chart="autoencoder"
+            class="mlops-chart-tab px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+            <i class="fas fa-network-wired mr-1"></i>Autoencoder
+          </button>
+          <button onclick="switchMLOpsChart('sequence_detector')" data-chart="sequence_detector"
+            class="mlops-chart-tab px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+            <i class="fas fa-wave-square mr-1"></i>Sequence Detector
+          </button>
+        </div>
+
+        <!-- Chart subtitle -->
+        <p id="mlops-chart-label" class="text-xs text-gray-500 mb-4">Feature Importance (MDI)</p>
+
+        <!-- Bar chart area -->
+        <div id="mlops-feature-chart" class="space-y-2">
+          <p class="text-gray-500 text-sm">Loading…</p>
+        </div>
+      </div>
+
+      <!-- Feature Importance (from AI models) -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-chart-bar mr-2 text-accent"></i>Global Feature Importance</h3>
+          <span class="text-xs text-gray-400">Ensemble model — mean |SHAP| across all transactions</span>
+        </div>
+        <canvas id="featureChart" height="200"></canvas>
+      </div>
+    </div>
+

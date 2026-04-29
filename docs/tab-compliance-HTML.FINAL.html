@@ -1,0 +1,191 @@
+    <!-- COMPLIANCE TAB -->
+    <div id="tab-compliance" class="tab-content hidden fade-in">
+      <!-- Sanctions Management -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-gavel mr-2 text-red-400"></i>Sanctions List Management</h3>
+        <div class="flex gap-3 mb-4">
+          <input id="sanctionName" type="text" class="flex-1 px-3 py-2 rounded-lg text-sm" placeholder="Entity name">
+          <select id="sanctionType" class="px-3 py-2 rounded-lg text-sm">
+            <option value="individual">Individual</option>
+            <option value="organization">Organization</option>
+            <option value="vessel">Vessel</option>
+          </select>
+          <button onclick="addSanction()" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-500 transition">
+            <i class="fas fa-plus mr-1"></i>Add
+          </button>
+        </div>
+        <div class="overflow-x-auto max-h-48 overflow-y-auto">
+          <table class="w-full text-xs">
+            <thead class="sticky top-0 bg-white">
+              <tr class="text-gray-500 border-b border-gray-200">
+                <th class="text-left py-2 px-2">Entity Name</th>
+                <th class="text-left py-2 px-2">Type</th>
+                <th class="text-left py-2 px-2">Added By</th>
+                <th class="text-left py-2 px-2">Date</th>
+              </tr>
+            </thead>
+            <tbody id="sanctionsBody">
+              <tr><td colspan="4" class="text-center py-4 text-gray-600">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+
+      <!-- Nostro Balances -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-dollar-sign mr-2 text-blue-400"></i>Nostro Balances (USD)</h3>
+        <div id="nostroBalances" class="space-y-2">
+          <p class="text-gray-500 text-sm">Loading...</p>
+        </div>
+      </div>
+
+      <!-- 1. Regulatory Reporting Calendar -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-calendar-check mr-2 text-indigo-400"></i>Regulatory Reporting Calendar</h3>
+          <button onclick="loadRegCalendar()" class="text-xs text-accent hover:underline"><i class="fas fa-rotate-right mr-1"></i>Refresh</button>
+        </div>
+        <div id="regCalendarGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+      </div>
+
+      <!-- 2. AML Transaction Monitoring Rules -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-shield-halved mr-2 text-red-400"></i>AML Transaction Monitoring Rules</h3>
+          <span id="amlRulesSummary" class="text-xs text-gray-400"></span>
+        </div>
+        <div id="amlRulesList" class="space-y-2"></div>
+      </div>
+
+      <!-- 3. Correspondent Bank Registry -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-building-columns mr-2 text-blue-400"></i>Correspondent Bank Registry</h3>
+          <span id="corrBankSummary" class="text-xs text-gray-400"></span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-gray-500 border-b border-gray-200">
+                <th class="text-left py-2 px-3">Bank</th>
+                <th class="text-left py-2 px-3">Country</th>
+                <th class="text-left py-2 px-3">Risk Tier</th>
+                <th class="text-left py-2 px-3">Due Diligence</th>
+                <th class="text-left py-2 px-3">Last Review</th>
+                <th class="text-left py-2 px-3">Next Review</th>
+                <th class="text-center py-2 px-3">Status</th>
+              </tr>
+            </thead>
+            <tbody id="corrBankBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 4. Watchlist Screening Results -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-binoculars mr-2 text-orange-400"></i>Watchlist Screening Results</h3>
+          <div class="flex gap-2 items-center">
+            <select id="wlScreenFilter" onchange="renderWatchlistScreening()" class="px-2 py-1 text-xs rounded-lg border border-gray-200">
+              <option value="all">All Results</option>
+              <option value="pending">Pending Review</option>
+              <option value="matched">Matched</option>
+              <option value="cleared">Cleared</option>
+            </select>
+          </div>
+        </div>
+        <div id="watchlistScreeningList" class="space-y-2 max-h-72 overflow-y-auto"></div>
+      </div>
+
+      <!-- 5. Travel Rule Compliance -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-route mr-2 text-teal-400"></i>Travel Rule Compliance (FATF)</h3>
+          <span id="travelRuleSummary" class="text-xs text-gray-400"></span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-gray-500 border-b border-gray-200">
+                <th class="text-left py-2 px-3">Transaction ID</th>
+                <th class="text-right py-2 px-3">Amount</th>
+                <th class="text-left py-2 px-3">Originator Info</th>
+                <th class="text-left py-2 px-3">Beneficiary Info</th>
+                <th class="text-center py-2 px-3">Status</th>
+              </tr>
+            </thead>
+            <tbody id="travelRuleBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 6. Currency Transaction Reports (CTR) -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-file-invoice-dollar mr-2 text-green-400"></i>Currency Transaction Reports (CTR)</h3>
+          <span id="ctrSummary" class="text-xs text-gray-400"></span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-gray-500 border-b border-gray-200">
+                <th class="text-left py-2 px-3">CTR ID</th>
+                <th class="text-left py-2 px-3">Entity</th>
+                <th class="text-right py-2 px-3">Amount</th>
+                <th class="text-left py-2 px-3">Date</th>
+                <th class="text-center py-2 px-3">Filing Status</th>
+                <th class="text-center py-2 px-3">Action</th>
+              </tr>
+            </thead>
+            <tbody id="ctrBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 7. Beneficial Ownership Registry -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-sitemap mr-2 text-purple-400"></i>Beneficial Ownership Registry (UBO)</h3>
+          <span id="uboSummary" class="text-xs text-gray-400"></span>
+        </div>
+        <div id="uboList" class="space-y-2"></div>
+      </div>
+
+      <!-- 8. Policy & Procedure Library -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-book-open mr-2 text-yellow-500"></i>Policy &amp; Procedure Library</h3>
+        <div id="policyLibrary" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      </div>
+
+      <!-- 9. Risk Appetite Dashboard -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-gauge-high mr-2 text-red-400"></i>Risk Appetite Dashboard</h3>
+        <div id="riskAppetiteGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+      </div>
+
+      <!-- 10. Third-Party Due Diligence Tracker -->
+      <div class="glass rounded-xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-handshake mr-2 text-cyan-400"></i>Third-Party Due Diligence Tracker</h3>
+          <span id="tpddSummary" class="text-xs text-gray-400"></span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-gray-500 border-b border-gray-200">
+                <th class="text-left py-2 px-3">Vendor / Partner</th>
+                <th class="text-left py-2 px-3">Category</th>
+                <th class="text-left py-2 px-3">KYB Status</th>
+                <th class="text-center py-2 px-3">Risk Score</th>
+                <th class="text-left py-2 px-3">Contract Expiry</th>
+                <th class="text-left py-2 px-3">Last Review</th>
+                <th class="text-center py-2 px-3">Action</th>
+              </tr>
+            </thead>
+            <tbody id="tpddBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
