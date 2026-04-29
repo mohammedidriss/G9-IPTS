@@ -262,7 +262,6 @@ async function loadSystemStats() {
   } catch (e) { console.error(e); }
 }
 
-let _balanceAdjustTarget = '';
 async function loadAdminUsers() {
   try {
     const d = await apiFetch('/api/admin/users');
@@ -272,25 +271,31 @@ async function loadAdminUsers() {
       const roleClass = ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600';
       const roleOpts = VALID_ROLES.map(r => `<option value="${r}"${r===u.role?' selected':''}>${r}</option>`).join('');
       const isMe = u.username === USER;
-      return `<tr class="border-b border-gray-100 hover:bg-gray-50">
+      const isAdmin = u.username === 'mohamad';
+      const locked = u.locked;
+      const statusBadge = locked
+        ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700"><i class="fas fa-lock mr-1"></i>Locked</span>`
+        : `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"><i class="fas fa-lock-open mr-1"></i>Active</span>`;
+      const lockBtn = isAdmin || isMe ? '' : locked
+        ? `<button onclick="toggleUserLock('${u.username}','unlock')" class="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 transition"><i class="fas fa-lock-open mr-1"></i>Unlock</button>`
+        : `<button onclick="toggleUserLock('${u.username}','lock')" class="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 transition"><i class="fas fa-lock mr-1"></i>Lock</button>`;
+      return `<tr class="border-b border-gray-100 hover:bg-gray-50 ${locked ? 'opacity-60' : ''}">
         <td class="py-2 px-2">
           <p class="font-semibold text-gray-800">${u.full_name}</p>
           <p class="text-gray-400">@${u.username}</p>
         </td>
         <td class="py-2 px-2">
-          ${isMe
+          ${isMe || isAdmin
             ? `<span class="badge text-xs px-2 py-0.5 rounded-full ${roleClass}">${u.role}</span>`
             : `<select onchange="changeUserRole('${u.username}',this.value)" class="text-xs border border-gray-200 rounded px-2 py-1 ${roleClass}">
                 ${roleOpts}
                </select>`
           }
         </td>
-        <td class="py-2 px-2 text-right font-mono">$${Number(u.balance).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+        <td class="py-2 px-2 text-center">${isAdmin ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700"><i class="fas fa-shield-halved mr-1"></i>Protected</span>` : statusBadge}</td>
         <td class="py-2 px-2 text-right">${u.tx_count}</td>
         <td class="py-2 px-2 text-right">${u.card_count}</td>
-        <td class="py-2 px-2 text-center">
-          <button onclick="openBalanceAdjust('${u.username}')" class="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 transition"><i class="fas fa-coins mr-1"></i>Adjust</button>
-        </td>
+        <td class="py-2 px-2 text-center">${lockBtn}</td>
       </tr>`;
     }).join('');
   } catch (e) { console.error(e); }
@@ -299,34 +304,20 @@ async function loadAdminUsers() {
 async function changeUserRole(username, newRole) {
   try {
     await apiFetch(`/api/admin/users/${username}/role`, { method: 'POST', body: JSON.stringify({ role: newRole }) });
-    alert(`✔ ${username}'s role updated to ${newRole}`);
+    showToast(`✔ ${username}'s role updated to ${newRole}`, 'success');
     loadAdminUsers();
-  } catch (e) { alert(e.message || 'Failed to update role'); loadAdminUsers(); }
+  } catch (e) { showToast(e.message || 'Failed to update role', 'error'); loadAdminUsers(); }
 }
 
-function openBalanceAdjust(username) {
-  _balanceAdjustTarget = username;
-  document.getElementById('balanceAdjustUser').textContent = '@' + username;
-  document.getElementById('balanceAdjustAmount').value = '';
-  document.getElementById('balanceAdjustMsg').classList.add('hidden');
-  document.getElementById('balanceAdjustPanel').classList.remove('hidden');
-}
-
-async function submitBalanceAdjust() {
-  const amount = parseFloat(document.getElementById('balanceAdjustAmount').value);
-  const action = document.getElementById('balanceAdjustAction').value;
-  const msg = document.getElementById('balanceAdjustMsg');
-  if (!amount || amount <= 0) { msg.className='text-xs mt-2 rounded px-2 py-1 bg-red-100 text-red-600'; msg.textContent='Enter a valid amount'; msg.classList.remove('hidden'); return; }
+async function toggleUserLock(username, action) {
+  if (username === 'mohamad') { showToast('The admin account cannot be locked.', 'error'); return; }
+  const confirm = window.confirm(`${action === 'lock' ? 'Lock' : 'Unlock'} account @${username}?`);
+  if (!confirm) return;
   try {
-    const d = await apiFetch(`/api/admin/users/${_balanceAdjustTarget}/balance`, { method: 'POST', body: JSON.stringify({ amount, action }) });
-    msg.className='text-xs mt-2 rounded px-2 py-1 bg-green-100 text-green-700';
-    msg.textContent = `✔ ${d.message} · New balance: $${Number(d.new_balance).toLocaleString()}`;
-    msg.classList.remove('hidden');
+    await apiFetch(`/api/admin/users/${username}/${action}`, { method: 'POST' });
+    showToast(`✔ @${username} has been ${action === 'lock' ? 'locked' : 'unlocked'}.`, 'success');
     loadAdminUsers();
-    setTimeout(() => document.getElementById('balanceAdjustPanel').classList.add('hidden'), 2000);
   } catch (e) {
-    msg.className='text-xs mt-2 rounded px-2 py-1 bg-red-100 text-red-600';
-    msg.textContent = '✘ ' + (e.message || 'Failed');
-    msg.classList.remove('hidden');
+    showToast('✘ ' + (e.message || `Failed to ${action} user`), 'error');
   }
 }

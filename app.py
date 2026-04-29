@@ -303,6 +303,12 @@ def close_db(exception):
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    # Migrate: add locked column to user_accounts if missing
+    try:
+        c.execute("ALTER TABLE user_accounts ADD COLUMN locked INTEGER DEFAULT 0")
+        conn.commit()
+    except Exception:
+        pass  # column already exists
     c.execute("""CREATE TABLE IF NOT EXISTS pii_vault (
         id TEXT PRIMARY KEY,
         data_hash TEXT NOT NULL,
@@ -1100,6 +1106,14 @@ def login():
     if not user or user["password"] != password:
         log_audit("login_failed", username, {"reason": "invalid credentials"}, request.remote_addr)
         return jsonify({"error": "Invalid credentials"}), 401
+
+    # Check if account is locked
+    conn = sqlite3.connect(DB_PATH)
+    locked_row = conn.execute("SELECT locked FROM user_accounts WHERE username=?", (username,)).fetchone()
+    conn.close()
+    if locked_row and locked_row[0]:
+        log_audit("login_blocked", username, {"reason": "account locked"}, request.remote_addr)
+        return jsonify({"error": "Account is locked. Contact your administrator."}), 403
 
     token = generate_token(username, user["role"])
     log_audit("login_success", username, {"role": user["role"]}, request.remote_addr)
@@ -4606,20 +4620,21 @@ def admin_list_users():
         return jsonify({"error": "Forbidden"}), 403
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    rows = c.execute("SELECT username, full_name, balance, currency FROM user_accounts").fetchall()
+    rows = c.execute("SELECT username, full_name, balance, currency, COALESCE(locked,0) FROM user_accounts").fetchall()
     users = []
     for row in rows:
-        username = row[0]
-        role_info = USERS.get(username, {})
-        tx_count = c.execute("SELECT COUNT(*) FROM settlements WHERE sender_username=? OR receiver_username=?", (username, username)).fetchone()[0]
-        card_count = c.execute("SELECT COUNT(*) FROM virtual_cards WHERE username=?", (username,)).fetchone()[0]
+        uname = row[0]
+        role_info = USERS.get(uname, {})
+        tx_count = c.execute("SELECT COUNT(*) FROM settlements WHERE sender_username=? OR receiver_username=?", (uname, uname)).fetchone()[0]
+        card_count = c.execute("SELECT COUNT(*) FROM virtual_cards WHERE username=?", (uname,)).fetchone()[0]
         users.append({
-            "username": username,
+            "username": uname,
             "full_name": row[1],
             "role": role_info.get("role", "client"),
             "balance": row[2],
             "currency": row[3] or "USD",
-            "status": "active",
+            "locked": bool(row[4]),
+            "status": "locked" if row[4] else "active",
             "mfa_enabled": True,
             "tx_count": tx_count,
             "card_count": card_count,
@@ -4643,6 +4658,46 @@ def admin_update_role(username):
         USERS[username]["role"] = new_role
     log_audit("admin_role_change", request.user.get("sub"), {"target": username, "new_role": new_role}, request.remote_addr)
     return jsonify({"status": "updated", "username": username, "new_role": new_role})
+
+@app.route("/api/admin/users/<username>/lock", methods=["POST"])
+@zero_trust_required
+def admin_lock_user(username):
+    """Lock a user account (admin only). The 'mohamad' admin account cannot be locked."""
+    caller_role = request.user.get("role", "")
+    if caller_role != "admin":
+        return jsonify({"error": "Forbidden"}), 403
+    if username == "mohamad":
+        return jsonify({"error": "The admin account cannot be locked."}), 400
+    conn = sqlite3.connect(DB_PATH)
+    row = conn.execute("SELECT username FROM user_accounts WHERE username=?", (username,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+    conn.execute("UPDATE user_accounts SET locked=1 WHERE username=?", (username,))
+    conn.commit()
+    conn.close()
+    log_audit("admin_lock_user", request.user.get("sub"), {"target": username}, request.remote_addr)
+    return jsonify({"status": "locked", "username": username})
+
+@app.route("/api/admin/users/<username>/unlock", methods=["POST"])
+@zero_trust_required
+def admin_unlock_user(username):
+    """Unlock a user account (admin only)."""
+    caller_role = request.user.get("role", "")
+    if caller_role != "admin":
+        return jsonify({"error": "Forbidden"}), 403
+    if username == "mohamad":
+        return jsonify({"error": "The admin account cannot be modified."}), 400
+    conn = sqlite3.connect(DB_PATH)
+    row = conn.execute("SELECT username FROM user_accounts WHERE username=?", (username,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+    conn.execute("UPDATE user_accounts SET locked=0 WHERE username=?", (username,))
+    conn.commit()
+    conn.close()
+    log_audit("admin_unlock_user", request.user.get("sub"), {"target": username}, request.remote_addr)
+    return jsonify({"status": "unlocked", "username": username})
 
 @app.route("/api/admin/users/<username>/balance", methods=["POST"])
 @zero_trust_required
