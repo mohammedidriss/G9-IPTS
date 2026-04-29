@@ -2818,12 +2818,44 @@ tailwind.config = {
 
 <!-- Case Detail Modal -->
 <div id="caseModal" class="modal-overlay hidden" onclick="if(event.target===this)closeCaseModal()">
-  <div class="modal-content fade-in">
-    <div class="flex justify-between items-center mb-6">
-      <h2 id="caseModalTitle" class="text-lg font-bold text-gray-800">Case Details</h2>
-      <button onclick="closeCaseModal()" class="text-gray-500 hover:text-gray-800"><i class="fas fa-times text-lg"></i></button>
+  <div class="modal-content fade-in max-w-2xl w-full">
+    <!-- Header -->
+    <div class="flex justify-between items-start mb-2">
+      <div>
+        <h2 id="caseModalTitle" class="text-lg font-bold text-gray-800">Case Details</h2>
+        <p id="caseModalSubtitle" class="text-xs text-gray-400 mt-0.5"></p>
+      </div>
+      <button onclick="closeCaseModal()" class="text-gray-500 hover:text-gray-800 mt-1"><i class="fas fa-times text-lg"></i></button>
     </div>
-    <div id="caseModalBody" class="space-y-4"></div>
+    <!-- Tabs -->
+    <div class="flex border-b border-gray-200 mb-4 -mx-1">
+      <button id="caseTabDetails"  onclick="switchCaseTab('details')"  class="case-tab-btn px-4 py-2.5 text-xs font-semibold text-accent border-b-2 border-accent bg-white -mb-px transition"><i class="fas fa-info-circle mr-1"></i>Details</button>
+      <button id="caseTabActions"  onclick="switchCaseTab('actions')"  class="case-tab-btn px-4 py-2.5 text-xs font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-700 -mb-px transition"><i class="fas fa-bolt mr-1"></i>Actions</button>
+      <button id="caseTabTimeline" onclick="switchCaseTab('timeline')" class="case-tab-btn px-4 py-2.5 text-xs font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-700 -mb-px transition"><i class="fas fa-timeline mr-1"></i>Timeline</button>
+      <button id="caseTabNotes"    onclick="switchCaseTab('notes')"    class="case-tab-btn px-4 py-2.5 text-xs font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-700 -mb-px transition"><i class="fas fa-comment mr-1"></i>Notes</button>
+      <button id="caseTabLinks"    onclick="switchCaseTab('links')"    class="case-tab-btn px-4 py-2.5 text-xs font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-700 -mb-px transition"><i class="fas fa-link mr-1"></i>Links</button>
+    </div>
+    <!-- Scrollable pane -->
+    <div id="caseModalScroll" class="overflow-y-auto max-h-[70vh] space-y-3 pr-1">
+      <div id="caseModalDetails"  class="space-y-3"></div>
+      <div id="caseModalActions"  class="hidden space-y-3"></div>
+      <div id="caseModalTimeline" class="hidden"></div>
+      <div id="caseModalNotes"    class="hidden"></div>
+      <div id="caseModalLinks"    class="hidden"></div>
+    </div>
+  </div>
+</div>
+
+<!-- AML Transaction Detail Modal -->
+<div id="amlTxModal" class="modal-overlay hidden" onclick="if(event.target===this)document.getElementById('amlTxModal').classList.add('hidden')">
+  <div class="modal-content fade-in max-w-lg w-full">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-base font-bold text-gray-800"><i class="fas fa-magnifying-glass-chart mr-2 text-accent"></i>Transaction Detail</h2>
+      <button onclick="document.getElementById('amlTxModal').classList.add('hidden')" class="text-gray-500 hover:text-gray-800"><i class="fas fa-times text-lg"></i></button>
+    </div>
+    <div id="amlTxModalBody" class="space-y-3">
+      <div class="text-center py-8 text-gray-400 text-sm"><i class="fas fa-circle-notch fa-spin mr-2"></i>Loading…</div>
+    </div>
   </div>
 </div>
 

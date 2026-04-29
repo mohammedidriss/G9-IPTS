@@ -97,9 +97,9 @@ function filterAmlAlerts() {
     const sender = t.sender_username || t.sender || '—';
     const bene   = t.beneficiary_name || t.receiver_username || t.receiver || '—';
     const caseHtml = t._case
-      ? `<button onclick="openCaseModal('${t._case.id}')" class="px-2 py-0.5 rounded-lg text-[10px] bg-accent/10 text-accent hover:bg-accent/20 font-semibold transition">${t._case.case_number}</button>`
+      ? `<button onclick="event.stopPropagation();openCaseModal('${t._case.id}')" class="px-2 py-0.5 rounded-lg text-[10px] bg-accent/10 text-accent hover:bg-accent/20 font-semibold transition">${t._case.case_number}</button>`
       : '<span class="text-gray-300 text-[10px]">—</span>';
-    return `<tr class="border-b border-gray-100 hover:bg-red-50/30 transition">
+    return `<tr class="border-b border-gray-100 hover:bg-red-50/30 transition cursor-pointer" onclick="showAmlTxDetail('${t.id}')">
       <td class="py-2 px-3 text-gray-400">${date}</td>
       <td class="py-2 px-3 text-gray-700 max-w-[110px] truncate">${sender}</td>
       <td class="py-2 px-3 text-gray-700 max-w-[110px] truncate">${bene}</td>
@@ -243,5 +243,61 @@ async function loadAmlSarTracker() {
       </div>`).join('');
   } catch(e) {
     el.innerHTML = `<p class="text-xs text-red-400 text-center py-4">Error: ${e.message}</p>`;
+  }
+}
+
+// ── AML Transaction Detail Pop-up ─────────────────────────────
+async function showAmlTxDetail(txId) {
+  const modal = document.getElementById('amlTxModal');
+  const body  = document.getElementById('amlTxModalBody');
+  if (!modal || !body) return;
+  body.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm"><i class="fas fa-circle-notch fa-spin mr-2"></i>Loading…</div>';
+  modal.classList.remove('hidden');
+  try {
+    const data = await apiFetch(`/api/settlements/${txId}`);
+    const t = data.settlement || data;
+    const rs = t.risk_score || 0;
+    const riskColor = rs >= 85 ? 'text-red-500' : rs >= 70 ? 'text-orange-500' : rs >= 40 ? 'text-yellow-500' : 'text-green-500';
+    const statusCls = { blocked:'bg-red-100 text-red-600', flagged:'bg-orange-100 text-orange-600', approved:'bg-green-100 text-green-600', pending:'bg-yellow-100 text-yellow-700', settled:'bg-blue-100 text-blue-600' };
+    const stc = statusCls[(t.status||'').toLowerCase()] || 'bg-gray-100 text-gray-500';
+    const fmt = v => v ? new Date(v).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    body.innerHTML = `
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-gray-50 rounded-xl p-3 border border-gray-100 col-span-2">
+          <p class="text-[10px] text-gray-400">Transaction ID</p>
+          <p class="text-xs font-mono text-gray-700 mt-0.5 break-all">${t.id || txId}</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
+          <p class="text-[10px] text-gray-400">Amount</p>
+          <p class="text-xl font-bold text-gray-800 mt-0.5">$${Number(t.amount||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
+          <p class="text-[10px] text-gray-400">Risk Score</p>
+          <p class="text-xl font-bold mt-0.5 ${riskColor}">${rs.toFixed(1)}</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
+          <p class="text-[10px] text-gray-400">Sender</p>
+          <p class="text-xs text-gray-700 mt-0.5">${t.sender_username || t.sender || '—'}</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
+          <p class="text-[10px] text-gray-400">Receiver / Beneficiary</p>
+          <p class="text-xs text-gray-700 mt-0.5">${t.beneficiary_name || t.receiver_username || t.receiver || '—'}</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
+          <p class="text-[10px] text-gray-400">Status</p>
+          <p class="mt-1"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${stc}">${t.status||'—'}</span></p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
+          <p class="text-[10px] text-gray-400">Corridor</p>
+          <p class="text-xs text-gray-700 mt-0.5">${t.corridor || t.currency || '—'}</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-3 border border-gray-100 col-span-2">
+          <p class="text-[10px] text-gray-400">Created At</p>
+          <p class="text-xs text-gray-700 mt-0.5">${fmt(t.created_at)}</p>
+        </div>
+        ${t.notes ? `<div class="bg-yellow-50 rounded-xl p-3 border border-yellow-100 col-span-2"><p class="text-[10px] text-yellow-600 font-semibold">Notes</p><p class="text-xs text-gray-700 mt-1">${t.notes}</p></div>` : ''}
+      </div>`;
+  } catch(e) {
+    body.innerHTML = `<p class="text-xs text-red-400 text-center py-6">Error loading transaction: ${e.message}</p>`;
   }
 }

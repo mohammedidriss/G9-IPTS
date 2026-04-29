@@ -124,7 +124,7 @@ async function loadHITL() {
       } else if (item.first_approver) {
         fourEyesBadge = `<span class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-xs"><i class="fas fa-eye mr-1"></i>1/2 — ${item.first_approver}</span>`;
       } else {
-        fourEyesBadge = `<span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-xs"><i class="fas fa-eye mr-1"></i>3-Eyes Required</span>`;
+        fourEyesBadge = `<span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-xs"><i class="fas fa-eye mr-1"></i>4-Eyes Required</span>`;
       }
       return `<tr class="border-b border-gray-200/50 hover:bg-gray-50">
         <td class="py-2 px-2 font-mono">${item.id.substring(0, 8)}...</td>
@@ -170,7 +170,7 @@ async function hitlAction(action, id) {
       loadHITL();
       const notice = document.getElementById('approvalNotice');
       if (notice) {
-        notice.textContent = '⚠️ First approval recorded. A second approver must confirm this transaction (3-eyes control).';
+        notice.textContent = '⚠️ First approval recorded. A second approver must confirm this transaction (4-eyes control).';
         notice.classList.remove('hidden');
         setTimeout(() => notice.classList.add('hidden'), 6000);
       }
