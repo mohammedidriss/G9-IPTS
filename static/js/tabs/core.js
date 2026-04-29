@@ -241,7 +241,16 @@ function switchTab(tab) {
   if (tab === 'payments') { if (typeof switchPaySub === 'function') switchPaySub('settlement'); }
   if (tab === 'aiml') {
     if (ROLE === 'client') { loadClientAIInsights(); }
-    else { loadModelMetrics(); loadFraudHeatmap(); loadRiskEntities(); loadRiskTrend(); loadTxExplorer(); }
+    else {
+      loadModelMetrics(); loadFraudHeatmap(); loadRiskEntities(); loadRiskTrend(); loadTxExplorer();
+      // New AI Engine features
+      if (typeof loadAIKpis === 'function')               loadAIKpis();
+      if (typeof loadConfidenceDistribution === 'function') loadConfidenceDistribution();
+      if (typeof loadDriftMonitor === 'function')           loadDriftMonitor();
+      if (typeof loadVelocityHeatmap === 'function')        loadVelocityHeatmap();
+      if (typeof loadCohortAnalysis === 'function')         loadCohortAnalysis();
+      if (typeof loadThresholds === 'function')             loadThresholds();
+    }
   }
   if (tab === 'graph') loadNetworkData();
   if (tab === 'corridors') {

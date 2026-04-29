@@ -739,6 +739,15 @@ tailwind.config = {
 
     <!-- AI ENGINE TAB -->
     <div id="tab-aiml" class="tab-content hidden fade-in">
+
+      <!-- AI Engine KPI Strip -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6" id="aiKpiStrip">
+        <div class="glass rounded-xl p-4 text-center"><div class="text-2xl font-bold text-white" id="aiKpiScored">—</div><div class="text-xs text-gray-400 mt-1">Scored Today</div></div>
+        <div class="glass rounded-xl p-4 text-center"><div class="text-2xl font-bold text-red-400" id="aiKpiBlocked">—</div><div class="text-xs text-gray-400 mt-1">Auto-Blocked Today</div></div>
+        <div class="glass rounded-xl p-4 text-center"><div class="text-2xl font-bold text-yellow-400" id="aiKpiFPR">—</div><div class="text-xs text-gray-400 mt-1">False Positive Rate (7d)</div></div>
+        <div class="glass rounded-xl p-4 text-center"><div class="text-2xl font-bold text-green-400" id="aiKpiUptime">—</div><div class="text-xs text-gray-400 mt-1">Model Uptime</div></div>
+      </div>
+
       <!-- Model Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6" id="modelCards"></div>
 
@@ -752,6 +761,109 @@ tailwind.config = {
           </div>
         </div>
         <canvas id="riskTrendChart" height="120"></canvas>
+      </div>
+
+      <!-- Confidence Distribution -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-chart-bar mr-2 text-blue-400"></i>Risk Score Confidence Distribution</h3>
+        <canvas id="confidenceChart" height="100"></canvas>
+      </div>
+
+      <!-- Model Drift Monitor -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-chart-line mr-2 text-orange-400"></i>Model Drift Monitor (6 Weeks)</h3>
+          <span id="driftAlert" class="hidden px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-600"><i class="fas fa-triangle-exclamation mr-1"></i>F1 Below Threshold</span>
+        </div>
+        <canvas id="driftChart" height="100"></canvas>
+      </div>
+
+      <!-- Velocity Heatmap -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-fire mr-2 text-red-400"></i>High-Risk Transaction Velocity Heatmap (by Day &amp; Hour)</h3>
+        <div class="text-xs text-gray-400 mb-2">Cells show count of transactions with risk ≥ 60. Hover for details.</div>
+        <div id="velocityHeatmap" class="overflow-x-auto"></div>
+      </div>
+
+      <!-- Cohort Analysis (admin/compliance/datascientist only) -->
+      <div class="glass rounded-xl p-6 mb-6" id="cohortPanel">
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-users mr-2 text-cyan-400"></i>Cohort Peer Analysis</h3>
+        <div id="cohortContent" class="text-gray-400 text-sm text-center py-4">Loading...</div>
+      </div>
+
+      <!-- What-If Simulator -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-flask mr-2 text-purple-400"></i>What-If Risk Simulator</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Amount (USD)</label>
+            <input type="number" id="simAmount" value="10000" min="1" class="w-full px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/20 text-white placeholder-gray-400">
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Corridor</label>
+            <select id="simCorridor" class="w-full px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/20 text-white">
+              <option>USD/EUR</option><option>USD/AED</option><option>USD/INR</option>
+              <option>USD/NGN</option><option>USD/PKR</option><option>USD/RUB</option>
+              <option>EUR/GBP</option><option>USD/CNY</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Hour of Day (0–23)</label>
+            <input type="number" id="simHour" value="14" min="0" max="23" class="w-full px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/20 text-white">
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Beneficiary Country</label>
+            <select id="simCountry" class="w-full px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/20 text-white">
+              <option value="US">United States</option><option value="GB">United Kingdom</option>
+              <option value="AE">UAE</option><option value="IN">India</option>
+              <option value="NG">Nigeria</option><option value="PK">Pakistan</option>
+              <option value="RU">Russia</option><option value="IR">Iran</option>
+              <option value="KP">North Korea</option><option value="SY">Syria</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2 mt-4">
+            <input type="checkbox" id="simFirstTime" class="rounded">
+            <label for="simFirstTime" class="text-xs text-gray-300">First-time Beneficiary</label>
+          </div>
+        </div>
+        <button onclick="runSimulation()" class="px-5 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition">
+          <i class="fas fa-bolt mr-2"></i>Simulate Risk
+        </button>
+        <div id="simulateResult" class="mt-4 hidden"></div>
+      </div>
+
+      <!-- Alert Thresholds (admin only) -->
+      <div class="glass rounded-xl p-6 mb-6" id="thresholdsPanel">
+        <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-sliders mr-2 text-yellow-400"></i>AI Alert Thresholds (Admin)</h3>
+        <div class="space-y-5">
+          <div>
+            <div class="flex justify-between text-xs text-gray-400 mb-1">
+              <span>Flag Threshold</span><span id="flagThreshVal" class="font-bold text-yellow-400">60</span>
+            </div>
+            <input type="range" id="flagThreshSlider" min="30" max="90" value="60" step="1"
+              oninput="document.getElementById('flagThreshVal').textContent=this.value"
+              class="w-full accent-yellow-400">
+          </div>
+          <div>
+            <div class="flex justify-between text-xs text-gray-400 mb-1">
+              <span>Four-Eyes Threshold</span><span id="fourEyesThreshVal" class="font-bold text-orange-400">75</span>
+            </div>
+            <input type="range" id="fourEyesThreshSlider" min="50" max="95" value="75" step="1"
+              oninput="document.getElementById('fourEyesThreshVal').textContent=this.value"
+              class="w-full accent-orange-400">
+          </div>
+          <div>
+            <div class="flex justify-between text-xs text-gray-400 mb-1">
+              <span>Block Threshold</span><span id="blockThreshVal" class="font-bold text-red-400">85</span>
+            </div>
+            <input type="range" id="blockThreshSlider" min="60" max="99" value="85" step="1"
+              oninput="document.getElementById('blockThreshVal').textContent=this.value"
+              class="w-full accent-red-400">
+          </div>
+        </div>
+        <button onclick="saveThresholds()" class="mt-4 px-5 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition">
+          <i class="fas fa-save mr-2"></i>Save Thresholds
+        </button>
       </div>
 
       <!-- Fraud Heatmap -->
@@ -3765,6 +3877,59 @@ async function renderCorridorMap_legacy() {
 // loadCorridorsTab is now defined in tab-corridors.js
 // The inline version above is replaced by the module.
 </script>
+<!-- SHAP / Transaction Analysis Modal -->
+<div id="txShapModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 overflow-y-auto py-6">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 my-auto">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div>
+        <h2 class="text-base font-bold text-gray-800"><i class="fas fa-chart-simple mr-2 text-accent"></i>SHAP Transaction Analysis</h2>
+        <p class="text-[11px] text-gray-400 mt-0.5 font-mono" id="txShapTxId"></p>
+      </div>
+      <button onclick="closeTxShapPanel()" class="text-gray-400 hover:text-gray-700 text-xl leading-none">&times;</button>
+    </div>
+    <!-- Risk Banner -->
+    <div id="txShapRiskBanner" class="flex items-center gap-4 mx-6 mt-4 p-4 rounded-xl"></div>
+    <!-- Case / SLA info -->
+    <div id="txShapCaseInfo" class="hidden mx-6 mt-2 p-3 rounded-xl text-xs bg-amber-50 border border-amber-200 text-amber-700"></div>
+    <div id="txShapSlaInfo" class="hidden mx-6 mt-2"></div>
+    <!-- Transaction details grid -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mx-6 mt-4" id="txShapDetails"></div>
+    <!-- SHAP Chart -->
+    <div class="mx-6 mt-4">
+      <div id="txShapLoading" class="text-center py-8 text-gray-400"><i class="fas fa-circle-notch fa-spin mr-2"></i>Loading SHAP analysis…</div>
+      <canvas id="txShapChart" class="hidden"></canvas>
+      <div id="txShapError" class="hidden text-sm text-red-500 py-4 text-center"></div>
+    </div>
+    <!-- AI Narrative -->
+    <div id="modalNarrative" class="mx-6 mt-4 p-4 bg-blue-50 rounded-xl text-sm text-gray-700 hidden">
+      <div class="flex items-center gap-2 mb-2">
+        <i class="fas fa-comment-dots text-blue-500"></i>
+        <span class="font-semibold text-blue-700 text-xs uppercase tracking-wider">AI Narrative</span>
+      </div>
+      <p id="modalNarrativeText" class="leading-relaxed"></p>
+    </div>
+    <!-- Ensemble Voting -->
+    <div id="modalEnsembleVotes" class="mx-6 mt-4 hidden">
+      <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3"><i class="fas fa-vote-yea mr-1 text-purple-400"></i>Ensemble Model Votes</h4>
+      <div id="ensembleVoteCards" class="grid grid-cols-2 sm:grid-cols-5 gap-2"></div>
+      <div class="mt-2 text-xs text-gray-500 flex gap-4">
+        <span>Consensus: <span id="ensembleConsensus" class="font-bold text-gray-700"></span></span>
+        <span>Final Score: <span id="ensembleFinalScore" class="font-bold text-accent"></span></span>
+      </div>
+    </div>
+    <!-- Feedback buttons -->
+    <div class="flex gap-3 mx-6 mt-4 mb-6">
+      <button onclick="submitFeedback('false_positive')" class="flex-1 py-2 rounded-xl border border-yellow-300 text-yellow-700 text-xs font-semibold hover:bg-yellow-50 transition">
+        <i class="fas fa-thumbs-down mr-1"></i>False Positive
+      </button>
+      <button onclick="submitFeedback('false_negative')" class="flex-1 py-2 rounded-xl border border-red-300 text-red-600 text-xs font-semibold hover:bg-red-50 transition">
+        <i class="fas fa-exclamation-triangle mr-1"></i>False Negative
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Core shared utilities (auth, SSE, FX, notifications, etc.) -->
 <script src="/static/js/tabs/core.js?v=5"></script>
 <script src="/static/js/tabs/tab-network.js?v=5"></script>

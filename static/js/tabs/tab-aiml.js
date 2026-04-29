@@ -240,6 +240,7 @@ function renderTxExplorer() {
 }
 
 async function openTxShap(txId) {
+  _currentShapTxId = txId;
   const modal    = document.getElementById('txShapModal');
   const loading  = document.getElementById('txShapLoading');
   const canvas   = document.getElementById('txShapChart');
@@ -249,6 +250,12 @@ async function openTxShap(txId) {
   const caseInfo = document.getElementById('txShapCaseInfo');
   const slaInfo  = document.getElementById('txShapSlaInfo');
   if (!modal) return;
+
+  // Reset new panels
+  const narrativeDiv = document.getElementById('modalNarrative');
+  const ensemblePanel = document.getElementById('modalEnsembleVotes');
+  if (narrativeDiv) narrativeDiv.classList.add('hidden');
+  if (ensemblePanel) ensemblePanel.classList.add('hidden');
 
   // Open modal, reset state
   modal.classList.remove('hidden');
@@ -402,6 +409,10 @@ async function openTxShap(txId) {
         }
       }
     });
+
+    // Load new AI features in parallel (non-blocking)
+    loadEnsembleVotes(txId);
+    loadAINarrative(txId);
 
   } catch(e) {
     loading.classList.add('hidden');
@@ -676,4 +687,314 @@ async function loadRiskTrend() {
       }
     });
   } catch(e) { console.error('Risk trend error', e); }
+}
+
+// ============================================================
+// AI Engine — 10 New Feature Functions
+// ============================================================
+
+// Track current txId for feedback
+let _currentShapTxId = null;
+
+// 1. KPI Strip
+async function loadAIKpis() {
+  try {
+    const d = await apiFetch('/api/aiml/kpis');
+    const scored  = document.getElementById('aiKpiScored');
+    const blocked = document.getElementById('aiKpiBlocked');
+    const fpr     = document.getElementById('aiKpiFPR');
+    const uptime  = document.getElementById('aiKpiUptime');
+    if (scored)  scored.textContent  = d.scored_today ?? '—';
+    if (blocked) blocked.textContent = d.auto_blocked_today ?? '—';
+    if (fpr)     fpr.textContent     = (d.false_positive_rate_7d != null) ? d.false_positive_rate_7d + '%' : '—';
+    if (uptime)  uptime.textContent  = (d.model_uptime_pct != null) ? d.model_uptime_pct + '%' : '—';
+  } catch(e) { console.warn('KPI load error', e); }
+}
+
+// 2. Confidence Distribution Chart
+let _confidenceChart = null;
+async function loadConfidenceDistribution() {
+  try {
+    const d   = await apiFetch('/api/aiml/confidence-distribution');
+    const ctx = document.getElementById('confidenceChart');
+    if (!ctx) return;
+    if (_confidenceChart) _confidenceChart.destroy();
+    _confidenceChart = new Chart(ctx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: d.buckets.map(b => b.label),
+        datasets: [{
+          label: 'Transactions',
+          data: d.buckets.map(b => b.count),
+          backgroundColor: d.buckets.map((b, i) =>
+            i >= 8 ? 'rgba(239,68,68,0.75)' : i >= 6 ? 'rgba(249,115,22,0.75)' :
+            i >= 4 ? 'rgba(234,179,8,0.75)' : 'rgba(34,197,94,0.75)'),
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#6b7280', font: { size: 10 } } },
+          y: { ticks: { color: '#6b7280', font: { size: 10 } }, beginAtZero: true }
+        }
+      }
+    });
+  } catch(e) { console.warn('Confidence distribution error', e); }
+}
+
+// 3. Drift Monitor
+let _driftChart = null;
+async function loadDriftMonitor() {
+  try {
+    const d = await apiFetch('/api/aiml/drift');
+    const ctx = document.getElementById('driftChart');
+    if (!ctx) return;
+    if (_driftChart) _driftChart.destroy();
+    _driftChart = new Chart(ctx.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: d.weeks,
+        datasets: [
+          { label: 'Accuracy',  data: d.accuracy,  borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.08)', tension: 0.4, pointRadius: 3, fill: false },
+          { label: 'Precision', data: d.precision, borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.08)', tension: 0.4, pointRadius: 3, fill: false },
+          { label: 'Recall',    data: d.recall,    borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.08)', tension: 0.4, pointRadius: 3, fill: false },
+          { label: 'F1',        data: d.f1,        borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', tension: 0.4, pointRadius: 3, fill: false },
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { font: { size: 10 } } } },
+        scales: {
+          x: { ticks: { color: '#6b7280', font: { size: 10 } } },
+          y: { ticks: { color: '#6b7280', font: { size: 10 } }, min: 80, max: 100 }
+        }
+      }
+    });
+    const alertEl = document.getElementById('driftAlert');
+    if (alertEl) alertEl.classList.toggle('hidden', !d.alert);
+  } catch(e) { console.warn('Drift monitor error', e); }
+}
+
+// 4. Ensemble Votes — called from openTxShap
+async function loadEnsembleVotes(txId) {
+  const panel = document.getElementById('modalEnsembleVotes');
+  const cards = document.getElementById('ensembleVoteCards');
+  const consensus = document.getElementById('ensembleConsensus');
+  const finalScore = document.getElementById('ensembleFinalScore');
+  if (!panel) return;
+  try {
+    const d = await apiFetch(`/api/aiml/ensemble-vote/${txId}`);
+    const verdictColor = { BLOCK: 'text-red-600 bg-red-50 border-red-200', FLAG: 'text-orange-600 bg-orange-50 border-orange-200', CLEAR: 'text-green-600 bg-green-50 border-green-200' };
+    const modelLabels = { random_forest: 'Random Forest', xgboost: 'XGBoost', isolation_forest: 'Isolation Forest', autoencoder: 'Autoencoder', sequence_detector: 'Sequence Detector' };
+    if (cards) {
+      cards.innerHTML = Object.entries(d.votes).map(([m, v]) => `
+        <div class="rounded-xl border p-3 text-center ${verdictColor[v.verdict] || 'bg-gray-50 border-gray-200'}">
+          <div class="text-[10px] font-semibold text-gray-500 mb-1">${modelLabels[m] || m}</div>
+          <div class="text-xl font-black">${v.score.toFixed(1)}</div>
+          <div class="text-[10px] font-bold mt-0.5">${v.verdict}</div>
+        </div>`).join('');
+    }
+    if (consensus) consensus.textContent = d.consensus;
+    if (finalScore) finalScore.textContent = d.final_score.toFixed(1);
+    panel.classList.remove('hidden');
+  } catch(e) { console.warn('Ensemble votes error', e); }
+}
+
+// 5. Submit Feedback
+async function submitFeedback(feedbackType) {
+  if (!_currentShapTxId) return;
+  try {
+    await apiFetch('/api/aiml/feedback', { method: 'POST', body: JSON.stringify({ tx_id: _currentShapTxId, feedback: feedbackType }) });
+    // Toast
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-6 right-6 z-[200] px-5 py-3 rounded-xl shadow-lg text-sm font-semibold text-white bg-green-600 transition-all';
+    toast.innerHTML = `<i class="fas fa-check-circle mr-2"></i>Feedback recorded: ${feedbackType.replace('_', ' ')}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  } catch(e) {
+    alert('Failed to submit feedback: ' + (e.message || 'unknown error'));
+  }
+}
+
+// 6. What-If Simulation
+async function runSimulation() {
+  const btn = document.querySelector('#simulateResult');
+  const amount      = parseFloat(document.getElementById('simAmount')?.value || 10000);
+  const corridor    = document.getElementById('simCorridor')?.value || 'USD/EUR';
+  const hour        = parseInt(document.getElementById('simHour')?.value || 14);
+  const country     = document.getElementById('simCountry')?.value || 'US';
+  const firstTime   = document.getElementById('simFirstTime')?.checked || false;
+  const resultDiv   = document.getElementById('simulateResult');
+  if (!resultDiv) return;
+  resultDiv.classList.remove('hidden');
+  resultDiv.innerHTML = '<div class="text-center text-gray-400 py-4"><i class="fas fa-circle-notch fa-spin mr-2"></i>Running model...</div>';
+  try {
+    const d = await apiFetch('/api/aiml/simulate', {
+      method: 'POST',
+      body: JSON.stringify({ amount, corridor, hour, beneficiary_country: country, is_first_time_beneficiary: firstTime })
+    });
+    const riskColor = d.risk_score >= 80 ? '#ef4444' : d.risk_score >= 60 ? '#f97316' : '#22c55e';
+    const verdictBg = d.verdict === 'BLOCK' ? 'bg-red-100 text-red-700' : d.verdict === 'FLAG' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700';
+    resultDiv.innerHTML = `
+      <div class="p-4 rounded-xl border" style="border-color:${riskColor}33;background:${riskColor}08">
+        <div class="flex items-center gap-4 mb-3">
+          <div class="text-4xl font-black" style="color:${riskColor}">${d.risk_score}</div>
+          <div>
+            <span class="px-3 py-1 rounded-full text-xs font-bold ${verdictBg}">${d.verdict}</span>
+            <p class="text-xs text-gray-500 mt-1">Risk Score / 100</p>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600 mb-3">${d.narrative}</p>
+        <div class="grid grid-cols-2 gap-2">
+          ${(d.top_factors || []).map(f => `
+            <div class="bg-white rounded-lg p-2 border border-gray-100">
+              <div class="text-[10px] text-gray-400">${f.factor}</div>
+              <div class="text-sm font-bold text-gray-700">${f.impact.toFixed(1)}</div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  } catch(e) {
+    resultDiv.innerHTML = `<p class="text-red-400 text-sm">Simulation failed: ${e.message}</p>`;
+  }
+}
+
+// 7. Velocity Heatmap
+async function loadVelocityHeatmap() {
+  const container = document.getElementById('velocityHeatmap');
+  if (!container) return;
+  try {
+    const d = await apiFetch('/api/aiml/velocity-heatmap');
+    const matrix = d.matrix;
+    const days   = d.days;
+    const maxVal = Math.max(d.max_val, 1);
+    const hours  = Array.from({length: 24}, (_, i) => i);
+
+    let html = '<div style="display:grid;grid-template-columns:40px repeat(24,1fr);gap:2px;font-size:10px;">';
+    // Header row
+    html += '<div></div>';
+    hours.forEach(h => { html += `<div class="text-center text-gray-400" style="font-size:9px;">${h}</div>`; });
+    // Data rows
+    matrix.forEach((row, di) => {
+      html += `<div class="text-gray-400 text-right pr-1 flex items-center justify-end" style="font-size:9px;">${days[di]}</div>`;
+      row.forEach((val, hi) => {
+        const intensity = maxVal > 0 ? val / maxVal : 0;
+        const r = Math.round(239 * intensity);
+        const g = Math.round(68  * intensity);
+        const b = Math.round(68  * intensity);
+        const alpha = 0.1 + intensity * 0.85;
+        const bg = val > 0 ? `rgba(${r},${g},${b},${alpha})` : 'rgba(100,100,120,0.08)';
+        html += `<div title="${days[di]} ${hi}:00 — ${val} high-risk tx" style="background:${bg};border-radius:3px;height:18px;cursor:default;"></div>`;
+      });
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } catch(e) {
+    if (container) container.innerHTML = '<p class="text-gray-400 text-xs">Could not load heatmap.</p>';
+    console.warn('Velocity heatmap error', e);
+  }
+}
+
+// 8. Cohort Analysis
+async function loadCohortAnalysis() {
+  const panel   = document.getElementById('cohortPanel');
+  const content = document.getElementById('cohortContent');
+  if (!panel || !content) return;
+  if (typeof ROLE !== 'undefined' && ROLE === 'client') {
+    panel.classList.add('hidden');
+    return;
+  }
+  const username = typeof USER !== 'undefined' ? USER : 'mohamad';
+  try {
+    const d = await apiFetch(`/api/aiml/cohort/${username}`);
+    const verdictColor = d.verdict === 'ANOMALOUS' ? 'text-red-600' : d.verdict === 'ELEVATED' ? 'text-orange-500' : 'text-green-600';
+    content.innerHTML = `
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center mb-4">
+        <div class="bg-gray-50 rounded-xl p-3">
+          <div class="text-xs text-gray-400 mb-1">Your Avg Amount</div>
+          <div class="font-bold text-gray-800">$${Number(d.user_avg_amount).toLocaleString('en-US',{maximumFractionDigits:0})}</div>
+          <div class="text-[10px] text-gray-400">Cohort: $${Number(d.cohort_avg_amount).toLocaleString('en-US',{maximumFractionDigits:0})}</div>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-3">
+          <div class="text-xs text-gray-400 mb-1">Your Avg Risk</div>
+          <div class="font-bold text-gray-800">${d.user_avg_risk.toFixed(1)}</div>
+          <div class="text-[10px] text-gray-400">Cohort: ${d.cohort_avg_risk.toFixed(1)}</div>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-3">
+          <div class="text-xs text-gray-400 mb-1">Your Tx Count</div>
+          <div class="font-bold text-gray-800">${d.user_tx_count}</div>
+          <div class="text-[10px] text-gray-400">Cohort avg: ${d.cohort_avg_tx_count}</div>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-3">
+          <div class="text-xs text-gray-400 mb-1">Anomaly Score</div>
+          <div class="font-bold ${verdictColor}">${d.anomaly_score.toFixed(2)}σ</div>
+          <div class="text-[10px] font-semibold ${verdictColor}">${d.verdict}</div>
+        </div>
+      </div>`;
+  } catch(e) {
+    content.innerHTML = '<p class="text-gray-400 text-xs">Could not load cohort data.</p>';
+    console.warn('Cohort analysis error', e);
+  }
+}
+
+// 9. Thresholds
+async function loadThresholds() {
+  const panel = document.getElementById('thresholdsPanel');
+  if (!panel) return;
+  if (typeof ROLE !== 'undefined' && ROLE !== 'admin') {
+    panel.classList.add('hidden');
+    return;
+  }
+  try {
+    const d = await apiFetch('/api/aiml/thresholds');
+    const flagSlider     = document.getElementById('flagThreshSlider');
+    const blockSlider    = document.getElementById('blockThreshSlider');
+    const fourEyesSlider = document.getElementById('fourEyesThreshSlider');
+    const flagVal        = document.getElementById('flagThreshVal');
+    const blockVal       = document.getElementById('blockThreshVal');
+    const fourEyesVal    = document.getElementById('fourEyesThreshVal');
+    if (flagSlider)     { flagSlider.value     = d.flag_threshold;         if (flagVal)     flagVal.textContent     = d.flag_threshold; }
+    if (fourEyesSlider) { fourEyesSlider.value = d.four_eyes_threshold;    if (fourEyesVal) fourEyesVal.textContent = d.four_eyes_threshold; }
+    if (blockSlider)    { blockSlider.value    = d.block_threshold;        if (blockVal)    blockVal.textContent    = d.block_threshold; }
+  } catch(e) { console.warn('Thresholds load error', e); }
+}
+
+async function saveThresholds() {
+  const flag     = parseFloat(document.getElementById('flagThreshSlider')?.value     || 60);
+  const block    = parseFloat(document.getElementById('blockThreshSlider')?.value    || 85);
+  const fourEyes = parseFloat(document.getElementById('fourEyesThreshSlider')?.value || 75);
+  try {
+    await apiFetch('/api/aiml/thresholds', {
+      method: 'POST',
+      body: JSON.stringify({ flag_threshold: flag, block_threshold: block, four_eyes_threshold: fourEyes })
+    });
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-6 right-6 z-[200] px-5 py-3 rounded-xl shadow-lg text-sm font-semibold text-white bg-green-600';
+    toast.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Thresholds saved';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2500);
+  } catch(e) {
+    alert('Failed to save thresholds: ' + (e.message || 'unknown error'));
+  }
+}
+
+// 10. AI Narrative — called from openTxShap
+async function loadAINarrative(txId) {
+  const narrativeDiv  = document.getElementById('modalNarrative');
+  const narrativeText = document.getElementById('modalNarrativeText');
+  if (!narrativeDiv || !narrativeText) return;
+  try {
+    const d = await apiFetch(`/api/aiml/narrative/${txId}`);
+    narrativeText.textContent = d.narrative || '';
+    narrativeDiv.classList.remove('hidden');
+    const confBadge = narrativeDiv.querySelector('.confidence-badge');
+    if (!confBadge && d.confidence) {
+      const badge = document.createElement('span');
+      const cColor = d.confidence === 'high' ? 'bg-red-100 text-red-700' : d.confidence === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700';
+      badge.className = `ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold confidence-badge ${cColor}`;
+      badge.textContent = d.confidence.toUpperCase() + ' CONFIDENCE';
+      narrativeDiv.querySelector('.flex')?.appendChild(badge);
+    }
+  } catch(e) { console.warn('Narrative load error', e); }
 }
