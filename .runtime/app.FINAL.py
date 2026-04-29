@@ -59,7 +59,7 @@ USERS = {
     "james":        {"password": "James@2026!",      "role": "client"},
     "mei":          {"password": "Mei@2026!",        "role": "client"},
     "carlos":       {"password": "Carlos@2026!",     "role": "client"},
-    "aisha":        {"password": "Aisha@2026!",      "role": "client"},
+    "mariam":       {"password": "Mariam@2026!",     "role": "client"},
     "henrik":       {"password": "Henrik@2026!",     "role": "client"},
     "priya":        {"password": "Priya@2026!",      "role": "client"},
 }
@@ -76,7 +76,7 @@ USER_ACCOUNTS = {
     "james":        {"full_name": "James Okafor",              "balance": 87500.00,   "currency": "USD", "wallet_idx": 7},
     "mei":          {"full_name": "Mei Lin",                   "balance": 310000.00,  "currency": "USD", "wallet_idx": 8},
     "carlos":       {"full_name": "Carlos Mendez",             "balance": 450000.00,  "currency": "USD", "wallet_idx": 9},
-    "aisha":        {"full_name": "Aisha Al-Rashid",           "balance": 2750000.00, "currency": "USD", "wallet_idx": 10},
+    "mariam":       {"full_name": "Mariam Al-Rashid",          "balance": 2750000.00, "currency": "USD", "wallet_idx": 10},
     "henrik":       {"full_name": "Henrik Svensson",           "balance": 4850000.00, "currency": "USD", "wallet_idx": 11},
     "priya":        {"full_name": "Priya Nair",                "balance": 560000.00,  "currency": "USD", "wallet_idx": 12},
 }
@@ -455,6 +455,19 @@ def init_db():
     logger.info("Database initialized")
 
 init_db()
+# Always seed user accounts (without wallet addresses if Ganache not available)
+init_user_accounts_no_wallet = lambda: __import__('sqlite3').connect(DB_PATH)
+def _seed_user_accounts():
+    conn = __import__('sqlite3').connect(DB_PATH)
+    c = conn.cursor()
+    for username, info in USER_ACCOUNTS.items():
+        c.execute("SELECT username FROM user_accounts WHERE username = ?", (username,))
+        if not c.fetchone():
+            c.execute("INSERT INTO user_accounts (username, full_name, balance, currency, wallet_address) VALUES (?, ?, ?, ?, ?)",
+                      (username, info["full_name"], info["balance"], info["currency"], ""))
+    conn.commit()
+    conn.close()
+_seed_user_accounts()
 
 def init_user_accounts(blockchain_accounts):
     """Initialize user_accounts table from USER_ACCOUNTS config."""
