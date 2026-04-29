@@ -1,4 +1,4 @@
-# Python
+# ── Python ────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -7,69 +7,67 @@ __pycache__/
 dist/
 build/
 .eggs/
+*.pyc
+*.log
 
-# Virtual Environment
+# ── Virtual Environment ───────────────────────────────────────
 venv/
 env/
 .env
 .venv/
 
-# Runtime — exclude databases, cache, and compiled files but keep app.py and contracts
-.runtime/__pycache__/
+# ── Database (live data — never commit) ───────────────────────
+*.db
+*.sqlite3
 .runtime/*.db
-.runtime/ipts.db
 .runtime/ipts_vault.db
 .runtime/ipts_vault_backup_*.db
-.runtime/data/
-.runtime/logs/
-.runtime/models/
-.runtime/templates/
-.runtime/datasets/
-# Python cache
-__pycache__/
-*.pyc
-*.log
 
-# ML Models (large binaries)
+# ── ML Models (large binaries — regenerate with train_on_real_data.py) ──
+.runtime/models/*.pkl
+.runtime/models/*.joblib
+.runtime/models/*.h5
 models/*.pkl
 models/*.joblib
 models/*.h5
 
-# Database
-*.db
-*.sqlite3
+# ── Dataset (144MB — downloaded on first run) ─────────────────
+.runtime/datasets/
+datasets/
 
-# Logs
-logs/*.log
+# ── Logs ──────────────────────────────────────────────────────
+.runtime/logs/
+logs/
+*.log
 
-# IDE
+# ── Runtime scratch data ──────────────────────────────────────
+.runtime/data/
+
+# ── OS ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDE ───────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Node
+# ── Node ──────────────────────────────────────────────────────
 node_modules/
 package-lock.json
 
-# Colab
-.ipynb_checkpoints/
-.claude/
-# Secrets
+# ── Secrets / Certs ───────────────────────────────────────────
 *.pem
 *.key
 credentials.json
 
-# Node
-node_modules/
-package-lock.json
+# ── Jupyter ───────────────────────────────────────────────────
+.ipynb_checkpoints/
 
-# Docs scripts (not needed on server)
+# ── Claude local session ──────────────────────────────────────
+.claude/
+
+# ── Docs generation scripts ───────────────────────────────────
 docs/generate_report.js
-
-.runtime/datasets/creditcard.csv

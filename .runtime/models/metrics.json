@@ -1,0 +1,22 @@
+{
+  "isolation_forest": {
+    "f1": 0.3417,
+    "accuracy": 0.9972
+  },
+  "random_forest": {
+    "f1": 0.8177,
+    "accuracy": 0.9994
+  },
+  "xgboost": {
+    "f1": 0.7814,
+    "accuracy": 0.9992
+  },
+  "autoencoder": {
+    "f1": 0.0568,
+    "accuracy": 0.9499
+  },
+  "sequence_detector": {
+    "f1": 0.7179,
+    "accuracy": 0.9988
+  }
+}
