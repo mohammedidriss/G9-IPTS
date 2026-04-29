@@ -4309,6 +4309,53 @@ def admin_adjust_balance(username):
     log_audit("admin_balance_adjust", request.user.get("sub"), {"target": username, "action": action, "amount": amount, "new_balance": new_balance}, request.remote_addr)
     return jsonify({"status": "updated", "username": username, "new_balance": new_balance})
 
+
+# ============================================================
+# Notifications (stub - returns empty list)
+# ============================================================
+@app.route('/api/notifications', methods=['GET'])
+@zero_trust_required
+def get_notifications():
+    return jsonify({'notifications': [], 'unread_count': 0})
+
+@app.route('/api/notifications/<int:notif_id>/read', methods=['POST'])
+@zero_trust_required
+def mark_notification_read(notif_id):
+    return jsonify({'status': 'ok'})
+
+@app.route('/api/notifications/read-all', methods=['POST'])
+@zero_trust_required
+def mark_all_notifications_read():
+    return jsonify({'status': 'ok'})
+
+@app.route('/api/notifications/clear', methods=['DELETE'])
+@zero_trust_required
+def clear_notifications():
+    return jsonify({'status': 'ok'})
+
+# ============================================================
+# Governance Proposals (stub - returns empty list)
+# ============================================================
+@app.route('/api/defi/governance/proposals', methods=['GET'])
+@zero_trust_required
+def get_governance_proposals():
+    return jsonify({'proposals': []})
+
+@app.route('/api/defi/governance/propose', methods=['POST'])
+@zero_trust_required
+def create_governance_proposal():
+    return jsonify({'status': 'ok', 'proposal_id': 1})
+
+@app.route('/api/defi/governance/proposals/<int:proposal_id>/vote', methods=['POST'])
+@zero_trust_required
+def vote_on_proposal(proposal_id):
+    return jsonify({'status': 'ok'})
+
+@app.route('/api/defi/governance/proposals/<int:proposal_id>/execute', methods=['POST'])
+@zero_trust_required
+def execute_proposal(proposal_id):
+    return jsonify({'status': 'ok', 'result': 'executed'})
+
 # --- Serve Frontend ---
 @app.route("/")
 def index():
