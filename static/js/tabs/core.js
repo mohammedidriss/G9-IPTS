@@ -418,7 +418,7 @@ async function loadSubAccounts() {
 async function loadLedger() {
   try {
     const data = await apiFetch('/api/ledger?page=1&per_page=10');
-    const tbody = document.getElementById('ledgerBody');
+    const tbody = document.getElementById('dashLedgerBody');
     const entries = data.transactions || [];
     if (entries.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-600">No ledger entries yet. Execute a settlement to begin.</td></tr>';

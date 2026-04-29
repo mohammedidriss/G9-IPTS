@@ -103,7 +103,7 @@ async function loadSubAccounts() {
 }
 
 async function loadLedger() {
-  const tbody = document.getElementById('ledgerBody');
+  const tbody = document.getElementById('dashLedgerBody');
   if (!tbody) return;
   try {
     const data = await apiFetch('/api/ledger?page=1&per_page=10');
