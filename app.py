@@ -293,6 +293,18 @@ for _h in [_file_handler, _stream_handler]:
 logging.basicConfig(level=logging.INFO, handlers=[_file_handler, _stream_handler])
 logger = logging.getLogger("IPTS")
 
+def add_notification(username, title, message, ntype="info"):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute(
+            "INSERT INTO notifications (username, title, message, type) VALUES (?,?,?,?)",
+            (username, title, message, ntype)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"Notification insert failed: {e}")
+
 # ============================================================
 # Database Setup
 # ============================================================
@@ -487,6 +499,15 @@ def init_db():
     # Seed default thresholds if not present
     for k, v in [("flag_threshold", 60.0), ("block_threshold", 85.0), ("four_eyes_threshold", 75.0)]:
         c.execute("INSERT OR IGNORE INTO ai_thresholds (key, value) VALUES (?, ?)", (k, v))
+    c.execute("""CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        type TEXT DEFAULT 'info',
+        read INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now'))
+    )""")
     conn.commit()
     conn.close()
     logger.info("Database initialized")
@@ -725,6 +746,18 @@ def zero_trust_required(f):
             return jsonify({"error": "Token expired"}), 401
         except jwt.InvalidTokenError:
             return jsonify({"error": "Invalid token"}), 401
+
+        # Check account lock on every request
+        username = payload.get("sub", "")
+        _lck = None
+        try:
+            _conn = sqlite3.connect(DB_PATH)
+            _lck = _conn.execute("SELECT locked FROM user_accounts WHERE username=?", (username,)).fetchone()
+            _conn.close()
+        except Exception:
+            pass
+        if _lck and _lck[0]:
+            return jsonify({"error": "Account is locked. Contact your administrator."}), 403
 
         return f(*args, **kwargs)
     return decorated
@@ -1773,6 +1806,8 @@ def approve_card(id):
     conn.commit()
     conn.close()
     log_audit("card_approved", request.user.get("sub"), {"card_id": id, "card_owner": row[1]}, request.remote_addr)
+    username = row[1]
+    add_notification(username, "Virtual Card Approved", "Your virtual card request has been approved. Your card is now active.", "success")
     return jsonify({"status": "active", "id": id, "message": "Card approved and activated."})
 
 
@@ -1793,6 +1828,8 @@ def reject_card(id):
     conn.commit()
     conn.close()
     log_audit("card_rejected", request.user.get("sub"), {"card_id": id, "card_owner": row[1], "reason": reason}, request.remote_addr)
+    username = row[1]
+    add_notification(username, "Virtual Card Rejected", "Your virtual card request was not approved.", "warning")
     return jsonify({"status": "rejected", "id": id})
 
 
@@ -2337,6 +2374,8 @@ def create_settlement():
         result["new_balance"] = new_sender_balance  # funds on hold — update client balance display
         result["message"] = f"Transaction blocked. Compliance case {case_number} created. Added to HITL review queue."
 
+        add_notification(sender_username, "Transaction Blocked", f"Your transaction of ${amount:,.2f} to {beneficiary_name} was blocked by the AI risk engine.", "error")
+
         push_sse("settlement", {
             "id": settlement_id, "status": "blocked",
             "amount": amount, "risk_score": risk_result["composite_score"]
@@ -2549,6 +2588,9 @@ def hitl_queue():
 @app.route("/api/hitl/approve/<hitl_id>", methods=["POST"])
 @zero_trust_required
 def hitl_approve(hitl_id):
+    caller_role = request.user.get("role", "")
+    if caller_role not in ("admin", "compliance", "operator"):
+        return jsonify({"error": "Forbidden"}), 403
     conn = sqlite3.connect(DB_PATH)
     # Use IMMEDIATE to lock the database and prevent race conditions
     conn.execute("BEGIN IMMEDIATE")
@@ -2689,6 +2731,7 @@ def hitl_approve(hitl_id):
         "four_eyes": settle_amount >= FOUR_EYES_THRESHOLD,
     }, request.remote_addr)
     push_sse("hitl", {"id": hitl_id, "action": "approved", "amount": settle_amount, "tx_hash": tx_hash})
+    add_notification(sender_username, "Transaction Approved", f"Your transaction of ${settle_amount:,.2f} has been approved and will be processed.", "success")
     return jsonify({
         "status": "approved", "hitl_id": hitl_id,
         "settlement_id": settlement_id, "tx_hash": tx_hash,
@@ -2701,6 +2744,9 @@ def hitl_approve(hitl_id):
 @app.route("/api/hitl/reject/<hitl_id>", methods=["POST"])
 @zero_trust_required
 def hitl_reject(hitl_id):
+    caller_role = request.user.get("role", "")
+    if caller_role not in ("admin", "compliance", "operator"):
+        return jsonify({"error": "Forbidden"}), 403
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT * FROM hitl_queue WHERE id = ?", (hitl_id,))
@@ -2737,6 +2783,8 @@ def hitl_reject(hitl_id):
         "sender": sender_username, "new_balance": refunded_balance
     }, request.remote_addr)
     push_sse("hitl", {"id": hitl_id, "action": "rejected", "refunded_amount": held_amount})
+    if sender_username:
+        add_notification(sender_username, "Transaction Rejected", f"Your transaction of ${held_amount:,.2f} was rejected. ${held_amount:,.2f} has been refunded to your account.", "warning")
     return jsonify({
         "status": "rejected", "hitl_id": hitl_id,
         "refunded_amount": held_amount, "sender_new_balance": refunded_balance
@@ -2860,6 +2908,9 @@ def swift_gpi_track(uetr):
 @app.route("/api/compliance/cases", methods=["GET"])
 @zero_trust_required
 def list_compliance_cases():
+    caller_role = request.user.get("role", "")
+    if caller_role not in ("admin", "compliance", "auditor", "operator"):
+        return jsonify({"error": "Forbidden"}), 403
     status_filter = request.args.get("status", "")
     severity_filter = request.args.get("severity", "")
     case_type_filter = request.args.get("case_type", "")
@@ -2936,6 +2987,9 @@ def list_compliance_cases():
 @app.route("/api/compliance/cases/<case_id>", methods=["GET"])
 @zero_trust_required
 def get_compliance_case(case_id):
+    caller_role = request.user.get("role", "")
+    if caller_role not in ("admin", "compliance", "auditor", "operator"):
+        return jsonify({"error": "Forbidden"}), 403
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
@@ -4752,6 +4806,7 @@ def admin_lock_user(username):
     conn.commit()
     conn.close()
     log_audit("admin_lock_user", request.user.get("sub"), {"target": username}, request.remote_addr)
+    add_notification(username, "Account Locked", "Your account has been locked by an administrator. Please contact support.", "error")
     return jsonify({"status": "locked", "username": username})
 
 @app.route("/api/admin/users/<username>/unlock", methods=["POST"])
@@ -4805,26 +4860,50 @@ def admin_adjust_balance(username):
 
 
 # ============================================================
-# Notifications (stub - returns empty list)
+# Notifications
 # ============================================================
 @app.route('/api/notifications', methods=['GET'])
 @zero_trust_required
 def get_notifications():
-    return jsonify({'notifications': [], 'unread_count': 0})
+    username = request.user.get("sub", "")
+    conn = sqlite3.connect(DB_PATH)
+    rows = conn.execute(
+        "SELECT id, title, message, type, read, created_at FROM notifications WHERE username=? ORDER BY created_at DESC LIMIT 50",
+        (username,)
+    ).fetchall()
+    conn.close()
+    notifications = [{"id": r[0], "title": r[1], "message": r[2], "type": r[3], "read": bool(r[4]), "created_at": r[5]} for r in rows]
+    unread = sum(1 for n in notifications if not n["read"])
+    return jsonify({"notifications": notifications, "unread_count": unread})
 
 @app.route('/api/notifications/<int:notif_id>/read', methods=['POST'])
 @zero_trust_required
 def mark_notification_read(notif_id):
+    username = request.user.get("sub", "")
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("UPDATE notifications SET read=1 WHERE id=? AND username=?", (notif_id, username))
+    conn.commit()
+    conn.close()
     return jsonify({'status': 'ok'})
 
 @app.route('/api/notifications/read-all', methods=['POST'])
 @zero_trust_required
 def mark_all_notifications_read():
+    username = request.user.get("sub", "")
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("UPDATE notifications SET read=1 WHERE username=?", (username,))
+    conn.commit()
+    conn.close()
     return jsonify({'status': 'ok'})
 
 @app.route('/api/notifications/clear', methods=['DELETE'])
 @zero_trust_required
 def clear_notifications():
+    username = request.user.get("sub", "")
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("DELETE FROM notifications WHERE username=?", (username,))
+    conn.commit()
+    conn.close()
     return jsonify({'status': 'ok'})
 
 # ============================================================
@@ -5046,6 +5125,141 @@ def network_node_health():
 
 
 # ============================================================
+# Compliance — Additional Endpoints
+# ============================================================
+@app.route("/api/compliance/watchlist", methods=["GET"])
+@zero_trust_required
+def compliance_watchlist():
+    caller_role = request.user.get("role","")
+    if caller_role not in ("admin","compliance","auditor","operator"):
+        return jsonify({"error":"Forbidden"}),403
+    return jsonify({"entries":[
+        {"id":"WL-001","name":"Al-Qaeda","type":"terrorist_org","source":"OFAC","added":"2024-01-15"},
+        {"id":"WL-002","name":"Ivan Drago","type":"individual","source":"UN","added":"2024-03-22"},
+        {"id":"WL-003","name":"Black Market Corp","type":"entity","source":"FATF","added":"2023-11-10"},
+        {"id":"WL-004","name":"Kim Jong Finance","type":"entity","source":"OFAC","added":"2025-01-05"},
+        {"id":"WL-005","name":"Carlos Escobar Jr","type":"individual","source":"Interpol","added":"2024-07-18"},
+    ]})
+
+@app.route("/api/compliance/aml-rules", methods=["GET"])
+@zero_trust_required
+def compliance_aml_rules():
+    caller_role = request.user.get("role","")
+    if caller_role not in ("admin","compliance","auditor","operator"):
+        return jsonify({"error":"Forbidden"}),403
+    return jsonify({"rules":[
+        {"id":"AML-001","name":"Large Cash Transaction","threshold":10000,"currency":"USD","action":"flag","status":"active"},
+        {"id":"AML-002","name":"Structuring Detection","threshold":9500,"currency":"USD","action":"block","status":"active"},
+        {"id":"AML-003","name":"High-Risk Corridor","threshold":5000,"currency":"USD","action":"flag","status":"active"},
+        {"id":"AML-004","name":"Sanctioned Country","threshold":1,"currency":"USD","action":"block","status":"active"},
+        {"id":"AML-005","name":"Velocity Check (24h)","threshold":50000,"currency":"USD","action":"flag","status":"active"},
+    ],"total":5,"active":5})
+
+@app.route("/api/compliance/travel-rule", methods=["GET"])
+@zero_trust_required
+def compliance_travel_rule():
+    caller_role = request.user.get("role","")
+    if caller_role not in ("admin","compliance","auditor","operator"):
+        return jsonify({"error":"Forbidden"}),403
+    conn = sqlite3.connect(DB_PATH)
+    rows = conn.execute("SELECT id,sender_username,beneficiary_name,amount,currency,status,created_at FROM settlements WHERE amount>=3000 ORDER BY created_at DESC LIMIT 50").fetchall()
+    conn.close()
+    entries=[{"id":r[0],"originator":r[1],"beneficiary":r[2],"amount":r[3],"currency":r[4],"corridor":"N/A","status":r[5],"created_at":r[6],"travel_rule_status":"compliant" if r[3]<10000 else "requires_review"} for r in rows]
+    return jsonify({"entries":entries,"total":len(entries),"threshold_usd":3000})
+
+@app.route("/api/compliance/nostro-balances", methods=["GET"])
+@zero_trust_required
+def compliance_nostro_balances():
+    caller_role = request.user.get("role","")
+    if caller_role not in ("admin","compliance","auditor","operator"):
+        return jsonify({"error":"Forbidden"}),403
+    return jsonify({"balances":[
+        {"bank":"HSBC London","account":"GB29NWBK60161331926819","currency":"GBP","balance":2450000.00,"status":"active"},
+        {"bank":"Deutsche Bank","account":"DE89370400440532013000","currency":"EUR","balance":1875000.00,"status":"active"},
+        {"bank":"Emirates NBD","account":"AE070331234567890123456","currency":"AED","balance":5500000.00,"status":"active"},
+        {"bank":"DBS Singapore","account":"SG29DBS0000001234567890","currency":"SGD","balance":980000.00,"status":"active"},
+        {"bank":"JP Morgan NYC","account":"US29CHAS0000001234567","currency":"USD","balance":8750000.00,"status":"active"},
+    ]})
+
+@app.route("/api/compliance/ctr", methods=["GET"])
+@zero_trust_required
+def compliance_ctr():
+    caller_role = request.user.get("role","")
+    if caller_role not in ("admin","compliance","auditor","operator"):
+        return jsonify({"error":"Forbidden"}),403
+    conn = sqlite3.connect(DB_PATH)
+    rows = conn.execute("SELECT id,sender_username,beneficiary_name,amount,currency,created_at,status FROM settlements WHERE amount>10000 ORDER BY created_at DESC LIMIT 30").fetchall()
+    conn.close()
+    reports=[{"ctr_id":f"CTR-{r[0][:8].upper()}","transaction_id":r[0],"customer":r[1],"beneficiary":r[2],"amount":r[3],"currency":r[4],"date":r[5],"status":r[6],"filed":True} for r in rows]
+    return jsonify({"reports":reports,"total":len(reports)})
+
+@app.route("/api/compliance/ubo-registry", methods=["GET"])
+@zero_trust_required
+def compliance_ubo_registry():
+    caller_role = request.user.get("role","")
+    if caller_role not in ("admin","compliance","auditor","operator"):
+        return jsonify({"error":"Forbidden"}),403
+    return jsonify({"entities":[
+        {"id":"UBO-001","entity":"IPTS Holdings Ltd","ubo_name":"Mohamad Idriss","ownership_pct":45.0,"country":"UAE","verified":True,"last_review":"2025-10-01"},
+        {"id":"UBO-002","entity":"Gulf Trade Finance","ubo_name":"Walid Elmahdy","ownership_pct":32.5,"country":"SA","verified":True,"last_review":"2025-08-15"},
+        {"id":"UBO-003","entity":"Pacific Settlement Corp","ubo_name":"Mei Chen","ownership_pct":67.0,"country":"SG","verified":False,"last_review":"2024-12-20"},
+        {"id":"UBO-004","entity":"Nordic Payments AS","ubo_name":"Henrik Larsson","ownership_pct":55.0,"country":"SE","verified":True,"last_review":"2025-11-30"},
+    ]})
+
+@app.route("/api/compliance/tpdd", methods=["GET"])
+@zero_trust_required
+def compliance_tpdd():
+    caller_role = request.user.get("role","")
+    if caller_role not in ("admin","compliance","auditor","operator"):
+        return jsonify({"error":"Forbidden"}),403
+    return jsonify({"entities":[
+        {"id":"TPDD-001","name":"FastPay Gateway","type":"payment_processor","risk_level":"medium","status":"approved","review_date":"2025-06-30","country":"US"},
+        {"id":"TPDD-002","name":"CryptoSettle Inc","type":"crypto_exchange","risk_level":"high","status":"under_review","review_date":"2026-01-15","country":"KY"},
+        {"id":"TPDD-003","name":"BankBridge Ltd","type":"correspondent_bank","risk_level":"low","status":"approved","review_date":"2025-12-31","country":"GB"},
+        {"id":"TPDD-004","name":"Asia Remit Co","type":"money_service_business","risk_level":"medium","status":"approved","review_date":"2025-09-15","country":"HK"},
+        {"id":"TPDD-005","name":"Gulf Finance LLC","type":"payment_processor","risk_level":"low","status":"approved","review_date":"2026-03-01","country":"AE"},
+    ]})
+
+@app.route("/api/compliance/policy-library", methods=["GET"])
+@zero_trust_required
+def compliance_policy_library():
+    caller_role = request.user.get("role","")
+    if caller_role not in ("admin","compliance","auditor","operator"):
+        return jsonify({"error":"Forbidden"}),403
+    return jsonify({"policies":[
+        {"id":"POL-001","title":"AML/CFT Policy","version":"3.2","status":"active","owner":"Compliance","last_updated":"2025-09-01","review_due":"2026-09-01"},
+        {"id":"POL-002","title":"KYC Onboarding Policy","version":"2.1","status":"active","owner":"Compliance","last_updated":"2025-06-15","review_due":"2026-06-15"},
+        {"id":"POL-003","title":"Sanctions Screening Policy","version":"1.8","status":"active","owner":"Legal","last_updated":"2025-11-20","review_due":"2026-11-20"},
+        {"id":"POL-004","title":"Data Retention Policy","version":"2.0","status":"active","owner":"IT","last_updated":"2025-01-10","review_due":"2026-01-10"},
+        {"id":"POL-005","title":"Incident Response Plan","version":"1.5","status":"under_review","owner":"Security","last_updated":"2024-08-01","review_due":"2025-08-01"},
+    ]})
+
+@app.route("/api/aml/alerts", methods=["GET"])
+@zero_trust_required
+def aml_alerts():
+    caller_role = request.user.get("role","")
+    if caller_role not in ("admin","compliance","auditor","operator","datascientist"):
+        return jsonify({"error":"Forbidden"}),403
+    conn = sqlite3.connect(DB_PATH)
+    rows = conn.execute("SELECT id,sender_username,beneficiary_name,amount,currency,risk_score,status,created_at FROM settlements WHERE risk_score>=60 ORDER BY risk_score DESC,created_at DESC LIMIT 50").fetchall()
+    conn.close()
+    alerts=[{"id":r[0],"sender":r[1],"beneficiary":r[2],"amount":r[3],"currency":r[4],"risk_score":r[5],"status":r[6],"corridor":"N/A","created_at":r[7],"alert_type":"HIGH_RISK" if (r[5] or 0)>=85 else "ELEVATED_RISK"} for r in rows]
+    return jsonify({"alerts":alerts,"total":len(alerts)})
+
+@app.route("/api/aml/telemetry", methods=["GET"])
+@zero_trust_required
+def aml_telemetry():
+    conn = sqlite3.connect(DB_PATH)
+    recent = conn.execute("SELECT id,sender_username,beneficiary_name,amount,currency,risk_score,status,created_at FROM settlements ORDER BY created_at DESC LIMIT 20").fetchall()
+    total = conn.execute("SELECT COUNT(*) FROM settlements").fetchone()[0]
+    blocked = conn.execute("SELECT COUNT(*) FROM settlements WHERE status='blocked'").fetchone()[0]
+    high_risk = conn.execute("SELECT COUNT(*) FROM settlements WHERE risk_score>=70").fetchone()[0]
+    conn.close()
+    transactions=[{"id":r[0],"sender":r[1],"beneficiary":r[2],"amount":r[3],"currency":r[4],"risk_score":r[5],"status":r[6],"corridor":"N/A","created_at":r[7]} for r in recent]
+    return jsonify({"transactions":transactions,"total":total,"blocked":blocked,"high_risk":high_risk,"timestamp":datetime.utcnow().isoformat()})
+
+
+# ============================================================
 # Corridors — Dynamic Payment Corridors
 # ============================================================
 def _init_corridors_table():
@@ -5240,12 +5454,9 @@ def index():
 @app.route("/api/corridors/<int:corridor_id>/toggle", methods=["POST"])
 @zero_trust_required
 def toggle_corridor(corridor_id):
-    if request.user.get("role") not in ("admin", "operator"):
-        return jsonify({"error": "Insufficient permissions"}), 403
-    data = request.get_json() or {}
-    password = data.get("password", "")
-    if password != "123456":
-        return jsonify({"error": "Invalid security password"}), 401
+    caller_role = request.user.get("role", "")
+    if caller_role not in ("admin", "operator"):
+        return jsonify({"error": "Forbidden"}), 403
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT status FROM corridors WHERE id=?", (corridor_id,))

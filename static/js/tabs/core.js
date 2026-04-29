@@ -102,18 +102,12 @@ function updateHeaderInfo() {
 
 function configureUIForRole() {
   const tabAccess = {
-    // Full platform access (no payments/beneficiaries — handled by operators/clients)
-    admin:         ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'security', 'cards', 'admin', 'ledger', 'aml', 'corridors', 'dsworkbench', 'graph', 'mlops'],
-    // Payment operations: approvals, ledger, corridors
-    operator:      ['dashboard', 'approvals', 'ledger', 'security', 'cards', 'corridors'],
-    // Compliance officer: risk, cases, AML, approvals, AI risk engine, network graph
-    compliance:    ['dashboard', 'approvals', 'compliance', 'cases', 'aml', 'ledger', 'aiml', 'security', 'graph'],
-    // Client: personal payments, cards, documents, spending analytics
-    client:        ['dashboard', 'payments', 'beneficiaries', 'cards', 'documents', 'spending360', 'security'],
-    // Auditor: read-only compliance, cases, AML, ledger, AI engine, network
-    auditor:       ['dashboard', 'compliance', 'cases', 'aml', 'ledger', 'aiml', 'graph'],
-    // Data Scientist: DS Workbench (hub), AI/ML, MLOps, AML data, ledger, network graph
-    datascientist: ['dashboard', 'dsworkbench', 'aiml', 'mlops', 'aml', 'ledger', 'graph'],
+    admin:         ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'security', 'cards', 'admin', 'ledger', 'aml', 'corridors', 'dsworkbench', 'graph', 'mlops', 'defi', 'spending360', 'documents'],
+    compliance:    ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'security', 'ledger', 'aml', 'graph'],
+    operator:      ['dashboard', 'approvals', 'security', 'cards', 'ledger', 'corridors'],
+    auditor:       ['dashboard', 'aiml', 'compliance', 'cases', 'ledger', 'aml', 'graph'],
+    datascientist: ['dashboard', 'aiml', 'ledger', 'aml', 'dsworkbench', 'graph', 'mlops'],
+    client:        ['dashboard', 'beneficiaries', 'payments', 'security', 'cards', 'documents', 'spending360'],
   };
 
   const allowed = tabAccess[ROLE] || null;
