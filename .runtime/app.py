@@ -4397,6 +4397,59 @@ def vote_on_proposal(proposal_id):
 def execute_proposal(proposal_id):
     return jsonify({'status': 'ok', 'result': 'executed'})
 
+
+@app.route("/api/network/corridor", methods=["GET"])
+@zero_trust_required
+def network_corridor():
+    """Payment corridor graph: sender → currency hub → receiver with risk scores."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    # Aggregate flows: sender → currency → beneficiary
+    c.execute("""
+        SELECT
+            COALESCE(sender_username, sender)  AS src,
+            COALESCE(currency, 'USD')          AS currency,
+            COALESCE(beneficiary_name, receiver) AS dst,
+            COUNT(*)                           AS tx_count,
+            SUM(amount)                        AS total_vol,
+            AVG(risk_score)                    AS avg_risk
+        FROM settlements
+        GROUP BY src, currency, dst
+        ORDER BY total_vol DESC
+        LIMIT 40
+    """)
+    rows = c.fetchall()
+    conn.close()
+
+    nodes_dict = {}
+    links = []
+
+    def add_node(nid, label, ntype, risk=0, tx_count=0, volume=0):
+        if nid not in nodes_dict:
+            nodes_dict[nid] = {"id": nid, "label": label, "type": ntype,
+                                "risk": round(risk, 1), "tx_count": tx_count, "volume": round(volume, 0)}
+        else:
+            nodes_dict[nid]["tx_count"] += tx_count
+            nodes_dict[nid]["volume"]   += volume
+            if risk > nodes_dict[nid]["risk"]:
+                nodes_dict[nid]["risk"] = round(risk, 1)
+
+    for src, currency, dst, tx_count, vol, avg_risk in rows:
+        hub_id = "HUB_" + currency
+        src_id = "SND_" + str(src)
+        dst_id = "RCV_" + str(dst)
+
+        add_node(src_id, str(src)[:18], "sender",   avg_risk, tx_count, vol)
+        add_node(hub_id, currency + " Hub", "hub",   0, tx_count, vol)
+        add_node(dst_id, str(dst)[:18], "receiver",  avg_risk, tx_count, vol)
+
+        links.append({"source": src_id, "target": hub_id,
+                      "volume": round(vol, 0), "risk": round(avg_risk, 1), "tx_count": tx_count})
+        links.append({"source": hub_id, "target": dst_id,
+                      "volume": round(vol, 0), "risk": round(avg_risk, 1), "tx_count": tx_count})
+
+    return jsonify({"nodes": list(nodes_dict.values()), "links": links})
+
 # --- Serve Frontend ---
 @app.route("/")
 def index():
