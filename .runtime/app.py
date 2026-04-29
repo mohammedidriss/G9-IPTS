@@ -4591,6 +4591,139 @@ def network_node_health():
     }
     return jsonify({"nodes": nodes, "links": links, "summary": summary})
 
+
+# ============================================================
+# Corridors — Dynamic Payment Corridors
+# ============================================================
+def _init_corridors_table():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS corridors (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        name          TEXT NOT NULL,
+        source_country TEXT NOT NULL,
+        dest_country  TEXT NOT NULL,
+        source_flag   TEXT DEFAULT '🌐',
+        dest_flag     TEXT DEFAULT '🌐',
+        source_currency TEXT NOT NULL,
+        dest_currency TEXT NOT NULL,
+        exchange_rate REAL DEFAULT 1.0,
+        fee_pct       REAL DEFAULT 0.5,
+        min_amount    REAL DEFAULT 100,
+        max_amount    REAL DEFAULT 100000,
+        daily_limit   REAL DEFAULT 500000,
+        purpose       TEXT DEFAULT 'General Transfer',
+        status        TEXT DEFAULT 'active',
+        created_by    TEXT,
+        created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    # Seed default corridors (the 5 from the Payment Corridor map)
+    defaults = [
+        ('India → KSA', 'India', 'Saudi Arabia', '🇮🇳', '🇸🇦', 'INR', 'SAR', 0.0327, 0.75, 500, 50000, 500000, 'Labor Remittance'),
+        ('KSA → UAE',   'Saudi Arabia', 'UAE',   '🇸🇦', '🇦🇪', 'SAR', 'AED', 0.981,  0.50, 100, 100000, 1000000, 'Trade Settlement'),
+        ('KSA → USA',   'Saudi Arabia', 'USA',   '🇸🇦', '🇺🇸', 'SAR', 'USD', 0.267,  0.40, 500, 250000, 2000000, 'Investment Transfer'),
+        ('KSA → Lebanon','Saudi Arabia','Lebanon','🇸🇦', '🇱🇧', 'SAR', 'LBP', 2400.0, 1.50, 100, 20000,  100000,  'Family Remittance'),
+        ('KSA → UK',    'Saudi Arabia', 'UK',    '🇸🇦', '🇬🇧', 'SAR', 'GBP', 0.211,  0.45, 500, 150000, 1500000, 'Education Payments'),
+    ]
+    for d in defaults:
+        c.execute("SELECT id FROM corridors WHERE name=?", (d[0],))
+        if not c.fetchone():
+            c.execute("""INSERT INTO corridors 
+                (name,source_country,dest_country,source_flag,dest_flag,source_currency,dest_currency,
+                 exchange_rate,fee_pct,min_amount,max_amount,daily_limit,purpose,created_by)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'system')""", d)
+    conn.commit()
+    conn.close()
+_init_corridors_table()
+
+@app.route("/api/corridors", methods=["GET"])
+@zero_trust_required
+def list_corridors():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    status_filter = request.args.get('status', 'active')
+    if status_filter == 'all':
+        c.execute("SELECT * FROM corridors ORDER BY created_at DESC")
+    else:
+        c.execute("SELECT * FROM corridors WHERE status=? ORDER BY created_at DESC", (status_filter,))
+    cols = [d[0] for d in c.description]
+    rows = [dict(zip(cols, r)) for r in c.fetchall()]
+    conn.close()
+    return jsonify({"corridors": rows})
+
+@app.route("/api/corridors", methods=["POST"])
+@zero_trust_required
+def create_corridor():
+    if request.user.get("role") not in ("admin", "operator"):
+        return jsonify({"error": "Insufficient privileges"}), 403
+    data = request.get_json() or {}
+    required = ["name","source_country","dest_country","source_currency","dest_currency"]
+    for f in required:
+        if not data.get(f):
+            return jsonify({"error": f"Missing field: {f}"}), 400
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""INSERT INTO corridors
+        (name,source_country,dest_country,source_flag,dest_flag,source_currency,dest_currency,
+         exchange_rate,fee_pct,min_amount,max_amount,daily_limit,purpose,status,created_by)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+        data["name"], data["source_country"], data["dest_country"],
+        data.get("source_flag","🌐"), data.get("dest_flag","🌐"),
+        data["source_currency"], data["dest_currency"],
+        float(data.get("exchange_rate",1.0)), float(data.get("fee_pct",0.5)),
+        float(data.get("min_amount",100)), float(data.get("max_amount",100000)),
+        float(data.get("daily_limit",500000)),
+        data.get("purpose","General Transfer"),
+        data.get("status","active"),
+        request.user.get("sub","admin")
+    ))
+    corridor_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    log_audit("corridor_created", request.user.get("sub"), {"corridor_id": corridor_id, "name": data["name"]}, request.remote_addr)
+    return jsonify({"status":"created","id":corridor_id})
+
+@app.route("/api/corridors/<int:corridor_id>", methods=["PUT"])
+@zero_trust_required
+def update_corridor(corridor_id):
+    if request.user.get("role") not in ("admin","operator"):
+        return jsonify({"error":"Insufficient privileges"}), 403
+    data = request.get_json() or {}
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    fields = ["name","source_country","dest_country","source_flag","dest_flag",
+              "source_currency","dest_currency","exchange_rate","fee_pct",
+              "min_amount","max_amount","daily_limit","purpose","status"]
+    updates = []
+    values  = []
+    for f in fields:
+        if f in data:
+            updates.append(f"{f}=?")
+            values.append(data[f])
+    if not updates:
+        conn.close()
+        return jsonify({"error":"No fields to update"}), 400
+    updates.append("updated_at=CURRENT_TIMESTAMP")
+    values.append(corridor_id)
+    c.execute(f"UPDATE corridors SET {', '.join(updates)} WHERE id=?", values)
+    conn.commit()
+    conn.close()
+    return jsonify({"status":"updated"})
+
+@app.route("/api/corridors/<int:corridor_id>", methods=["DELETE"])
+@zero_trust_required
+def delete_corridor(corridor_id):
+    if request.user.get("role") != "admin":
+        return jsonify({"error":"Admin only"}), 403
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("UPDATE corridors SET status='inactive', updated_at=CURRENT_TIMESTAMP WHERE id=?", (corridor_id,))
+    conn.commit()
+    conn.close()
+    log_audit("corridor_deactivated", request.user.get("sub"), {"corridor_id":corridor_id}, request.remote_addr)
+    return jsonify({"status":"deactivated"})
+
 # --- Serve Frontend ---
 @app.route("/")
 def index():
