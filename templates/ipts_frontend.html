@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 <script>
 tailwind.config = {
   theme: {
@@ -186,9 +187,6 @@ tailwind.config = {
     <button onclick="switchTab('cards')" data-tab="cards" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-credit-card mr-1"></i>Cards
     </button>
-    <button onclick="switchTab('defi')" data-tab="defi" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
-      <i class="fas fa-cubes mr-1"></i>DeFi
-    </button>
     <button onclick="switchTab('admin')" data-tab="admin" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-user-shield mr-1"></i>Admin
     </button>
@@ -203,6 +201,9 @@ tailwind.config = {
     </button>
     <button onclick="switchTab('mlops')" data-tab="mlops" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-robot mr-1"></i>MLOps
+    </button>
+    <button onclick="switchTab('corridors')" data-tab="corridors" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
+      <i class="fas fa-route mr-1"></i>Corridors
     </button>
   </nav>
 
@@ -572,7 +573,7 @@ tailwind.config = {
             <div class="grid grid-cols-3 gap-3">
               <div class="col-span-2">
                 <label class="block text-xs text-gray-500 mb-1">Amount</label>
-                <input id="payAmount" type="number" value="50000" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="Enter amount" oninput="updateFXPreview()">
+                <input id="payAmount" type="number" value="" class="w-full px-3 py-2 rounded-lg text-sm" placeholder="Enter amount" oninput="updateFXPreview()">
               </div>
               <div>
                 <label class="block text-xs text-gray-500 mb-1">Currency</label>
@@ -862,37 +863,96 @@ tailwind.config = {
 
     <!-- NETWORK GRAPH TAB -->
     <div id="tab-graph" class="tab-content hidden fade-in">
-      <!-- Graph View Toggle -->
-      <div class="flex gap-2 mb-4">
-        <button onclick="switchGraphView('full')" id="graphViewFull" class="px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-white">Full Network</button>
-        <button onclick="switchGraphView('connected')" id="graphViewConnected" class="px-4 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 hover:text-gray-800">Connected Nodes Only</button>
-      </div>
-      <!-- Full Network Graph -->
-      <div id="graphFullView" class="glass rounded-xl p-6 mb-4">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-diagram-project mr-2 text-accent"></i>Full Transaction Network</h3>
-          <div class="flex gap-2 text-xs">
-            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-accent inline-block"></span>Normal</span>
-            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>Cycle Node</span>
-            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>High Centrality</span>
-            <span id="graphFullStats" class="text-gray-500 ml-2"></span>
-          </div>
-        </div>
-        <div id="graphContainer" style="width:100%;height:500px;background:#E8EDF2;border-radius:8px;overflow:hidden;position:relative;"></div>
-      </div>
-      <!-- Connected Nodes Graph -->
-      <div id="graphConnectedView" class="glass rounded-xl p-6 hidden">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-project-diagram mr-2 text-purple-400"></i>Connected Nodes (Edges &ge; 1)</h3>
-          <div class="flex gap-2 text-xs">
-            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-accent inline-block"></span>Normal</span>
-            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>Cycle Node</span>
-            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>High Centrality</span>
-            <span id="graphConnectedStats" class="text-gray-500 ml-2"></span>
-          </div>
-        </div>
-        <div id="graphContainerConnected" style="width:100%;height:500px;background:#E8EDF2;border-radius:8px;overflow:hidden;position:relative;"></div>
-      </div>
+<!-- Network KPI Strip -->
+<div class="flex gap-4 mb-4" id="networkKpiStrip">
+  <div class="glass rounded-xl px-4 py-2 flex items-center gap-2"><span class="text-xs text-gray-400">Total</span><span id="netKpiTotal" class="font-bold text-white">26</span></div>
+  <div class="glass rounded-xl px-4 py-2 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span><span class="text-xs text-gray-400">Online</span><span id="netKpiOnline" class="font-bold text-green-400">-</span></div>
+  <div class="glass rounded-xl px-4 py-2 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-yellow-400 inline-block"></span><span class="text-xs text-gray-400">Syncing</span><span id="netKpiSyncing" class="font-bold text-yellow-400">-</span></div>
+  <div class="glass rounded-xl px-4 py-2 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-orange-400 inline-block"></span><span class="text-xs text-gray-400">Degraded</span><span id="netKpiDegraded" class="font-bold text-orange-400">-</span></div>
+  <div class="glass rounded-xl px-4 py-2 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span><span class="text-xs text-gray-400">Offline</span><span id="netKpiOffline" class="font-bold text-red-400">-</span></div>
+</div>
+
+<!-- Network Sub-tab Nav -->
+<div class="flex gap-2 mb-4">
+  <button onclick="switchNetworkTab('graph')" id="netTab-graph" class="px-4 py-2 rounded-lg text-sm font-medium bg-accent text-white">Full Node Network</button>
+  <button onclick="switchNetworkTab('explorer')" id="netTab-explorer" class="px-4 py-2 rounded-lg text-sm font-medium glass text-gray-300 hover:text-white">Node Explorer</button>
+  <button onclick="switchNetworkTab('locations')" id="netTab-locations" class="px-4 py-2 rounded-lg text-sm font-medium glass text-gray-300 hover:text-white">Node Locations</button>
+</div>
+
+<!-- Sub-tab 1: Force Graph -->
+<div id="netPane-graph" class="glass rounded-xl p-4">
+  <div id="networkD3Container" style="width:100%;height:520px;position:relative;">
+    <div class="flex items-center justify-center h-full text-gray-500 text-sm" id="networkD3Loading">Loading network graph...</div>
+  </div>
+  <!-- Legend -->
+  <div class="flex flex-wrap gap-4 mt-3 text-xs">
+    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full inline-block" style="background:#f59e0b"></span>Validator</span>
+    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full inline-block" style="background:#3b82f6"></span>Full Node</span>
+    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full inline-block" style="background:#8b5cf6"></span>Relay</span>
+    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full inline-block" style="background:#06b6d4"></span>Light</span>
+    <span class="flex items-center gap-1 ml-4"><span class="w-3 h-3 rounded-full border-2 border-green-400 inline-block"></span>Online</span>
+    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full border-2 border-yellow-400 inline-block"></span>Syncing</span>
+    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full border-2 border-orange-400 inline-block"></span>Degraded</span>
+    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full border-2 border-red-500 inline-block"></span>Offline</span>
+  </div>
+</div>
+
+<!-- Sub-tab 2: Node Explorer -->
+<div id="netPane-explorer" class="hidden">
+  <div class="glass rounded-xl p-4 mb-4 flex gap-3">
+    <input type="text" id="nodeSearchInput" placeholder="Search nodes..." class="flex-1 px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/20 text-white placeholder-gray-400" oninput="filterNodeTable()">
+    <select id="nodeTypeFilter" class="px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/20 text-white" onchange="filterNodeTable()">
+      <option value="">All Types</option>
+      <option value="Validator">Validator</option>
+      <option value="Full Node">Full Node</option>
+      <option value="Relay">Relay</option>
+      <option value="Light">Light</option>
+    </select>
+    <select id="nodeStatusFilter" class="px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/20 text-white" onchange="filterNodeTable()">
+      <option value="">All Statuses</option>
+      <option value="online">Online</option>
+      <option value="syncing">Syncing</option>
+      <option value="degraded">Degraded</option>
+      <option value="offline">Offline</option>
+    </select>
+  </div>
+  <div class="glass rounded-xl overflow-hidden">
+    <table class="w-full text-sm">
+      <thead><tr class="border-b border-white/10 text-gray-400 text-xs uppercase">
+        <th class="px-4 py-3 text-left">Node</th>
+        <th class="px-4 py-3 text-left">Type</th>
+        <th class="px-4 py-3 text-left">Country</th>
+        <th class="px-4 py-3 text-left">Status</th>
+        <th class="px-4 py-3 text-left">Latency</th>
+        <th class="px-4 py-3 text-left">Uptime</th>
+        <th class="px-4 py-3 text-left">Actions</th>
+      </tr></thead>
+      <tbody id="nodeExplorerBody"><tr><td colspan="7" class="px-4 py-6 text-center text-gray-500">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Sub-tab 3: Node Locations Map -->
+<div id="netPane-locations" class="hidden">
+  <div class="glass rounded-xl p-4">
+    <div id="nodeLocationMap" style="width:100%;height:420px;"></div>
+    <div id="nodeLocationList" class="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3"></div>
+  </div>
+</div>
+
+<!-- Node Detail Modal -->
+<div id="nodeDetailModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+  <div class="glass rounded-2xl p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold" id="nodeDetailTitle">Node Details</h3>
+      <button onclick="document.getElementById('nodeDetailModal').classList.add('hidden')" class="text-gray-400 hover:text-white text-xl">&times;</button>
+    </div>
+    <div id="nodeDetailContent"></div>
+  </div>
+</div>
+
+<!-- Network Tooltip -->
+<div id="networkTooltip" class="hidden fixed bg-gray-900 border border-white/20 rounded-lg px-3 py-2 text-xs text-white pointer-events-none z-50 shadow-xl"></div>
     </div>
 
     <!-- ADMIN TAB -->
@@ -1734,375 +1794,265 @@ tailwind.config = {
       </div>
     </div>
 
-    <!-- DEFI TAB -->
-    <div id="tab-defi" class="tab-content hidden fade-in">
-      <div class="flex items-center justify-between mb-5">
-        <div id="defiTabHeader">
-          <h2 class="text-xl font-bold text-gray-800" id="defiTabTitle"><i class="fas fa-cubes mr-2 text-accent"></i>DeFi</h2>
-          <p class="text-xs text-gray-500 mt-0.5" id="defiTabSubtitle">Swap, stake, and escrow your funds using decentralised finance</p>
-        </div>
-        <button onclick="loadDefiTab()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium hover:bg-gray-200 transition">
-          <i class="fas fa-rotate-right"></i> Refresh
-        </button>
+
+  <!-- CORRIDORS TAB -->
+  <div id="tab-corridors" class="tab-content hidden fade-in">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-route mr-2 text-accent"></i>Payment Corridors</h2>
+        <p class="text-sm text-gray-500">Manage and monitor global payment corridors</p>
       </div>
-
-      <!-- KPI Row -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-        <div class="glass rounded-xl p-4 border border-white/5">
-          <p class="text-xs text-gray-500 mb-1">Total TVL</p>
-          <p id="defiAdminTVL" class="text-xl font-bold text-gray-800">—</p>
-        </div>
-        <div class="glass rounded-xl p-4 border border-white/5">
-          <p class="text-xs text-gray-500 mb-1">24h Volume</p>
-          <p id="defiAdminVol" class="text-xl font-bold text-gray-800">—</p>
-        </div>
-        <div class="glass rounded-xl p-4 border border-white/5">
-          <p class="text-xs text-gray-500 mb-1">Accrued Fees</p>
-          <p id="defiAdminFees" class="text-xl font-bold text-green-600">—</p>
-        </div>
-        <div class="glass rounded-xl p-4 border border-white/5">
-          <p class="text-xs text-gray-500 mb-1">Active Stakes</p>
-          <p id="defiAdminStakes" class="text-xl font-bold text-gray-800">—</p>
-        </div>
-      </div>
-
-      <!-- Admin-only governance panel (hidden for clients) -->
-      <div id="defiAdminPanel">
-
-      <!-- Sub-tabs -->
-      <div class="flex flex-wrap gap-2 mb-5" id="defiAdminTabs">
-        <button onclick="showDefiAdminSection('pools')" data-section="pools"
-          class="defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white transition">
-          <i class="fas fa-water mr-1"></i>Pool Management
-        </button>
-        <button onclick="showDefiAdminSection('params')" data-section="params"
-          class="defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
-          <i class="fas fa-sliders mr-1"></i>Protocol Parameters
-        </button>
-        <button onclick="showDefiAdminSection('fees')" data-section="fees"
-          class="defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
-          <i class="fas fa-percentage mr-1"></i>Fee Management
-        </button>
-        <button onclick="showDefiAdminSection('emergency')" data-section="emergency"
-          class="defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
-          <i class="fas fa-triangle-exclamation mr-1"></i>Emergency Controls
-        </button>
-        <button onclick="showDefiAdminSection('governance')" data-section="governance"
-          class="defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
-          <i class="fas fa-landmark mr-1"></i>Governance
-        </button>
-      </div>
-
-      <!-- POOL MANAGEMENT -->
-      <div id="defiAdminPools" class="defi-admin-section">
-        <div class="glass rounded-xl p-5 border border-white/5">
-          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-water mr-2 text-blue-400"></i>Liquidity Pool Management</h3>
-          <div id="defiAdminPoolTable" class="space-y-3">
-            <p class="text-gray-400 text-sm text-center py-4">Loading pools…</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- PROTOCOL PARAMETERS -->
-      <div id="defiAdminParams" class="defi-admin-section hidden">
-        <div class="glass rounded-xl p-5 border border-white/5">
-          <h3 class="text-sm font-semibold text-gray-800 mb-1"><i class="fas fa-sliders mr-2 text-purple-400"></i>Protocol Parameters</h3>
-          <p class="text-xs text-gray-500 mb-5">Changes are applied immediately and logged to audit trail.</p>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="defiParamForm">
-            <!-- Populated by JS -->
-          </div>
-          <div class="mt-5 flex items-center gap-3">
-            <button onclick="saveDefiParams()" class="px-5 py-2 rounded-lg bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition">
-              <i class="fas fa-save mr-2"></i>Save Parameters
-            </button>
-            <span id="defiParamMsg" class="text-xs text-gray-500"></span>
-          </div>
-        </div>
-      </div>
-
-      <!-- FEE MANAGEMENT -->
-      <div id="defiAdminFeesMgmt" class="defi-admin-section hidden">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Fee Switch -->
-          <div class="glass rounded-xl p-5 border border-white/5">
-            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-toggle-on mr-2 text-green-500"></i>Fee Switch</h3>
-            <p class="text-xs text-gray-500 mb-4">When enabled, a protocol fee is deducted from every swap and routed to treasury.</p>
-            <div class="flex items-center justify-between bg-gray-50 rounded-lg p-4">
-              <div>
-                <p class="text-sm font-medium text-gray-800">Protocol Fee Collection</p>
-                <p class="text-xs text-gray-500 mt-0.5" id="feeSwitchStatus">Loading…</p>
-              </div>
-              <button id="feeSwitchBtn" onclick="toggleFeeSwitch()"
-                class="px-4 py-1.5 rounded-lg text-xs font-semibold transition">
-                —
-              </button>
-            </div>
-          </div>
-          <!-- Fee Config -->
-          <div class="glass rounded-xl p-5 border border-white/5">
-            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-percentage mr-2 text-orange-400"></i>Fee Configuration</h3>
-            <div class="space-y-3">
-              <div>
-                <label class="text-xs text-gray-500">Protocol Fee % (of swap revenue)</label>
-                <input id="feeProtocolPct" type="number" step="0.01" min="0" max="5"
-                  class="w-full mt-1 px-3 py-2 rounded-lg text-sm" placeholder="0.05">
-              </div>
-              <div>
-                <label class="text-xs text-gray-500">Flash Loan Fee (basis points)</label>
-                <input id="feeFlashLoanBps" type="number" step="1" min="0" max="100"
-                  class="w-full mt-1 px-3 py-2 rounded-lg text-sm" placeholder="9">
-              </div>
-              <button onclick="saveFeeConfig()" class="w-full py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-400 transition">
-                <i class="fas fa-save mr-2"></i>Update Fee Config
-              </button>
-              <div id="feeConfigMsg" class="hidden text-xs rounded px-2 py-1"></div>
-            </div>
-          </div>
-          <!-- Pool Fee Override -->
-          <div class="glass rounded-xl p-5 border border-white/5 md:col-span-2">
-            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-layer-group mr-2 text-blue-400"></i>Per-Pool Fee Override</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label class="text-xs text-gray-500">Pool Pair</label>
-                <select id="poolFeeSelect" class="w-full mt-1 px-3 py-2 rounded-lg text-sm">
-                  <option value="USD/EUR">USD/EUR</option><option value="USD/GBP">USD/GBP</option>
-                  <option value="USD/JPY">USD/JPY</option><option value="USD/CHF">USD/CHF</option>
-                  <option value="USD/AED">USD/AED</option><option value="USD/ETH">USD/ETH</option>
-                </select>
-              </div>
-              <div>
-                <label class="text-xs text-gray-500">New Fee (basis points, e.g. 30 = 0.30%)</label>
-                <input id="poolFeeBps" type="number" min="1" max="1000" placeholder="30"
-                  class="w-full mt-1 px-3 py-2 rounded-lg text-sm">
-              </div>
-              <div class="flex items-end">
-                <button onclick="updatePoolFee()" class="w-full py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-500 transition">
-                  <i class="fas fa-pen mr-1"></i>Set Fee
-                </button>
-              </div>
-            </div>
-            <div id="poolFeeMsg" class="hidden text-xs rounded px-2 py-1 mt-2"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- EMERGENCY CONTROLS -->
-      <div id="defiAdminEmergency" class="defi-admin-section hidden">
-        <div class="glass rounded-xl p-5 border border-red-200 bg-red-50/30 mb-4">
-          <div class="flex items-center gap-2 mb-1">
-            <i class="fas fa-triangle-exclamation text-red-500 text-lg"></i>
-            <h3 class="text-sm font-semibold text-red-700">Emergency Controls</h3>
-          </div>
-          <p class="text-xs text-red-600">These controls immediately halt protocol operations. Actions are logged and auditable. Use only in security incidents or extreme market events.</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="emergencyControlGrid">
-          <!-- Populated by JS -->
-        </div>
-        <div class="glass rounded-xl p-5 border border-white/5 mt-4">
-          <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-bolt mr-2 text-yellow-500"></i>Global Circuit Breaker</h3>
-          <p class="text-xs text-gray-500 mb-4">Pauses ALL protocol operations simultaneously. Use for critical security incidents only.</p>
-          <div class="flex gap-3">
-            <button onclick="triggerGlobalPause(true)"
-              class="flex-1 py-2.5 rounded-lg bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition">
-              <i class="fas fa-power-off mr-2"></i>GLOBAL PAUSE
-            </button>
-            <button onclick="triggerGlobalPause(false)"
-              class="flex-1 py-2.5 rounded-lg bg-green-600 text-white font-bold text-sm hover:bg-green-700 transition">
-              <i class="fas fa-play mr-2"></i>RESUME ALL
-            </button>
-          </div>
-          <div class="mt-3">
-            <label class="text-xs text-gray-500">Reason / Incident Reference</label>
-            <input id="emergencyReason" type="text" placeholder="e.g. SEC-2026-01 — oracle manipulation detected"
-              class="w-full mt-1 px-3 py-2 rounded-lg text-sm">
-          </div>
-        </div>
-      </div>
-
-      <!-- GOVERNANCE -->
-      <div id="defiAdminGovernance" class="defi-admin-section hidden">
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          <!-- Create Proposal -->
-          <div class="lg:col-span-2 glass rounded-xl p-5 border border-white/5">
-            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-file-pen mr-2 text-accent"></i>New Proposal</h3>
-            <div class="space-y-3">
-              <div>
-                <label class="text-xs text-gray-500">Title</label>
-                <input id="propTitle" type="text" placeholder="e.g. Reduce stability fee to 2%" class="w-full mt-1 px-3 py-2 rounded-lg text-sm">
-              </div>
-              <div>
-                <label class="text-xs text-gray-500">Category</label>
-                <select id="propCategory" class="w-full mt-1 px-3 py-2 rounded-lg text-sm">
-                  <option value="fee">Fee Change</option>
-                  <option value="param">Parameter Update</option>
-                  <option value="pool">Pool Management</option>
-                  <option value="emergency">Emergency Protocol</option>
-                  <option value="governance">Governance</option>
-                  <option value="general">General</option>
-                </select>
-              </div>
-              <div>
-                <label class="text-xs text-gray-500">Description</label>
-                <textarea id="propDesc" rows="3" placeholder="Describe the proposal and rationale…"
-                  class="w-full mt-1 px-3 py-2 rounded-lg text-sm resize-none"></textarea>
-              </div>
-              <div>
-                <label class="text-xs text-gray-500">Parameter Changes (JSON, optional)</label>
-                <textarea id="propParams" rows="2" placeholder='{"stability_fee_pct": "2.0"}'
-                  class="w-full mt-1 px-3 py-2 rounded-lg text-xs font-mono resize-none"></textarea>
-              </div>
-              <div>
-                <label class="text-xs text-gray-500">Quorum Required</label>
-                <input id="propQuorum" type="number" value="3" min="1" class="w-full mt-1 px-3 py-2 rounded-lg text-sm">
-              </div>
-              <button onclick="submitProposal()" class="w-full py-2.5 rounded-lg bg-accent text-white font-semibold text-sm hover:bg-accent/90 transition">
-                <i class="fas fa-file-pen mr-2"></i>Submit Proposal
-              </button>
-              <div id="propResult" class="hidden text-xs rounded px-2 py-1"></div>
-            </div>
-          </div>
-          <!-- Proposals List -->
-          <div class="lg:col-span-3 glass rounded-xl p-5 border border-white/5">
-            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-list-check mr-2 text-purple-400"></i>Proposals</h3>
-            <div id="proposalsList" class="space-y-3">
-              <p class="text-gray-400 text-sm text-center py-4">Loading proposals…</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
     </div>
-      </div> <!-- end defiAdminPanel -->
 
-      <!-- Client DeFi sub-tab navigation -->
-      <div id="defiClientTabs" class="flex flex-wrap gap-2 mb-5 hidden">
-        <button onclick="showDefiClientSection('swap')" data-client-section="swap"
-          class="defi-client-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white transition">
-          <i class="fas fa-exchange-alt mr-1"></i>Swap
-        </button>
-        <button onclick="showDefiClientSection('stake')" data-client-section="stake"
-          class="defi-client-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
-          <i class="fas fa-lock mr-1"></i>Staking
-        </button>
-        <button onclick="showDefiClientSection('escrow')" data-client-section="escrow"
-          class="defi-client-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
-          <i class="fas fa-handshake mr-1"></i>Escrow
-        </button>
+<!-- Corridor sub-tab nav -->
+<div class="flex gap-2 mb-4">
+  <button onclick="switchCorridorView('list')" id="corrBtn-list" class="px-4 py-2 rounded-lg text-sm font-medium bg-accent text-white">List View</button>
+  <button onclick="switchCorridorView('map')" id="corrBtn-map" class="px-4 py-2 rounded-lg text-sm font-medium glass text-gray-300 hover:text-white">Map View</button>
+  <button onclick="openAddCorridorModal()" class="ml-auto px-4 py-2 rounded-lg text-sm font-medium bg-green-600/80 text-white hover:bg-green-600">+ Add Corridor</button>
+</div>
+
+    <!-- List View -->
+<div id="corrPane-list">
+  <div class="flex gap-3 mb-4">
+    <button onclick="filterCorridors('all')" id="corrFilter-all" class="px-3 py-1.5 rounded text-xs font-medium bg-accent text-white">All</button>
+    <button onclick="filterCorridors('active')" id="corrFilter-active" class="px-3 py-1.5 rounded text-xs font-medium glass text-gray-300">Active</button>
+    <button onclick="filterCorridors('inactive')" id="corrFilter-inactive" class="px-3 py-1.5 rounded text-xs font-medium glass text-gray-300">Inactive</button>
+    <span class="ml-auto text-xs text-gray-400 self-center" id="corridorCount"></span>
+  </div>
+  <div class="glass rounded-xl overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead><tr class="border-b border-white/10 text-gray-400 text-xs uppercase">
+        <th class="px-4 py-3 text-left">Route</th>
+        <th class="px-4 py-3 text-left">Currencies</th>
+        <th class="px-4 py-3 text-left">Rate</th>
+        <th class="px-4 py-3 text-left">Fee</th>
+        <th class="px-4 py-3 text-left">Purpose</th>
+        <th class="px-4 py-3 text-left">Status</th>
+        <th class="px-4 py-3 text-left">Date Added</th>
+        <th class="px-4 py-3 text-left">Actions</th>
+      </tr></thead>
+      <tbody id="corridorListBody"><tr><td colspan="8" class="px-4 py-6 text-center text-gray-500">Loading corridors...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Map View -->
+<div id="corrPane-map" class="hidden glass rounded-xl p-4">
+  <div class="flex gap-3 mb-3">
+    <button onclick="filterCorridorMap('all')" id="mapFilter-all" class="px-3 py-1.5 rounded text-xs font-medium bg-accent text-white">All</button>
+    <button onclick="filterCorridorMap('active')" id="mapFilter-active" class="px-3 py-1.5 rounded text-xs font-medium glass text-gray-300">Active</button>
+    <button onclick="filterCorridorMap('inactive')" id="mapFilter-inactive" class="px-3 py-1.5 rounded text-xs font-medium glass text-gray-300">Inactive</button>
+  </div>
+  <div id="corridorWorldMap" style="width:100%;height:580px;position:relative;border-radius:12px;overflow:hidden;"></div>
+</div>
+
+<!-- Toggle Corridor Modal (password protected) -->
+<div id="corridorToggleModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+  <div class="glass rounded-2xl p-6 max-w-sm w-full mx-4">
+    <h3 class="text-lg font-bold mb-1" id="toggleModalTitle">Disable Corridor</h3>
+    <p class="text-sm text-gray-400 mb-4" id="toggleModalDesc">Enter security password to continue</p>
+    <input type="password" id="toggleModalPassword" placeholder="Security password" class="w-full px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/20 text-white mb-3" />
+    <p id="toggleModalError" class="text-red-400 text-xs mb-3 hidden">Incorrect password. Please try again.</p>
+    <div class="flex gap-3">
+      <button onclick="confirmCorridorToggle()" class="flex-1 py-2 rounded-lg bg-accent text-white text-sm font-semibold">Confirm</button>
+      <button onclick="document.getElementById('corridorToggleModal').classList.add('hidden')" class="flex-1 py-2 rounded-lg glass text-gray-300 text-sm">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Corridor Modal -->
+<div id="corridorEditModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+  <div class="glass rounded-2xl p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold">Edit Corridor</h3>
+      <button onclick="document.getElementById('corridorEditModal').classList.add('hidden')" class="text-gray-400 hover:text-white text-xl">&times;</button>
+    </div>
+    <input type="hidden" id="editCorridorId" />
+    <div class="space-y-3">
+      <div><label class="text-xs text-gray-400 mb-1 block">Corridor Name</label><input id="editCorridorName" class="w-full px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/20 text-white" /></div>
+      <div><label class="text-xs text-gray-400 mb-1 block">Exchange Rate</label><input id="editCorridorRate" type="number" step="0.0001" class="w-full px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/20 text-white" /></div>
+      <div><label class="text-xs text-gray-400 mb-1 block">Fee %</label><input id="editCorridorFee" type="number" step="0.01" class="w-full px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/20 text-white" /></div>
+      <div><label class="text-xs text-gray-400 mb-1 block">Purpose</label>
+        <select id="editCorridorPurpose" class="w-full px-3 py-2 rounded-lg text-sm bg-gray-800 border border-white/20 text-white">
+          <option>Labor Remittance</option><option>OFW Remittance</option><option>Trade Finance</option>
+          <option>Investment Transfer</option><option>Family Support</option><option>Education Fees</option>
+          <option>Diaspora Remittance</option><option>Business Payment</option>
+        </select>
       </div>
+    </div>
+    <button onclick="saveCorridorEdit()" class="w-full mt-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold">Save Changes</button>
+  </div>
+</div>
 
-      <!-- SWAP SUB-TAB -->
-      <div id="defiSwap" class="defi-sub">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div class="glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-exchange-alt mr-2 text-accent"></i>Token Swap</h3>
-            <div class="space-y-3">
-              <div>
-                <label class="text-xs text-gray-400">From (USD)</label>
-                <input id="swapAmountIn" type="number" placeholder="Amount" class="w-full px-3 py-2 rounded-lg text-sm mt-1">
-              </div>
-              <div>
-                <label class="text-xs text-gray-400">To</label>
-                <select id="swapPair" class="w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="previewSwap()">
-                  <option value="USD/EUR">EUR</option><option value="USD/GBP">GBP</option>
-                  <option value="USD/JPY">JPY</option><option value="USD/CHF">CHF</option>
-                  <option value="USD/AED">AED</option><option value="USD/ETH">ETH</option>
-                </select>
-              </div>
-              <div id="swapPreview" class="bg-gray-50 rounded-lg p-3 text-xs text-gray-400 hidden">
-                <div class="flex justify-between"><span>Rate:</span><span id="swapRate">-</span></div>
-                <div class="flex justify-between mt-1"><span>You receive:</span><span id="swapOut" class="text-accent font-semibold">-</span></div>
-                <div class="flex justify-between mt-1"><span>Price Impact:</span><span id="swapImpact">-</span></div>
-                <div class="flex justify-between mt-1"><span>Fee (0.3%):</span><span id="swapFee">-</span></div>
-              </div>
-              <button onclick="executeSwap()" class="w-full py-2.5 rounded-lg bg-accent text-white font-semibold hover:bg-accent/90 transition text-sm">
-                <i class="fas fa-exchange-alt mr-2"></i>Swap
-              </button>
-              <div id="swapResult" class="hidden text-xs mt-2 p-3 rounded-lg"></div>
-            </div>
-          </div>
-          <div class="lg:col-span-2 glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-water mr-2 text-blue-400"></i>Liquidity Pools</h3>
-            <div id="poolsList" class="space-y-2">
-              <p class="text-gray-500 text-sm text-center py-4">Loading pools...</p>
-            </div>
-          </div>
+<!-- Add Corridor Modal -->
+<div id="addCorridorModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+  <div class="glass rounded-2xl p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold">Add New Corridor</h3>
+      <button onclick="document.getElementById('addCorridorModal').classList.add('hidden')" class="text-gray-400 hover:text-white text-xl">&times;</button>
+    </div>
+    <div class="space-y-3">
+      <div><label class="text-xs text-gray-400 mb-1 block">Corridor Name</label><input id="newCorrName" placeholder="e.g. India-KSA" class="w-full px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/20 text-white" /></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-gray-400 mb-1 block">Source Country</label>
+          <select id="newCorrSource" class="w-full px-3 py-2 rounded-lg text-sm bg-gray-800 border border-white/20 text-white" onchange="onNewCorrCountryChange()"></select>
+        </div>
+        <div><label class="text-xs text-gray-400 mb-1 block">Destination Country</label>
+          <select id="newCorrDest" class="w-full px-3 py-2 rounded-lg text-sm bg-gray-800 border border-white/20 text-white" onchange="onNewCorrCountryChange()"></select>
         </div>
       </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-gray-400 mb-1 block">Source Currency</label><input id="newCorrSrcCur" readonly class="w-full px-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-400" /></div>
+        <div><label class="text-xs text-gray-400 mb-1 block">Dest Currency</label><input id="newCorrDstCur" readonly class="w-full px-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-400" /></div>
+      </div>
+      <div><label class="text-xs text-gray-400 mb-1 block">Exchange Rate (live)</label>
+        <div class="flex gap-2">
+          <input id="newCorrRate" type="number" step="0.0001" class="flex-1 px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/20 text-white" />
+          <button onclick="fetchNewCorrRate()" class="px-3 py-2 rounded-lg text-xs bg-accent/20 text-accent border border-accent/30 hover:bg-accent/40">Fetch Live</button>
+        </div>
+        <div id="newCorrRateStatus" class="text-xs text-gray-500 mt-1"></div>
+      </div>
+      <div><label class="text-xs text-gray-400 mb-1 block">Purpose</label>
+        <select id="newCorrPurpose" class="w-full px-3 py-2 rounded-lg text-sm bg-gray-800 border border-white/20 text-white">
+          <option>Labor Remittance</option><option>OFW Remittance</option><option>Trade Finance</option>
+          <option>Investment Transfer</option><option>Family Support</option><option>Education Fees</option>
+          <option>Diaspora Remittance</option><option>Business Payment</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-gray-400 mb-1 block">Fee %</label><input id="newCorrFee" type="number" step="0.01" value="0.5" class="w-full px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/20 text-white" /></div>
+        <div><label class="text-xs text-gray-400 mb-1 block">Min Amount</label><input id="newCorrMin" type="number" value="100" class="w-full px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/20 text-white" /></div>
+      </div>
+      <div><label class="text-xs text-gray-400 mb-1 block">Number of Nodes: <span id="newCorrNodeVal">8</span></label>
+        <input type="range" id="newCorrNodes" min="4" max="20" value="8" class="w-full accent-accent" oninput="document.getElementById('newCorrNodeVal').textContent=this.value" />
+      </div>
+    </div>
+    <button onclick="submitNewCorridor()" class="w-full mt-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-500">Create Corridor</button>
+    <div id="addCorridorResult" class="mt-2 text-sm text-center hidden"></div>
+  </div>
+</div>
 
-      <!-- STAKING SUB-TAB -->
-      <div id="defiStake" class="defi-sub hidden">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div class="glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-lock mr-2 text-yellow-400"></i>Stake Funds</h3>
-            <div class="space-y-3">
+<!-- Corridor Map Tooltip -->
+<div id="corridorMapTooltip" class="hidden fixed bg-gray-900 border border-white/20 rounded-lg px-3 py-2 text-xs text-white pointer-events-none z-50 shadow-xl max-w-xs"></div>
+
+    <!-- LEGACY ADD CORRIDOR PANE (hidden, kept for compatibility) -->
+    <div id="corridorPane-add" class="corridor-pane hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Form -->
+        <div class="glass rounded-xl p-6">
+          <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-plus-circle mr-2 text-accent"></i>New Corridor</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="text-xs font-medium text-gray-500">Corridor Name</label>
+              <input id="corrName" type="text" placeholder="e.g. Lebanon → KSA"
+                class="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-accent">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="text-xs text-gray-400">Pool</label>
-                <select id="stakePool" class="w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="updateStakePreview()">
-                  <option value="flexible">Flexible — 3.5% APY (No Lock)</option>
-                  <option value="30day">30-Day Lock — 5.2% APY</option>
-                  <option value="90day">90-Day Lock — 8.1% APY</option>
+                <label class="text-xs font-medium text-gray-500">From Country</label>
+                <select id="corrSourceCountry" onchange="onCorridorCountryChange()"
+                  class="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-accent">
+                  <option value="">Select country…</option>
                 </select>
               </div>
               <div>
-                <label class="text-xs text-gray-400">Amount (USD)</label>
-                <input id="stakeAmount" type="number" placeholder="Min $100" class="w-full px-3 py-2 rounded-lg text-sm mt-1" oninput="updateStakePreview()">
+                <label class="text-xs font-medium text-gray-500">To Country</label>
+                <select id="corrDestCountry" onchange="onCorridorCountryChange()"
+                  class="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-accent">
+                  <option value="">Select country…</option>
+                </select>
               </div>
-              <div id="stakePreview" class="bg-gray-50 rounded-lg p-3 text-xs text-gray-400 hidden">
-                <div class="flex justify-between"><span>APY:</span><span id="stakeAPY" class="text-accent font-semibold">-</span></div>
-                <div class="flex justify-between mt-1"><span>30-Day Yield:</span><span id="stakeYield30">-</span></div>
-                <div class="flex justify-between mt-1"><span>Annual Yield:</span><span id="stakeYieldAnnual">-</span></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs font-medium text-gray-500">From Currency</label>
+                <input id="corrSourceCurrency" type="text" readonly placeholder="Auto"
+                  class="w-full mt-1 px-3 py-2 rounded-lg border border-gray-100 bg-gray-50 text-sm font-mono">
               </div>
-              <button onclick="executeSstake()" class="w-full py-2.5 rounded-lg bg-yellow-500 text-white font-semibold hover:bg-yellow-400 transition text-sm">
-                <i class="fas fa-lock mr-2"></i>Stake
-              </button>
-              <div id="stakeResult" class="hidden text-xs mt-2 p-3 rounded-lg"></div>
+              <div>
+                <label class="text-xs font-medium text-gray-500">To Currency</label>
+                <input id="corrDestCurrency" type="text" readonly placeholder="Auto"
+                  class="w-full mt-1 px-3 py-2 rounded-lg border border-gray-100 bg-gray-50 text-sm font-mono">
+              </div>
             </div>
-          </div>
-          <div class="lg:col-span-2 glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-chart-line mr-2 text-green-400"></i>Your Staking Positions</h3>
-            <div id="stakingPositions" class="space-y-2">
-              <p class="text-gray-500 text-sm text-center py-4">Loading positions...</p>
+            <div class="p-3 rounded-lg bg-blue-50 border border-blue-100">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-gray-500">Live Exchange Rate</span>
+                <button onclick="fetchCorridorFXRate()" class="text-xs text-accent font-semibold hover:underline"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+              </div>
+              <p id="corrFXRate" class="text-lg font-bold text-accent mt-1">—</p>
+              <p id="corrFXSource" class="text-[10px] text-gray-400">Select countries to fetch rate</p>
             </div>
-            <div id="stakingSummary" class="mt-4 bg-gray-50 rounded-lg p-3 text-xs text-gray-400 hidden">
-              <span>Total Staked: </span><span id="totalStaked" class="text-accent font-semibold">$0</span>
+            <div>
+              <label class="text-xs font-medium text-gray-500">Purpose</label>
+              <select id="corrPurpose" class="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm">
+                <option>General Transfer</option>
+                <option>Labor Remittance</option>
+                <option>OFW Remittance</option>
+                <option>Diaspora Transfer</option>
+                <option>Family Remittance</option>
+                <option>Trade Payment</option>
+                <option>Business Payment</option>
+                <option>Personal Transfer</option>
+              </select>
             </div>
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label class="text-xs font-medium text-gray-500">Min Amount (USD)</label>
+                <input id="corrMin" type="number" value="100" class="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm">
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-500">Max Amount (USD)</label>
+                <input id="corrMax" type="number" value="100000" class="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm">
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-500">Fee %</label>
+                <input id="corrFee" type="number" value="0.5" step="0.1" class="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm">
+              </div>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-500">Number of Nodes: <span id="corrNodeCount" class="text-accent font-bold">11</span></label>
+              <input id="corrNodes" type="range" min="4" max="20" value="11" oninput="document.getElementById('corrNodeCount').textContent=this.value"
+                class="w-full mt-1 accent-accent">
+              <div class="flex justify-between text-[10px] text-gray-400 mt-0.5"><span>4 nodes</span><span>20 nodes</span></div>
+            </div>
+            <button onclick="addCorridor()" class="w-full py-2.5 rounded-lg bg-accent text-white font-semibold text-sm hover:bg-accent/90 transition">
+              <i class="fas fa-plus mr-2"></i>Add Corridor
+            </button>
+            <div id="corrResult" class="hidden text-xs p-3 rounded-lg"></div>
           </div>
         </div>
-      </div>
 
-      <!-- ESCROW SUB-TAB -->
-      <div id="defiEscrow" class="defi-sub hidden">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div class="glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-handshake mr-2 text-purple-400"></i>Create Escrow (HTLC)</h3>
-            <div class="space-y-3">
-              <div>
-                <label class="text-xs text-gray-400">Receiver Username</label>
-                <input id="escrowReceiver" type="text" placeholder="e.g. rohit" class="w-full px-3 py-2 rounded-lg text-sm mt-1">
-              </div>
-              <div>
-                <label class="text-xs text-gray-400">Amount (USD)</label>
-                <input id="escrowAmount" type="number" placeholder="Amount" class="w-full px-3 py-2 rounded-lg text-sm mt-1">
-              </div>
-              <div>
-                <label class="text-xs text-gray-400">Timelock (hours)</label>
-                <input id="escrowTimelock" type="number" value="24" class="w-full px-3 py-2 rounded-lg text-sm mt-1">
-              </div>
-              <button onclick="createEscrow()" class="w-full py-2.5 rounded-lg bg-purple-600 text-white font-semibold hover:bg-purple-500 transition text-sm">
-                <i class="fas fa-lock mr-2"></i>Create Escrow
-              </button>
-              <div id="escrowResult" class="hidden text-xs mt-2 p-3 rounded-lg"></div>
-            </div>
+        <!-- Existing corridors list -->
+        <div class="glass rounded-xl p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-list mr-2 text-blue-400"></i>Active Corridors</h3>
+            <button onclick="loadCorridors_legacy()" class="text-xs text-accent hover:underline"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
           </div>
-          <div class="lg:col-span-2 glass rounded-xl p-6">
-            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-file-contract mr-2 text-blue-400"></i>Active Escrow Contracts</h3>
-            <div id="escrowList" class="space-y-2">
-              <p class="text-gray-500 text-sm text-center py-4">Loading escrows...</p>
-            </div>
+          <div id="corridorList" class="space-y-2 max-h-[500px] overflow-y-auto">
+            <p class="text-gray-400 text-sm text-center py-4">Loading corridors…</p>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- LEGACY MAP PANE (hidden) -->
+    <div id="corridorPane-map" class="corridor-pane hidden" style="display:none!important;">
+      <div class="glass rounded-xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-globe mr-2 text-accent"></i>Global Corridor Map</h3>
+          <div class="flex gap-3 text-xs text-gray-500">
+            <span><span class="inline-block w-3 h-0.5 bg-accent align-middle mr-1"></span>Active</span>
+            <span><span class="inline-block w-3 h-0.5 bg-red-400 align-middle mr-1"></span>Inactive</span>
+          </div>
+        </div>
+        <div id="corridorMapContainer" style="width:100%;height:520px;background:#0f172a;border-radius:12px;overflow:hidden;position:relative;">
+          <svg id="corridorMapSVG" width="100%" height="100%" viewBox="0 0 960 520" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+        <div id="corridorMapLegend" class="mt-4 flex flex-wrap gap-3"></div>
+      </div>
+    </div>
+  </div>
 
   </main>
 </div>
@@ -2215,6 +2165,18 @@ let healthInterval = null;
 const API = window.location.origin;
 
 // ============================================================
+// Toast Helper
+// ============================================================
+function showToast(msg, type='info') {
+  const colors = {success:'bg-green-500', error:'bg-red-500', info:'bg-blue-500', warn:'bg-yellow-500'};
+  const div = document.createElement('div');
+  div.className = `fixed bottom-6 right-6 z-[9999] px-4 py-3 rounded-xl text-white text-sm font-medium shadow-lg ${colors[type]||colors.info} transition-all`;
+  div.textContent = msg;
+  document.body.appendChild(div);
+  setTimeout(()=>{ div.style.opacity='0'; setTimeout(()=>div.remove(),400); }, 3000);
+}
+
+// ============================================================
 // Auth
 // ============================================================
 async function apiFetch(url, options = {}) {
@@ -2292,18 +2254,12 @@ function updateHeaderInfo() {
 function configureUIForRole() {
   // Tab visibility map: role -> array of tab data-tab values to SHOW
   const tabAccess = {
-    // Admin / CTO — full system access, all oversight (DeFi governance via Admin tab only)
-    admin:         ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'security', 'cards', 'admin', 'graph', 'mlops'],
-    // Head of Payment Operations — initiates payments, approves transactions, manages operations
-    operator:      ['dashboard', 'payments', 'beneficiaries', 'approvals', 'security', 'cards'],
-    // Chief Compliance & AML Officer — HITL approvals, case management, AML, compliance reporting
-    compliance:    ['dashboard', 'approvals', 'compliance', 'cases', 'aiml', 'security', 'graph', 'mlops'],
-    // Corporate Treasury Client — payments, beneficiaries, cards, spending analytics, DeFi
-    client:        ['dashboard', 'payments', 'beneficiaries', 'cards', 'documents', 'spending360', 'security', 'aiml', 'defi'],
-    // Internal Auditor & Risk Manager — read-only oversight across all risk/compliance areas
-    auditor:       ['dashboard', 'compliance', 'cases', 'security', 'graph', 'admin'],
-    // Lead Data Scientist — AI/ML models, MLOps pipeline, compliance data analysis
-    datascientist: ['dashboard', 'aiml', 'mlops', 'compliance', 'graph'],
+    admin:         ['dashboard','beneficiaries','payments','approvals','aiml','compliance','cases','security','cards','admin','ledger','aml','corridors','dsworkbench','graph','mlops'],
+    compliance:    ['dashboard','approvals','aiml','compliance','cases','security','ledger','aml','graph'],
+    operator:      ['dashboard','approvals','security','cards','ledger','corridors'],
+    auditor:       ['dashboard','aiml','compliance','cases','ledger','aml','graph'],
+    datascientist: ['dashboard','aiml','ledger','aml','dsworkbench','graph','mlops'],
+    client:        ['dashboard','beneficiaries','payments','security','cards','documents','spending360'],
   };
 
   const allowed = tabAccess[ROLE] || null;
@@ -2446,7 +2402,7 @@ function switchTab(tab) {
     if (ROLE === 'client') { loadClientAIInsights(); }
     else { loadModelMetrics(); loadFraudHeatmap(); loadRiskEntities(); loadRiskTrend(); }
   }
-  if (tab === 'graph') loadGraph();
+  if (tab === 'graph') loadNetworkTab();
   if (tab === 'mlops') loadMLOps();
   if (tab === 'admin') {
     loadHITL(); loadAudit();
@@ -2460,7 +2416,7 @@ function switchTab(tab) {
   if (tab === 'cards') { loadCards(); if (ROLE === 'admin') loadCardRequests(); }
   if (tab === 'security') { loadKYCStatus(); loadFraudAlerts(); }
   if (tab === 'documents') { loadDocuments(); initStatementMonthPicker(); }
-  if (tab === 'defi') { loadDefiTab(); }
+  if (tab === 'corridors') { loadCorridorsTab(); }
 }
 
 // ============================================================
@@ -2518,7 +2474,6 @@ async function loadDashboard() {
     loadTransactions();
     if (['client', 'operator'].includes(ROLE)) loadSubAccounts();
     loadLedger();
-    loadProofOfReserve();
     loadVolumeChart();
   } catch (e) { console.error('Dashboard error:', e); }
 }
@@ -5831,28 +5786,6 @@ async function sendChat() {
 }
 
 // ============================================================
-// ============================================================
-// Proof of Reserve
-// ============================================================
-async function loadProofOfReserve() {
-  try {
-    const data = await apiFetch('/api/defi/proof-of-reserve');
-    document.getElementById('porOffchain').textContent = '$' + Number(data.offchain_total).toLocaleString();
-    document.getElementById('porOnchain').textContent = '$' + Number(data.onchain_total).toLocaleString();
-    document.getElementById('porRatio').textContent = data.ratio.toFixed(4);
-    document.getElementById('porRatio').className = data.backed ? 'font-semibold text-green-400' : 'font-semibold text-red-400';
-    const badge = document.getElementById('porBadge');
-    if (data.backed) {
-      badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400';
-      badge.innerHTML = '<i class="fas fa-check-circle mr-1"></i>1:1 Backed';
-    } else {
-      badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400';
-      badge.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i>Under-collateralized';
-    }
-  } catch(e) { console.error('PoR error', e); }
-}
-
-// ============================================================
 // Fraud Heatmap
 // ============================================================
 async function loadFraudHeatmap() {
@@ -5955,624 +5888,6 @@ function buildEntityCard(entity, level) {
     + '<div class="mb-3"><div class="text-xs text-gray-500 mb-1.5 font-medium">Risk Triggers Identified by AI:</div><div class="flex flex-wrap">' + triggersHtml + '</div></div>'
     + '<div><div class="text-xs text-gray-500 mb-1.5 font-medium">Detected by Models:</div><div class="flex flex-wrap gap-1">' + modelsHtml + '</div></div>'
     + '</div>';
-}
-
-// ============================================================
-// DeFi Tab — Role-aware entry point
-// ============================================================
-function loadDefiTab() {
-  const isClient = ROLE === 'client';
-
-  // Header
-  const title    = document.getElementById('defiTabTitle');
-  const subtitle = document.getElementById('defiTabSubtitle');
-  if (isClient) {
-    if (title)    title.innerHTML    = '<i class="fas fa-cubes mr-2 text-accent"></i>DeFi';
-    if (subtitle) subtitle.textContent = 'Swap currencies, stake funds for yield, and create escrow contracts.';
-  } else {
-    if (title)    title.innerHTML    = '<i class="fas fa-shield-halved mr-2 text-accent"></i>DeFi Admin';
-    if (subtitle) subtitle.textContent = 'Protocol governance, pool management, emergency controls & treasury';
-  }
-
-  // Show/hide governance panel vs client sub-tabs
-  const adminPanel   = document.getElementById('defiAdminPanel');
-  const clientTabs   = document.getElementById('defiClientTabs');
-  if (adminPanel) adminPanel.classList.toggle('hidden', isClient);
-  if (clientTabs) clientTabs.classList.toggle('hidden', !isClient);
-
-  if (isClient) {
-    // Default to Swap view for clients
-    showDefiClientSection('swap');
-    loadPools();
-  } else {
-    loadDefiAdmin();
-  }
-}
-
-function showDefiClientSection(section) {
-  // Update tab button styles
-  document.querySelectorAll('.defi-client-tab').forEach(btn => {
-    const active = btn.getAttribute('data-client-section') === section;
-    btn.classList.toggle('bg-accent', active);
-    btn.classList.toggle('text-white', active);
-    btn.classList.toggle('bg-gray-100', !active);
-    btn.classList.toggle('text-gray-600', !active);
-  });
-  // Show matching sub-tab
-  document.querySelectorAll('.defi-sub').forEach(el => el.classList.add('hidden'));
-  const map = { swap: 'defiSwap', stake: 'defiStake', escrow: 'defiEscrow' };
-  const el = document.getElementById(map[section]);
-  if (el) el.classList.remove('hidden');
-  // Load data for section
-  if (section === 'swap')   loadPools();
-  if (section === 'stake')  loadStaking();
-  if (section === 'escrow') loadEscrows();
-}
-
-// ============================================================
-// DeFi Admin — Protocol Governance & Management
-// ============================================================
-let _defiAdminData = null;
-
-function showDefiAdminSection(section) {
-  document.querySelectorAll('.defi-admin-section').forEach(el => el.classList.add('hidden'));
-  const map = { pools:'defiAdminPools', params:'defiAdminParams', fees:'defiAdminFeesMgmt', emergency:'defiAdminEmergency', governance:'defiAdminGovernance' };
-  const el = document.getElementById(map[section]);
-  if (el) el.classList.remove('hidden');
-  document.querySelectorAll('.defi-admin-tab').forEach(btn => {
-    if (btn.dataset.section === section) {
-      btn.className = 'defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white transition';
-    } else {
-      btn.className = 'defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
-    }
-  });
-}
-
-async function loadDefiAdmin() {
-  try {
-    const d = await apiFetch('/api/defi/admin/overview');
-    _defiAdminData = d;
-    // KPIs
-    document.getElementById('defiAdminTVL').textContent = '$' + Number(d.total_tvl).toLocaleString('en-US', {minimumFractionDigits:2});
-    document.getElementById('defiAdminVol').textContent = '$' + Number(d.total_volume).toLocaleString('en-US', {minimumFractionDigits:2});
-    document.getElementById('defiAdminFees').textContent = '$' + Number(d.accrued_fees).toLocaleString('en-US', {minimumFractionDigits:2});
-    document.getElementById('defiAdminStakes').textContent = d.staking.positions + ' ($' + Number(d.staking.total_staked).toLocaleString('en-US', {minimumFractionDigits:0}) + ')';
-    // Render pools
-    renderDefiAdminPools(d.pools);
-    // Render params
-    renderDefiAdminParams(d.params);
-    // Render fee switch
-    renderFeeSwitch(d.params);
-    // Render emergency
-    renderEmergencyControls(d.emergency);
-  } catch(e) { console.error('DeFi Admin load error:', e); }
-  // Load proposals separately
-  loadProposals();
-}
-
-function renderDefiAdminPools(pools) {
-  const el = document.getElementById('defiAdminPoolTable');
-  if (!pools || !pools.length) { el.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">No pools found.</p>'; return; }
-  el.innerHTML = `
-    <div class="overflow-x-auto">
-      <table class="w-full text-xs">
-        <thead><tr class="text-gray-400 border-b border-gray-100">
-          <th class="text-left py-2 font-medium">Pair</th>
-          <th class="text-right py-2 font-medium">Reserve Base</th>
-          <th class="text-right py-2 font-medium">Reserve Quote</th>
-          <th class="text-right py-2 font-medium">TVL</th>
-          <th class="text-right py-2 font-medium">Volume</th>
-          <th class="text-right py-2 font-medium">Swaps</th>
-          <th class="text-center py-2 font-medium">Liquidity</th>
-        </tr></thead>
-        <tbody>
-          ${pools.map(p => `
-            <tr class="border-b border-gray-50 hover:bg-gray-50/50">
-              <td class="py-2 font-mono font-semibold text-accent">${p.pair}</td>
-              <td class="py-2 text-right text-gray-600">${Number(p.reserve_base).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-              <td class="py-2 text-right text-gray-600">${Number(p.reserve_quote).toLocaleString('en-US', {minimumFractionDigits:4})}</td>
-              <td class="py-2 text-right font-semibold text-gray-800">$${Number(p.tvl).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-              <td class="py-2 text-right text-gray-600">$${Number(p.volume).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-              <td class="py-2 text-right text-gray-600">${p.swaps}</td>
-              <td class="py-2 text-center">
-                <button onclick="showLiquidityModal('${p.pair}')" class="px-2 py-1 rounded bg-blue-50 text-blue-600 text-xs hover:bg-blue-100 transition">
-                  <i class="fas fa-plus-minus mr-1"></i>Adjust
-                </button>
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
-function showLiquidityModal(pair) {
-  const r = prompt(`Adjust liquidity for ${pair}\nFormat: action,base_amount,quote_amount\nExample: add,50000,45000\nor: remove,10000,9000`);
-  if (!r) return;
-  const parts = r.split(',');
-  if (parts.length !== 3) { alert('Invalid format'); return; }
-  const [action, ab, aq] = parts;
-  apiFetch(`/api/defi/admin/pool/${encodeURIComponent(pair)}/liquidity`, {
-    method: 'POST',
-    body: JSON.stringify({ action: action.trim(), amount_base: parseFloat(ab), amount_quote: parseFloat(aq) })
-  }).then(d => { alert(`✓ ${d.status} — New TVL: $${Number(d.new_tvl).toLocaleString('en-US',{minimumFractionDigits:2})}`); loadDefiAdmin(); })
-    .catch(e => alert('Error: ' + (e.message || e)));
-}
-
-const _paramMeta = {
-  collateral_ratio:       { label: 'Collateral Ratio (%)', hint: 'Min collateral as % of debt. Default: 150%' },
-  debt_ceiling_usd:       { label: 'Debt Ceiling (USD)', hint: 'Max total borrowing protocol-wide' },
-  reserve_factor_pct:     { label: 'Reserve Factor (%)', hint: '% of interest directed to treasury. Default: 10%' },
-  liquidation_threshold:  { label: 'Liquidation Threshold (%)', hint: 'Position liquidated below this collateral %. Default: 130%' },
-  ltv_max_pct:            { label: 'Max LTV (%)', hint: 'Max loan-to-value per collateral unit. Default: 75%' },
-  stability_fee_pct:      { label: 'Stability Fee (% APY)', hint: 'Annual borrowing cost. Default: 2.5%' },
-  min_collateral_usd:     { label: 'Min Collateral (USD)', hint: 'Minimum collateral required to open position' },
-};
-
-function renderDefiAdminParams(params) {
-  const el = document.getElementById('defiParamForm');
-  if (!el) return;
-  el.innerHTML = Object.entries(_paramMeta).map(([key, meta]) => `
-    <div class="bg-gray-50 rounded-lg p-3">
-      <label class="text-xs font-medium text-gray-700">${meta.label}</label>
-      <p class="text-xs text-gray-400 mb-1">${meta.hint}</p>
-      <input id="param_${key}" type="number" step="0.01" value="${params[key] || ''}"
-        class="w-full px-3 py-2 rounded-lg text-sm mt-1">
-    </div>
-  `).join('');
-  // Pre-fill fee inputs
-  const pp = document.getElementById('feeProtocolPct');
-  const pf = document.getElementById('feeFlashLoanBps');
-  if (pp) pp.value = params.protocol_fee_pct || '0.05';
-  if (pf) pf.value = params.flash_loan_fee_bps || '9';
-}
-
-async function saveDefiParams() {
-  const updates = {};
-  Object.keys(_paramMeta).forEach(key => {
-    const el = document.getElementById('param_' + key);
-    if (el && el.value !== '') updates[key] = el.value;
-  });
-  try {
-    await apiFetch('/api/defi/admin/params', { method: 'POST', body: JSON.stringify({ updates }) });
-    const msg = document.getElementById('defiParamMsg');
-    msg.textContent = '✓ Saved at ' + new Date().toLocaleTimeString();
-    msg.className = 'text-xs text-green-600';
-    setTimeout(() => { msg.textContent = ''; }, 4000);
-    loadDefiAdmin();
-  } catch(e) { const msg = document.getElementById('defiParamMsg'); msg.textContent = 'Error: ' + e.message; msg.className = 'text-xs text-red-500'; }
-}
-
-function renderFeeSwitch(params) {
-  const enabled = params.fee_switch_enabled === 'true';
-  const btn = document.getElementById('feeSwitchBtn');
-  const status = document.getElementById('feeSwitchStatus');
-  if (!btn || !status) return;
-  if (enabled) {
-    btn.textContent = 'Disable Fee Collection';
-    btn.className = 'px-4 py-1.5 rounded-lg text-xs font-semibold bg-red-100 text-red-600 hover:bg-red-200 transition';
-    status.textContent = `Enabled — ${params.protocol_fee_pct || '0.05'}% of swap fees → treasury`;
-    status.className = 'text-xs text-green-600 mt-0.5';
-  } else {
-    btn.textContent = 'Enable Fee Collection';
-    btn.className = 'px-4 py-1.5 rounded-lg text-xs font-semibold bg-green-100 text-green-600 hover:bg-green-200 transition';
-    status.textContent = 'Disabled — no protocol fees collected';
-    status.className = 'text-xs text-gray-400 mt-0.5';
-  }
-}
-
-async function toggleFeeSwitch() {
-  const current = _defiAdminData?.params?.fee_switch_enabled === 'true';
-  const newVal = (!current).toString();
-  try {
-    await apiFetch('/api/defi/admin/params', { method: 'POST', body: JSON.stringify({ updates: { fee_switch_enabled: newVal } }) });
-    loadDefiAdmin();
-  } catch(e) { alert('Error: ' + e.message); }
-}
-
-async function saveFeeConfig() {
-  const pct = document.getElementById('feeProtocolPct').value;
-  const bps = document.getElementById('feeFlashLoanBps').value;
-  const msg = document.getElementById('feeConfigMsg');
-  try {
-    await apiFetch('/api/defi/admin/params', { method: 'POST', body: JSON.stringify({ updates: { protocol_fee_pct: pct, flash_loan_fee_bps: bps } }) });
-    msg.textContent = '✓ Saved'; msg.className = 'text-xs text-green-600 rounded px-2 py-1'; msg.classList.remove('hidden');
-    setTimeout(() => msg.classList.add('hidden'), 3000);
-    loadDefiAdmin();
-  } catch(e) { msg.textContent = 'Error: ' + e.message; msg.className = 'text-xs text-red-500 rounded px-2 py-1'; msg.classList.remove('hidden'); }
-}
-
-async function updatePoolFee() {
-  const pair = document.getElementById('poolFeeSelect').value;
-  const bps  = parseInt(document.getElementById('poolFeeBps').value);
-  const msg  = document.getElementById('poolFeeMsg');
-  if (!bps || bps < 1) { msg.textContent = 'Enter valid basis points'; msg.className='text-xs text-red-500 rounded px-2 py-1'; msg.classList.remove('hidden'); return; }
-  try {
-    const d = await apiFetch(`/api/defi/admin/pool/${encodeURIComponent(pair)}/fee`, { method: 'POST', body: JSON.stringify({ fee_bps: bps }) });
-    msg.textContent = `✓ ${pair} fee set to ${d.fee_pct}% (${bps} bps)`;
-    msg.className = 'text-xs text-green-600 rounded px-2 py-1'; msg.classList.remove('hidden');
-    setTimeout(() => msg.classList.add('hidden'), 4000);
-  } catch(e) { msg.textContent = 'Error: ' + e.message; msg.className='text-xs text-red-500 rounded px-2 py-1'; msg.classList.remove('hidden'); }
-}
-
-const _controlMeta = {
-  deposits:    { label: 'Deposits',     icon: 'fa-arrow-down-to-line', color: 'blue',   desc: 'Halt new capital inflow to all pools' },
-  withdrawals: { label: 'Withdrawals',  icon: 'fa-arrow-up-from-line', color: 'orange', desc: 'Prevent capital outflow from protocol' },
-  borrowing:   { label: 'Borrowing',    icon: 'fa-hand-holding-dollar', color: 'yellow', desc: 'Stop new loan origination' },
-  swaps:       { label: 'Swaps',        icon: 'fa-exchange-alt',       color: 'purple', desc: 'Pause all DEX swap operations' },
-  liquidations:{ label: 'Liquidations', icon: 'fa-gavel',              color: 'red',    desc: 'Halt liquidation engine (flash crash protection)' },
-};
-
-function renderEmergencyControls(emergency) {
-  const el = document.getElementById('emergencyControlGrid');
-  if (!el) return;
-  el.innerHTML = Object.entries(_controlMeta).map(([ctrl, meta]) => {
-    const state = emergency?.[ctrl] || {};
-    const paused = state.paused;
-    return `
-      <div class="glass rounded-xl p-4 border ${paused ? 'border-red-300 bg-red-50/40' : 'border-white/5'}">
-        <div class="flex items-center gap-2 mb-2">
-          <i class="fas ${meta.icon} text-${meta.color}-500"></i>
-          <span class="text-sm font-semibold text-gray-800">${meta.label}</span>
-          <span class="ml-auto px-2 py-0.5 rounded-full text-xs font-bold ${paused ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">
-            ${paused ? 'PAUSED' : 'ACTIVE'}
-          </span>
-        </div>
-        <p class="text-xs text-gray-500 mb-3">${meta.desc}</p>
-        ${paused ? `<p class="text-xs text-red-500 mb-2">By: ${state.by || '—'} · ${state.reason || ''}</p>` : ''}
-        <button onclick="toggleEmergencyControl('${ctrl}', ${!paused})"
-          class="w-full py-1.5 rounded-lg text-xs font-semibold transition ${paused
-            ? 'bg-green-100 text-green-700 hover:bg-green-200'
-            : 'bg-red-100 text-red-700 hover:bg-red-200'}">
-          <i class="fas ${paused ? 'fa-play' : 'fa-pause'} mr-1"></i>${paused ? 'Resume' : 'Pause'} ${meta.label}
-        </button>
-      </div>
-    `;
-  }).join('');
-}
-
-async function toggleEmergencyControl(control, pause) {
-  const reason = pause ? (prompt(`Reason for pausing ${control}:`) || 'Admin action') : 'Admin resumed';
-  if (pause && !reason) return;
-  try {
-    await apiFetch(`/api/defi/admin/emergency/${control}`, { method: 'POST', body: JSON.stringify({ pause, reason }) });
-    loadDefiAdmin();
-    showDefiAdminSection('emergency');
-  } catch(e) { alert('Error: ' + e.message); }
-}
-
-async function triggerGlobalPause(pause) {
-  const reason = document.getElementById('emergencyReason').value.trim() || (pause ? 'Global circuit breaker activated' : 'Admin resumed all operations');
-  try {
-    await apiFetch('/api/defi/admin/emergency/global', { method: 'POST', body: JSON.stringify({ pause, reason }) });
-    loadDefiAdmin();
-    showDefiAdminSection('emergency');
-  } catch(e) { alert('Error: ' + e.message); }
-}
-
-async function loadProposals() {
-  try {
-    const d = await apiFetch('/api/defi/governance/proposals');
-    renderProposals(d.proposals);
-  } catch(e) { console.error('proposals error:', e); }
-}
-
-const _propCategoryColors = { fee:'blue', param:'purple', pool:'cyan', emergency:'red', governance:'orange', general:'gray' };
-function renderProposals(proposals) {
-  const el = document.getElementById('proposalsList');
-  if (!el) return;
-  if (!proposals || !proposals.length) { el.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">No proposals yet.</p>'; return; }
-  el.innerHTML = proposals.map(p => {
-    const col = _propCategoryColors[p.category] || 'gray';
-    const votePct = p.votes_for + p.votes_against > 0 ? Math.round(p.votes_for / (p.votes_for + p.votes_against) * 100) : 0;
-    const quorumMet = p.votes_for >= p.quorum;
-    return `
-      <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
-        <div class="flex items-start justify-between gap-2 mb-2">
-          <div>
-            <span class="inline-block px-2 py-0.5 rounded text-xs bg-${col}-100 text-${col}-700 font-semibold mb-1">${p.category.toUpperCase()}</span>
-            <p class="text-sm font-semibold text-gray-800">${p.title}</p>
-            ${p.description ? `<p class="text-xs text-gray-500 mt-0.5">${p.description}</p>` : ''}
-          </div>
-          <span class="shrink-0 px-2 py-0.5 rounded-full text-xs font-bold ${p.status==='active'?'bg-blue-100 text-blue-700':p.status==='executed'?'bg-green-100 text-green-700':'bg-gray-100 text-gray-500'}">
-            ${p.status.toUpperCase()}
-          </span>
-        </div>
-        <div class="flex items-center gap-3 mb-3">
-          <div class="flex-1 bg-gray-200 rounded-full h-1.5">
-            <div class="h-1.5 rounded-full bg-accent transition-all" style="width:${votePct}%"></div>
-          </div>
-          <span class="text-xs text-gray-500">${p.votes_for}✓ / ${p.votes_against}✗ (quorum: ${p.quorum})</span>
-        </div>
-        ${p.status === 'active' ? `
-          <div class="flex gap-2">
-            <button onclick="voteProposal('${p.id}','for')" class="flex-1 py-1 rounded-lg bg-green-50 text-green-700 text-xs font-semibold hover:bg-green-100 transition"><i class="fas fa-check mr-1"></i>Vote For</button>
-            <button onclick="voteProposal('${p.id}','against')" class="flex-1 py-1 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition"><i class="fas fa-times mr-1"></i>Vote Against</button>
-            ${quorumMet ? `<button onclick="executeProposal('${p.id}')" class="flex-1 py-1 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent/90 transition"><i class="fas fa-bolt mr-1"></i>Execute</button>` : ''}
-          </div>` : p.execution_result ? `<p class="text-xs text-green-600 mt-1"><i class="fas fa-check-circle mr-1"></i>${p.execution_result}</p>` : ''}
-        <p class="text-xs text-gray-400 mt-2">By ${p.created_by} · ${p.created_at?.slice(0,16) || ''}</p>
-      </div>
-    `;
-  }).join('');
-}
-
-async function submitProposal() {
-  const title = document.getElementById('propTitle').value.trim();
-  if (!title) { alert('Title required'); return; }
-  let params = {};
-  const pRaw = document.getElementById('propParams').value.trim();
-  if (pRaw) { try { params = JSON.parse(pRaw); } catch(e) { alert('Invalid JSON in parameters field'); return; } }
-  const msg = document.getElementById('propResult');
-  try {
-    const d = await apiFetch('/api/defi/governance/proposals', { method: 'POST', body: JSON.stringify({
-      title, description: document.getElementById('propDesc').value, category: document.getElementById('propCategory').value,
-      params, quorum: parseInt(document.getElementById('propQuorum').value) || 3
-    })});
-    msg.textContent = `✓ Proposal ${d.proposal_id} created`; msg.className='text-xs text-green-600 rounded px-2 py-1'; msg.classList.remove('hidden');
-    document.getElementById('propTitle').value = ''; document.getElementById('propDesc').value = ''; document.getElementById('propParams').value = '';
-    loadProposals();
-  } catch(e) { msg.textContent = 'Error: ' + e.message; msg.className='text-xs text-red-500 rounded px-2 py-1'; msg.classList.remove('hidden'); }
-}
-
-async function voteProposal(id, vote) {
-  try {
-    await apiFetch(`/api/defi/governance/proposals/${id}/vote`, { method: 'POST', body: JSON.stringify({ vote }) });
-    loadProposals();
-  } catch(e) { alert('Error: ' + e.message); }
-}
-
-async function executeProposal(id) {
-  try {
-    const d = await apiFetch(`/api/defi/governance/proposals/${id}/execute`, { method: 'POST' });
-    alert(`✓ Executed: ${d.result}`); loadProposals(); loadDefiAdmin();
-  } catch(e) { alert('Error: ' + e.message); }
-}
-
-// ============================================================
-// DeFi — Sub-tab Navigation (legacy, kept for compatibility)
-// ============================================================
-function showDefiSub(sub) {
-  document.querySelectorAll('.defi-sub').forEach(el => el.classList.add('hidden'));
-  document.getElementById('defi' + sub.charAt(0).toUpperCase() + sub.slice(1)).classList.remove('hidden');
-  ['Swap','Stake','Escrow'].forEach(s => {
-    const btn = document.getElementById('defiSub' + s);
-    if (s.toLowerCase() === sub) { btn.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-white'; }
-    else { btn.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 hover:text-gray-800'; }
-  });
-  if (sub === 'swap') loadPools();
-  if (sub === 'stake') loadStaking();
-  if (sub === 'escrow') loadEscrows();
-}
-
-// ============================================================
-// DeFi — AMM Swap
-// ============================================================
-async function loadPools() {
-  try {
-    const pools = await apiFetch('/api/defi/pools');
-    const div = document.getElementById('poolsList');
-    if (!pools.length) { div.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No pools available</p>'; return; }
-    div.innerHTML = pools.map(p => `
-      <div class="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-400">${p.quote}</div>
-          <div>
-            <div class="text-sm font-semibold text-gray-800">${p.pair}</div>
-            <div class="text-xs text-gray-400">Swaps: ${p.swap_count}</div>
-          </div>
-        </div>
-        <div class="text-right">
-          <div class="text-sm font-semibold text-accent">${p.price.toFixed(p.price > 100 ? 2 : 6)}</div>
-          <div class="text-xs text-gray-400">TVL: $${Number(p.tvl).toLocaleString()}</div>
-        </div>
-      </div>`).join('');
-  } catch(e) { console.error('Pools error', e); }
-}
-
-function previewSwap() {
-  const amount = parseFloat(document.getElementById('swapAmountIn').value) || 0;
-  const pair = document.getElementById('swapPair').value;
-  const preview = document.getElementById('swapPreview');
-  if (amount <= 0) { preview.classList.add('hidden'); return; }
-  preview.classList.remove('hidden');
-  // Estimate from pools (client-side preview)
-  apiFetch('/api/defi/pools').then(pools => {
-    const pool = pools.find(p => p.pair === pair);
-    if (!pool) return;
-    const rb = pool.reserve_base, rq = pool.reserve_quote;
-    const newRb = rb + amount;
-    const newRq = (rb * rq) / newRb;
-    const out = rq - newRq;
-    const fee = out * 0.003;
-    const outAfterFee = out - fee;
-    const spotPrice = rq / rb;
-    const execPrice = amount / out;
-    const impact = Math.abs(execPrice - spotPrice) / spotPrice * 100;
-    document.getElementById('swapRate').textContent = (amount / outAfterFee).toFixed(6);
-    document.getElementById('swapOut').textContent = outAfterFee.toFixed(outAfterFee > 100 ? 2 : 6);
-    document.getElementById('swapImpact').textContent = impact.toFixed(4) + '%';
-    document.getElementById('swapImpact').className = impact > 1 ? 'text-red-400' : 'text-green-400';
-    document.getElementById('swapFee').textContent = fee.toFixed(6);
-  });
-}
-document.addEventListener('DOMContentLoaded', () => {
-  const inp = document.getElementById('swapAmountIn');
-  if (inp) inp.addEventListener('input', previewSwap);
-});
-
-async function executeSwap() {
-  const pair = document.getElementById('swapPair').value;
-  const amount = parseFloat(document.getElementById('swapAmountIn').value) || 0;
-  if (amount <= 0) return;
-  const res = document.getElementById('swapResult');
-  try {
-    const result = await apiFetch('/api/defi/swap', { method: 'POST', body: JSON.stringify({ pair, amount, direction: 'buy' }) });
-    res.className = 'text-xs mt-2 p-3 rounded-lg bg-green-500/10 text-green-400';
-    res.innerHTML = `<i class="fas fa-check-circle mr-1"></i>Swapped $${result.amount_in.toLocaleString()} → ${result.amount_out.toFixed(result.amount_out > 100 ? 2 : 6)} (Impact: ${result.price_impact}%) | New Balance: $${result.new_balance.toLocaleString()}`;
-    res.classList.remove('hidden');
-    document.getElementById('swapAmountIn').value = '';
-    document.getElementById('swapPreview').classList.add('hidden');
-    loadPools();
-    updateHeaderInfo();
-  } catch(e) {
-    res.className = 'text-xs mt-2 p-3 rounded-lg bg-red-500/10 text-red-400';
-    res.innerHTML = '<i class="fas fa-times-circle mr-1"></i>' + (e.message || 'Swap failed');
-    res.classList.remove('hidden');
-  }
-}
-
-// ============================================================
-// DeFi — Staking
-// ============================================================
-async function loadStaking() {
-  try {
-    const data = await apiFetch('/api/defi/staking');
-    const div = document.getElementById('stakingPositions');
-    if (!data.positions.length) { div.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No staking positions yet. Stake funds to earn yield!</p>'; }
-    else {
-      div.innerHTML = data.positions.map(p => {
-        const statusColor = p.status === 'active' ? 'text-green-400 bg-green-500/10' : 'text-gray-400 bg-gray-500/10';
-        return `<div class="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-          <div>
-            <div class="text-sm font-semibold text-gray-800">$${Number(p.amount).toLocaleString()} <span class="text-xs text-gray-400">in ${p.pool}</span></div>
-            <div class="text-xs text-gray-400">${p.apy}% APY · ${p.days_elapsed} days · Earned: <span class="text-accent font-semibold">$${p.accrued_yield.toFixed(2)}</span></div>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded-full text-xs font-bold ${statusColor}">${p.status}</span>
-            ${p.status === 'active' ? `<button onclick="unstake('${p.id}')" class="px-3 py-1 rounded-lg bg-red-500/20 text-red-400 text-xs font-semibold hover:bg-red-500/30">Unstake</button>` : ''}
-          </div>
-        </div>`;
-      }).join('');
-    }
-    const summary = document.getElementById('stakingSummary');
-    if (data.total_staked > 0) {
-      summary.classList.remove('hidden');
-      document.getElementById('totalStaked').textContent = '$' + Number(data.total_staked).toLocaleString();
-    } else { summary.classList.add('hidden'); }
-  } catch(e) { console.error('Staking error', e); }
-}
-
-function updateStakePreview() {
-  const pool = document.getElementById('stakePool').value;
-  const amount = parseFloat(document.getElementById('stakeAmount').value) || 0;
-  const preview = document.getElementById('stakePreview');
-  if (amount <= 0) { preview.classList.add('hidden'); return; }
-  preview.classList.remove('hidden');
-  const apys = { flexible: 3.5, '30day': 5.2, '90day': 8.1 };
-  const apy = apys[pool] || 3.5;
-  document.getElementById('stakeAPY').textContent = apy + '%';
-  document.getElementById('stakeYield30').textContent = '$' + (amount * apy / 365 / 100 * 30).toFixed(2);
-  document.getElementById('stakeYieldAnnual').textContent = '$' + (amount * apy / 100).toFixed(2);
-}
-
-async function executeSstake() {
-  const pool = document.getElementById('stakePool').value;
-  const amount = parseFloat(document.getElementById('stakeAmount').value) || 0;
-  if (amount <= 0) return;
-  const res = document.getElementById('stakeResult');
-  try {
-    const result = await apiFetch('/api/defi/stake', { method: 'POST', body: JSON.stringify({ pool, amount }) });
-    res.className = 'text-xs mt-2 p-3 rounded-lg bg-green-500/10 text-green-400';
-    res.innerHTML = `<i class="fas fa-check-circle mr-1"></i>Staked $${result.amount.toLocaleString()} at ${result.apy}% APY | New Balance: $${result.new_balance.toLocaleString()}`;
-    res.classList.remove('hidden');
-    document.getElementById('stakeAmount').value = '';
-    document.getElementById('stakePreview').classList.add('hidden');
-    loadStaking();
-    updateHeaderInfo();
-  } catch(e) {
-    res.className = 'text-xs mt-2 p-3 rounded-lg bg-red-500/10 text-red-400';
-    res.innerHTML = '<i class="fas fa-times-circle mr-1"></i>' + (e.message || 'Stake failed');
-    res.classList.remove('hidden');
-  }
-}
-
-async function unstake(id) {
-  if (!confirm('Unstake this position and collect yield?')) return;
-  try {
-    const result = await apiFetch('/api/defi/unstake/' + id, { method: 'POST' });
-    alert(`Unstaked! Principal: $${result.principal.toLocaleString()}, Yield: $${result.yield.toFixed(2)}, Total: $${result.total.toFixed(2)}`);
-    loadStaking();
-    updateHeaderInfo();
-  } catch(e) { alert('Unstake failed: ' + (e.message || 'Unknown error')); }
-}
-
-// ============================================================
-// DeFi — HTLC Escrow
-// ============================================================
-async function loadEscrows() {
-  try {
-    const escrows = await apiFetch('/api/defi/escrow');
-    const div = document.getElementById('escrowList');
-    if (!escrows.length) { div.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No escrow contracts. Create one to get started!</p>'; return; }
-    div.innerHTML = escrows.map(e => {
-      const colors = { locked: 'text-yellow-400 bg-yellow-500/10', claimed: 'text-green-400 bg-green-500/10', refunded: 'text-blue-400 bg-blue-500/10', expired: 'text-red-400 bg-red-500/10' };
-      const sc = colors[e.status] || 'text-gray-400 bg-gray-500/10';
-      const role = e.is_sender ? 'Sender' : 'Receiver';
-      const other = e.is_sender ? e.receiver : e.sender;
-      let actions = '';
-      if (e.status === 'locked' && !e.is_sender) {
-        actions = `<button onclick="claimEscrow('${e.id}')" class="px-2 py-1 rounded bg-green-500/20 text-green-400 text-xs font-semibold">Claim</button>`;
-      }
-      if ((e.status === 'locked' || e.status === 'expired') && e.is_sender) {
-        actions = `<button onclick="refundEscrow('${e.id}')" class="px-2 py-1 rounded bg-blue-500/20 text-blue-400 text-xs font-semibold">Refund</button>`;
-      }
-      return `<div class="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-        <div>
-          <div class="text-sm font-semibold text-gray-800">$${Number(e.amount).toLocaleString()} <span class="text-xs text-gray-400">→ ${other} (${role})</span></div>
-          <div class="text-xs text-gray-400 mt-1">Hashlock: ${e.hashlock.substring(0,16)}... · Expires: ${new Date(e.timelock).toLocaleString()}</div>
-          ${e.is_sender && e.status === 'locked' ? `<div class="text-xs text-yellow-400 mt-1">Secret: <code class="bg-gray-100 px-1 rounded">${e.secret}</code></div>` : ''}
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="px-2 py-0.5 rounded-full text-xs font-bold ${sc}">${e.status}</span>
-          ${actions}
-        </div>
-      </div>`;
-    }).join('');
-  } catch(e) { console.error('Escrow error', e); }
-}
-
-async function createEscrow() {
-  const receiver = document.getElementById('escrowReceiver').value.trim();
-  const amount = parseFloat(document.getElementById('escrowAmount').value) || 0;
-  const timelock_hours = parseInt(document.getElementById('escrowTimelock').value) || 24;
-  if (!receiver || amount <= 0) return;
-  const res = document.getElementById('escrowResult');
-  try {
-    const result = await apiFetch('/api/defi/escrow/create', { method: 'POST', body: JSON.stringify({ receiver, amount, timelock_hours }) });
-    res.className = 'text-xs mt-2 p-3 rounded-lg bg-green-500/10 text-green-400';
-    res.innerHTML = `<i class="fas fa-check-circle mr-1"></i>Escrow created! Share this secret with ${receiver}:<br><code class="bg-gray-100 px-2 py-1 rounded mt-1 block break-all text-yellow-400">${result.secret}</code>`;
-    res.classList.remove('hidden');
-    document.getElementById('escrowReceiver').value = '';
-    document.getElementById('escrowAmount').value = '';
-    loadEscrows();
-    updateHeaderInfo();
-  } catch(e) {
-    res.className = 'text-xs mt-2 p-3 rounded-lg bg-red-500/10 text-red-400';
-    res.innerHTML = '<i class="fas fa-times-circle mr-1"></i>' + (e.message || 'Failed');
-    res.classList.remove('hidden');
-  }
-}
-
-async function claimEscrow(id) {
-  const secret = prompt('Enter the secret pre-image to claim funds:');
-  if (!secret) return;
-  try {
-    const result = await apiFetch('/api/defi/escrow/' + id + '/claim', { method: 'POST', body: JSON.stringify({ secret }) });
-    alert(`Claimed $${result.amount.toLocaleString()}! New balance: $${result.new_balance.toLocaleString()}`);
-    loadEscrows();
-    updateHeaderInfo();
-  } catch(e) { alert('Claim failed: ' + (e.message || 'Invalid secret')); }
-}
-
-async function refundEscrow(id) {
-  if (!confirm('Refund this escrow? Only works after timelock expires.')) return;
-  try {
-    const result = await apiFetch('/api/defi/escrow/' + id + '/refund', { method: 'POST' });
-    alert(`Refunded $${result.amount.toLocaleString()}! New balance: $${result.new_balance.toLocaleString()}`);
-    loadEscrows();
-    updateHeaderInfo();
-  } catch(e) { alert('Refund failed: ' + (e.message || 'Timelock not expired')); }
 }
 
 // ============================================================
@@ -6736,6 +6051,246 @@ document.getElementById('loginPass').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') doLogin();
 });
 </script>
+
+<script>
+// ============================================================
+// CORRIDORS TAB
+// ============================================================
+
+const COUNTRY_DATA = {
+  'Afghanistan':{'code':'AF','currency':'AFN','flag':'🇦🇫','lat':33.9,'lng':67.7},
+  'Australia':{'code':'AU','currency':'AUD','flag':'🇦🇺','lat':-25.3,'lng':133.8},
+  'Bahrain':{'code':'BH','currency':'BHD','flag':'🇧🇭','lat':26.0,'lng':50.5},
+  'Bangladesh':{'code':'BD','currency':'BDT','flag':'🇧🇩','lat':23.7,'lng':90.4},
+  'Canada':{'code':'CA','currency':'CAD','flag':'🇨🇦','lat':56.1,'lng':-106.3},
+  'China':{'code':'CN','currency':'CNY','flag':'🇨🇳','lat':35.9,'lng':104.2},
+  'Egypt':{'code':'EG','currency':'EGP','flag':'🇪🇬','lat':26.8,'lng':30.8},
+  'France':{'code':'FR','currency':'EUR','flag':'🇫🇷','lat':46.2,'lng':2.2},
+  'Germany':{'code':'DE','currency':'EUR','flag':'🇩🇪','lat':51.2,'lng':10.5},
+  'Hong Kong':{'code':'HK','currency':'HKD','flag':'🇭🇰','lat':22.3,'lng':114.2},
+  'India':{'code':'IN','currency':'INR','flag':'🇮🇳','lat':20.6,'lng':78.9},
+  'Indonesia':{'code':'ID','currency':'IDR','flag':'🇮🇩','lat':-0.8,'lng':113.9},
+  'Japan':{'code':'JP','currency':'JPY','flag':'🇯🇵','lat':36.2,'lng':138.3},
+  'Jordan':{'code':'JO','currency':'JOD','flag':'🇯🇴','lat':30.6,'lng':36.2},
+  'Kenya':{'code':'KE','currency':'KES','flag':'🇰🇪','lat':0.0,'lng':37.9},
+  'Kuwait':{'code':'KW','currency':'KWD','flag':'🇰🇼','lat':29.3,'lng':47.5},
+  'Lebanon':{'code':'LB','currency':'LBP','flag':'🇱🇧','lat':33.9,'lng':35.9},
+  'Malaysia':{'code':'MY','currency':'MYR','flag':'🇲🇾','lat':4.2,'lng':108.0},
+  'Mexico':{'code':'MX','currency':'MXN','flag':'🇲🇽','lat':23.6,'lng':-102.6},
+  'Morocco':{'code':'MA','currency':'MAD','flag':'🇲🇦','lat':31.8,'lng':-7.1},
+  'Netherlands':{'code':'NL','currency':'EUR','flag':'🇳🇱','lat':52.1,'lng':5.3},
+  'Nigeria':{'code':'NG','currency':'NGN','flag':'🇳🇬','lat':9.1,'lng':8.7},
+  'Oman':{'code':'OM','currency':'OMR','flag':'🇴🇲','lat':21.5,'lng':55.9},
+  'Pakistan':{'code':'PK','currency':'PKR','flag':'🇵🇰','lat':30.4,'lng':69.3},
+  'Philippines':{'code':'PH','currency':'PHP','flag':'🇵🇭','lat':12.9,'lng':121.8},
+  'Qatar':{'code':'QA','currency':'QAR','flag':'🇶🇦','lat':25.4,'lng':51.2},
+  'Saudi Arabia':{'code':'SA','currency':'SAR','flag':'🇸🇦','lat':24.0,'lng':45.1},
+  'Singapore':{'code':'SG','currency':'SGD','flag':'🇸🇬','lat':1.4,'lng':103.8},
+  'South Korea':{'code':'KR','currency':'KRW','flag':'🇰🇷','lat':35.9,'lng':127.8},
+  'Spain':{'code':'ES','currency':'EUR','flag':'🇪🇸','lat':40.5,'lng':-3.7},
+  'Sri Lanka':{'code':'LK','currency':'LKR','flag':'🇱🇰','lat':7.9,'lng':80.8},
+  'Switzerland':{'code':'CH','currency':'CHF','flag':'🇨🇭','lat':46.8,'lng':8.2},
+  'Thailand':{'code':'TH','currency':'THB','flag':'🇹🇭','lat':15.9,'lng':100.9},
+  'Turkey':{'code':'TR','currency':'TRY','flag':'🇹🇷','lat':38.0,'lng':35.2},
+  'UAE':{'code':'AE','currency':'AED','flag':'🇦🇪','lat':24.0,'lng':54.0},
+  'UK':{'code':'GB','currency':'GBP','flag':'🇬🇧','lat':55.4,'lng':-3.4},
+  'USA':{'code':'US','currency':'USD','flag':'🇺🇸','lat':37.1,'lng':-95.7},
+  'Vietnam':{'code':'VN','currency':'VND','flag':'🇻🇳','lat':14.1,'lng':108.3},
+};
+
+function populateCountryDropdowns() {
+  const countries = Object.keys(COUNTRY_DATA).sort();
+  ['corrSourceCountry','corrDestCountry'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Select country\u2026</option>';
+    countries.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c;
+      o.textContent = COUNTRY_DATA[c].flag + ' ' + c;
+      sel.appendChild(o);
+    });
+    if (cur) sel.value = cur;
+  });
+}
+
+function onCorridorCountryChange() {
+  const src = document.getElementById('corrSourceCountry')?.value;
+  const dst = document.getElementById('corrDestCountry')?.value;
+  if (src && COUNTRY_DATA[src]) {
+    document.getElementById('corrSourceCurrency').value = COUNTRY_DATA[src].currency;
+  }
+  if (dst && COUNTRY_DATA[dst]) {
+    document.getElementById('corrDestCurrency').value = COUNTRY_DATA[dst].currency;
+  }
+  if (src && dst) {
+    const nameEl = document.getElementById('corrName');
+    if (nameEl && !nameEl.value) nameEl.value = src + ' \u2192 ' + dst;
+    fetchCorridorFXRate();
+  }
+}
+
+async function fetchCorridorFXRate() {
+  const from = document.getElementById('corrSourceCurrency')?.value;
+  const to   = document.getElementById('corrDestCurrency')?.value;
+  const rateEl = document.getElementById('corrFXRate');
+  const srcEl  = document.getElementById('corrFXSource');
+  if (!from || !to) return;
+  if (rateEl) rateEl.textContent = 'Fetching\u2026';
+  try {
+    const data = await apiFetch(`/api/fx/rate?from=${from}&to=${to}`);
+    if (rateEl) rateEl.textContent = `1 ${from} = ${data.rate} ${to}`;
+    if (srcEl)  srcEl.textContent  = `Live rate \u2022 ${new Date().toLocaleTimeString()}`;
+  } catch(e) {
+    if (rateEl) rateEl.textContent = 'Rate unavailable';
+  }
+}
+
+async function addCorridor() {
+  const src = document.getElementById('corrSourceCountry')?.value;
+  const dst = document.getElementById('corrDestCountry')?.value;
+  const name = document.getElementById('corrName')?.value.trim();
+  const resultEl = document.getElementById('corrResult');
+
+  if (!name || !src || !dst) {
+    if (resultEl) { resultEl.className = 'text-xs p-3 rounded-lg bg-red-50 text-red-600'; resultEl.textContent = 'Please fill in corridor name and select both countries.'; resultEl.classList.remove('hidden'); }
+    return;
+  }
+
+  const totalNodes = parseInt(document.getElementById('corrNodes')?.value || 11);
+  const validators = Math.max(1, Math.round(totalNodes * 0.27));
+  const full       = Math.max(1, Math.round(totalNodes * 0.37));
+  const relay      = Math.max(1, Math.round(totalNodes * 0.18));
+  const light      = totalNodes - validators - full - relay;
+
+  const payload = {
+    name,
+    source_country: src,
+    dest_country:   dst,
+    source_flag:    COUNTRY_DATA[src]?.flag || '🌐',
+    dest_flag:      COUNTRY_DATA[dst]?.flag || '🌐',
+    source_currency: document.getElementById('corrSourceCurrency')?.value || '',
+    dest_currency:   document.getElementById('corrDestCurrency')?.value || '',
+    fee_pct:    parseFloat(document.getElementById('corrFee')?.value || 0.5),
+    min_amount: parseFloat(document.getElementById('corrMin')?.value || 100),
+    max_amount: parseFloat(document.getElementById('corrMax')?.value || 100000),
+    purpose:    document.getElementById('corrPurpose')?.value || 'General Transfer',
+    node_validators: validators, node_full: full, node_relay: relay, node_light: light
+  };
+
+  try {
+    await apiFetch('/api/corridors', { method:'POST', body: JSON.stringify(payload) });
+    if (resultEl) { resultEl.className = 'text-xs p-3 rounded-lg bg-green-50 text-green-700'; resultEl.textContent = '\u2713 Corridor added successfully!'; resultEl.classList.remove('hidden'); }
+    document.getElementById('corrName').value = '';
+    document.getElementById('corrSourceCountry').value = '';
+    document.getElementById('corrDestCountry').value = '';
+    document.getElementById('corrSourceCurrency').value = '';
+    document.getElementById('corrDestCurrency').value = '';
+    document.getElementById('corrFXRate').textContent = '\u2014';
+    loadCorridors_legacy();
+    setTimeout(() => resultEl.classList.add('hidden'), 3000);
+  } catch(e) {
+    if (resultEl) { resultEl.className = 'text-xs p-3 rounded-lg bg-red-50 text-red-600'; resultEl.textContent = 'Error: ' + (e.message || 'Failed to add corridor'); resultEl.classList.remove('hidden'); }
+  }
+}
+
+async function loadCorridors_legacy() {
+  const el = document.getElementById('corridorList');
+  if (!el) return;
+  try {
+    const data = await apiFetch('/api/corridors');
+    const corridors = data.corridors || [];
+    if (!corridors.length) { el.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">No corridors yet.</p>'; return; }
+    el.innerHTML = corridors.map(c => `
+      <div class="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100 hover:bg-white hover:shadow-sm transition">
+        <div class="text-xl">${c.source_flag || '🌐'}</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-semibold text-gray-800">${c.name}</p>
+          <p class="text-[10px] text-gray-400">${c.source_currency} \u2192 ${c.dest_currency} \u00b7 Fee: ${c.fee_pct}% \u00b7 ${c.node_total || 11} nodes</p>
+        </div>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${c.status==='active'?'bg-green-100 text-green-600':'bg-gray-100 text-gray-500'}">${c.status}</span>
+        <button onclick="deleteCorridor(${c.id})" class="text-gray-300 hover:text-red-400 transition text-xs ml-1"><i class="fas fa-trash"></i></button>
+      </div>`).join('');
+  } catch(e) { el.innerHTML = '<p class="text-red-400 text-sm text-center py-4">Failed to load corridors.</p>'; }
+}
+
+async function deleteCorridor(id) {
+  if (!confirm('Delete this corridor?')) return;
+  await apiFetch('/api/corridors/' + id, { method:'DELETE' });
+  loadCorridors_legacy();
+}
+
+function switchCorridorTab_legacy(tab) {
+  document.querySelectorAll('.corridor-pane').forEach(p => p.classList.add('hidden'));
+  document.querySelectorAll('.corridor-tab-btn').forEach(b => {
+    b.classList.remove('bg-accent','text-white');
+    b.classList.add('bg-gray-100','text-gray-600');
+  });
+  const pane = document.getElementById('corridorPane-' + tab);
+  if (pane) pane.classList.remove('hidden');
+  const btn = document.querySelector(`[data-ctab="${tab}"]`);
+  if (btn) { btn.classList.add('bg-accent','text-white'); btn.classList.remove('bg-gray-100','text-gray-600'); }
+}
+
+async function renderCorridorMap_legacy() {
+  const svg = document.getElementById('corridorMapSVG');
+  const legendEl = document.getElementById('corridorMapLegend');
+  if (!svg) return;
+
+  const W = 960, H = 520;
+  const lngToX = lng => (lng + 180) / 360 * W;
+  const latToY = lat => (90 - lat) / 180 * H;
+
+  let corridors = [];
+  try { const d = await apiFetch('/api/corridors'); corridors = d.corridors || []; } catch(e) {}
+
+  svg.innerHTML = `
+    <rect width="${W}" height="${H}" fill="#0f172a"/>
+    <g stroke="#1e3a5f" stroke-width="0.3" fill="none">
+      ${[-60,-30,0,30,60].map(lat => `<line x1="0" y1="${latToY(lat)}" x2="${W}" y2="${latToY(lat)}"/>`).join('')}
+      ${[-120,-60,0,60,120].map(lng => `<line x1="${lngToX(lng)}" y1="0" x2="${lngToX(lng)}" y2="${H}"/>`).join('')}
+    </g>`;
+
+  const seenCountries = new Set();
+  corridors.forEach(c => {
+    const src = COUNTRY_DATA[c.source_country];
+    const dst = COUNTRY_DATA[c.dest_country];
+    if (!src || !dst) return;
+    seenCountries.add(c.source_country);
+    seenCountries.add(c.dest_country);
+    const x1 = lngToX(src.lng), y1 = latToY(src.lat);
+    const x2 = lngToX(dst.lng), y2 = latToY(dst.lat);
+    const mx = (x1+x2)/2, my = (y1+y2)/2 - Math.abs(x2-x1)*0.25;
+    const color = c.status === 'active' ? '#6366f1' : '#ef4444';
+    svg.innerHTML += `
+      <path d="M${x1},${y1} Q${mx},${my} ${x2},${y2}" stroke="${color}" stroke-width="1.5" fill="none" opacity="0.7" stroke-dasharray="${c.status==='active'?'none':'4,3'}"/>
+      <circle cx="${x1}" cy="${y1}" r="4" fill="${color}" opacity="0.9"/>
+      <circle cx="${x2}" cy="${y2}" r="4" fill="${color}" opacity="0.9"/>
+      <text x="${x1}" y="${y1-7}" text-anchor="middle" fill="white" font-size="10" font-family="sans-serif">${src.flag}</text>
+      <text x="${x2}" y="${y2-7}" text-anchor="middle" fill="white" font-size="10" font-family="sans-serif">${dst.flag}</text>`;
+  });
+
+  seenCountries.forEach(name => {
+    const cd = COUNTRY_DATA[name];
+    if (!cd) return;
+    svg.innerHTML += `<text x="${lngToX(cd.lng)}" y="${latToY(cd.lat)+16}" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="sans-serif">${name}</text>`;
+  });
+
+  if (legendEl) {
+    legendEl.innerHTML = corridors.map(c =>
+      `<span class="flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-lg">
+        ${c.source_flag||'🌐'} <span class="text-gray-300">\u2192</span> ${c.dest_flag||'🌐'} <span class="font-medium text-gray-700">${c.name}</span>
+      </span>`
+    ).join('');
+  }
+}
+
+// loadCorridorsTab is now defined in tab-corridors.js
+// The inline version above is replaced by the module.
+</script>
+<script src="/static/js/tabs/tab-network.js?v=2"></script>
+<script src="/static/js/tabs/tab-corridors.js?v=3"></script>
 
 </body>
 </html>
