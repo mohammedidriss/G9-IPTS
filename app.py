@@ -746,20 +746,31 @@ class AML_Risk_Engine:
         self._load_models()
 
     def _load_models(self):
-        try:
-            self.iso_forest = joblib.load(os.path.join(MODELS_DIR, "isolation_forest.pkl"))
-            self.rf_clf = joblib.load(os.path.join(MODELS_DIR, "random_forest.pkl"))
-            self.xgb_clf = joblib.load(os.path.join(MODELS_DIR, "xgboost.pkl"))
-            self.autoencoder = joblib.load(os.path.join(MODELS_DIR, "autoencoder.pkl"))
-            self.ae_threshold = joblib.load(os.path.join(MODELS_DIR, "ae_threshold.pkl"))
-            self.pagerank = joblib.load(os.path.join(MODELS_DIR, "pagerank.pkl"))
-            with open(os.path.join(MODELS_DIR, "graph_data.json")) as f:
-                self.graph_data = json.load(f)
-            self.models_loaded = True
-            logger.info("All 4 ML models loaded successfully")
-        except Exception as e:
-            logger.error(f"Model loading error: {e}")
-            self.models_loaded = False
+        loaded = []
+        def _load(attr, path, is_json=False):
+            try:
+                if is_json:
+                    with open(os.path.join(MODELS_DIR, path)) as f:
+                        setattr(self, attr, json.load(f))
+                else:
+                    setattr(self, attr, joblib.load(os.path.join(MODELS_DIR, path)))
+                loaded.append(path)
+            except Exception as e:
+                logger.warning(f"Model not loaded ({path}): {e}")
+
+        _load("iso_forest",   "isolation_forest.pkl")
+        _load("rf_clf",       "random_forest.pkl")
+        _load("xgb_clf",      "xgboost.pkl")
+        _load("autoencoder",  "autoencoder.pkl")
+        _load("ae_threshold", "ae_threshold.pkl")
+        _load("pagerank",     "pagerank.pkl")
+        _load("graph_data",   "graph_data.json", is_json=True)
+
+        self.models_loaded = self.rf_clf is not None and self.xgb_clf is not None
+        if self.models_loaded:
+            logger.info(f"ML models loaded successfully ({len(loaded)}/{7} files)")
+        else:
+            logger.error("Core ML models (RF/XGB) missing — run train_on_real_data.py")
 
     def score_transaction(self, amount, hour, day, freq, is_round, country_risk,
                           sender, receiver, beneficiary_name=""):

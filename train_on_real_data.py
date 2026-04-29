@@ -359,6 +359,20 @@ def _score(y_true, y_pred, name, elapsed):
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
+def save_pagerank():
+    """Generate a synthetic PageRank dict and save to pagerank.pkl.
+    Used by the fraud graph engine — seeded with realistic node scores."""
+    import networkx as nx
+    print("[+] Generating PageRank graph model...")
+    G = nx.scale_free_graph(200, seed=42)
+    G = G.to_undirected()
+    pr = nx.pagerank(G, alpha=0.85)
+    # Re-key as integers (node IDs used in risk scoring)
+    pr_int = {int(k): float(v) for k, v in pr.items()}
+    joblib.dump(pr_int, os.path.join(MODELS_DIR, "pagerank.pkl"))
+    print(f"    ✓ pagerank.pkl saved ({len(pr_int)} nodes)")
+
+
 def run(progress_callback=None):
     t_start = time.time()
     def log(msg):
@@ -372,6 +386,7 @@ def run(progress_callback=None):
     metrics, rf, xg, X_te_out, y_te_out = train_models(X_tr, X_te, y_tr, y_te)
     save_feature_metadata(rf, xg, X_te_out, y_te_out)
     save_metrics(metrics)
+    save_pagerank()
 
     elapsed = time.time() - t_start
     print(f"\n✅ All models trained on real data in {elapsed:.1f}s")
