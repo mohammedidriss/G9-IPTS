@@ -376,31 +376,6 @@ tailwind.config = {
         </div>
       </div>
 
-      <!-- AML Telemetry Table (admin/operator/compliance only) -->
-      <div id="dashAmlTelemetry" class="glass rounded-xl p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-satellite-dish mr-2 text-accent"></i>AML Telemetry - Live Ledger</h3>
-          <span class="pulse-dot inline-block w-2 h-2 rounded-full bg-accent"></span>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs">
-            <thead>
-              <tr class="text-gray-500 border-b border-gray-200">
-                <th class="text-left py-2 px-2">Timestamp</th>
-                <th class="text-left py-2 px-2">Sender</th>
-                <th class="text-left py-2 px-2">Beneficiary</th>
-                <th class="text-right py-2 px-2">Amount (USD)</th>
-                <th class="text-right py-2 px-2">Risk Score</th>
-                <th class="text-center py-2 px-2">Status</th>
-                <th class="text-left py-2 px-2">Hash</th>
-              </tr>
-            </thead>
-            <tbody id="telemetryBody">
-              <tr><td colspan="7" class="text-center py-8 text-gray-600">No transactions yet. Execute a settlement to begin.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
 
     <!-- APPROVALS TAB -->
@@ -2154,6 +2129,32 @@ tailwind.config = {
       <button onclick="loadAmlMonitor()" class="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition"><i class="fas fa-rotate-right mr-1.5"></i>Refresh</button>
     </div>
 
+    <!-- AML Telemetry - Live Ledger (top of page) -->
+    <div id="dashAmlTelemetry" class="glass rounded-xl p-6 mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-satellite-dish mr-2 text-accent"></i>AML Telemetry - Live Ledger</h3>
+        <span class="pulse-dot inline-block w-2 h-2 rounded-full bg-accent"></span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="text-gray-500 border-b border-gray-200">
+              <th class="text-left py-2 px-2">Timestamp</th>
+              <th class="text-left py-2 px-2">Sender</th>
+              <th class="text-left py-2 px-2">Beneficiary</th>
+              <th class="text-right py-2 px-2">Amount (USD)</th>
+              <th class="text-right py-2 px-2">Risk Score</th>
+              <th class="text-center py-2 px-2">Status</th>
+              <th class="text-left py-2 px-2">Hash</th>
+            </tr>
+          </thead>
+          <tbody id="telemetryBody">
+            <tr><td colspan="7" class="text-center py-8 text-gray-600">No transactions yet. Execute a settlement to begin.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- KPIs -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
       <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
@@ -2236,6 +2237,7 @@ tailwind.config = {
         <div id="amlSarTracker" class="space-y-2"></div>
       </div>
     </div>
+
   </div>
 
   <!-- Ledger Tab -->
@@ -2753,14 +2755,12 @@ function configureUIForRole() {
     if (cardRequestPanel) { cardRequestPanel.classList.remove('hidden'); cardRequestPanel.style.display = ''; }
   }
 
-  // Hide AML ledger & telemetry from clients; show their own transaction list instead
-  const amlLedger    = document.getElementById('dashAmlLedger');
-  const amlTelemetry = document.getElementById('dashAmlTelemetry');
-  const clientTx     = document.getElementById('dashClientTransactions');
+  // Show client's own transaction list for client role
+  const amlLedger = document.getElementById('dashAmlLedger');
+  const clientTx  = document.getElementById('dashClientTransactions');
   if (ROLE === 'client') {
-    if (amlLedger)    amlLedger.style.display    = 'none';
-    if (amlTelemetry) amlTelemetry.style.display = 'none';
-    if (clientTx)     clientTx.classList.remove('hidden');
+    if (amlLedger) amlLedger.style.display = 'none';
+    if (clientTx)  clientTx.classList.remove('hidden');
   } else {
     if (amlLedger)    amlLedger.style.display    = '';
     if (amlTelemetry) amlTelemetry.style.display = '';
