@@ -5874,5 +5874,9 @@ def set_announcement():
     return jsonify(_announcement)
 
 if __name__ == "__main__":
-    print("\n  IPTS Flask API starting on port 5001...")
-    app.run(host="0.0.0.0", port=5001, debug=False, threaded=True)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=int(os.environ.get("IPTS_PORT", 5001)))
+    args = parser.parse_args()
+    print(f"\n  IPTS Flask API starting on port {args.port}...")
+    app.run(host="0.0.0.0", port=args.port, debug=False, threaded=True)

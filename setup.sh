@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
 # ============================================================
 # IPTS — One-command setup for a fresh machine
-# Usage: bash setup.sh
+# Usage: bash setup.sh [--port PORT]
+#        IPTS_PORT=5002 bash setup.sh
 # ============================================================
 set -e
+
+# ── Parse --port argument ─────────────────────────────────────
+PORT=${IPTS_PORT:-5001}
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --port) PORT="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -53,8 +63,8 @@ echo ""
 echo "  ✓ Setup complete!"
 echo ""
 echo "  ┌─────────────────────────────────────────────────┐"
-echo "  │  Server starting at: http://localhost:5001      │"
+echo "  │  Server starting at: http://localhost:${PORT}      │"
 echo "  │  Press Ctrl+C to stop                           │"
 echo "  └─────────────────────────────────────────────────┘"
 echo ""
-python3 app.py
+python3 app.py --port "$PORT"
