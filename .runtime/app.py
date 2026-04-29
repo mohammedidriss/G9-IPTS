@@ -455,6 +455,19 @@ def init_db():
     logger.info("Database initialized")
 
 init_db()
+# Always seed user accounts (without wallet addresses if Ganache not available)
+init_user_accounts_no_wallet = lambda: __import__('sqlite3').connect(DB_PATH)
+def _seed_user_accounts():
+    conn = __import__('sqlite3').connect(DB_PATH)
+    c = conn.cursor()
+    for username, info in USER_ACCOUNTS.items():
+        c.execute("SELECT username FROM user_accounts WHERE username = ?", (username,))
+        if not c.fetchone():
+            c.execute("INSERT INTO user_accounts (username, full_name, balance, currency, wallet_address) VALUES (?, ?, ?, ?, ?)",
+                      (username, info["full_name"], info["balance"], info["currency"], ""))
+    conn.commit()
+    conn.close()
+_seed_user_accounts()
 
 def init_user_accounts(blockchain_accounts):
     """Initialize user_accounts table from USER_ACCOUNTS config."""
