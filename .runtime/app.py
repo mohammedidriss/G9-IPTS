@@ -4450,6 +4450,147 @@ def network_corridor():
 
     return jsonify({"nodes": list(nodes_dict.values()), "links": links})
 
+
+@app.route("/api/network/node-health", methods=["GET"])
+@zero_trust_required
+def network_node_health():
+    """Returns blockchain infrastructure nodes with health metrics."""
+    import random, math
+    random.seed(42)
+
+    # Blockchain nodes: validators, full nodes, relay nodes, light nodes
+    # Seeded so results are deterministic but realistic
+    node_definitions = [
+        # Validators (highest tier - consensus participants)
+        {"id":"VAL-KSA-01","label":"Validator KSA-01","type":"validator","region":"KSA","country":"🇸🇦"},
+        {"id":"VAL-KSA-02","label":"Validator KSA-02","type":"validator","region":"KSA","country":"🇸🇦"},
+        {"id":"VAL-UAE-01","label":"Validator UAE-01","type":"validator","region":"UAE","country":"🇦🇪"},
+        {"id":"VAL-UAE-02","label":"Validator UAE-02","type":"validator","region":"UAE","country":"🇦🇪"},
+        {"id":"VAL-IND-01","label":"Validator IND-01","type":"validator","region":"India","country":"🇮🇳"},
+        {"id":"VAL-UK-01", "label":"Validator UK-01", "type":"validator","region":"UK","country":"🇬🇧"},
+        {"id":"VAL-USA-01","label":"Validator USA-01","type":"validator","region":"USA","country":"🇺🇸"},
+        {"id":"VAL-LBN-01","label":"Validator LBN-01","type":"validator","region":"Lebanon","country":"🇱🇧"},
+        # Full nodes (store full blockchain)
+        {"id":"FULL-KSA-01","label":"Full Node KSA-01","type":"full_node","region":"KSA","country":"🇸🇦"},
+        {"id":"FULL-KSA-02","label":"Full Node KSA-02","type":"full_node","region":"KSA","country":"🇸🇦"},
+        {"id":"FULL-UAE-01","label":"Full Node UAE-01","type":"full_node","region":"UAE","country":"🇦🇪"},
+        {"id":"FULL-IND-01","label":"Full Node IND-01","type":"full_node","region":"India","country":"🇮🇳"},
+        {"id":"FULL-IND-02","label":"Full Node IND-02","type":"full_node","region":"India","country":"🇮🇳"},
+        {"id":"FULL-UK-01", "label":"Full Node UK-01", "type":"full_node","region":"UK","country":"🇬🇧"},
+        {"id":"FULL-USA-01","label":"Full Node USA-01","type":"full_node","region":"USA","country":"🇺🇸"},
+        {"id":"FULL-LBN-01","label":"Full Node LBN-01","type":"full_node","region":"Lebanon","country":"🇱🇧"},
+        # Relay nodes (route transactions between regions)
+        {"id":"RELAY-KSA-UAE","label":"Relay KSA↔UAE","type":"relay","region":"GCC","country":"🌐"},
+        {"id":"RELAY-KSA-IND","label":"Relay KSA↔IND","type":"relay","region":"Asia","country":"🌐"},
+        {"id":"RELAY-KSA-UK", "label":"Relay KSA↔UK", "type":"relay","region":"Europe","country":"🌐"},
+        {"id":"RELAY-KSA-USA","label":"Relay KSA↔USA","type":"relay","region":"Americas","country":"🌐"},
+        {"id":"RELAY-KSA-LBN","label":"Relay KSA↔LBN","type":"relay","region":"Levant","country":"🌐"},
+        # Light nodes (thin clients, SPV)
+        {"id":"LIGHT-KSA-01","label":"Light KSA-01","type":"light","region":"KSA","country":"🇸🇦"},
+        {"id":"LIGHT-UAE-01","label":"Light UAE-01","type":"light","region":"UAE","country":"🇦🇪"},
+        {"id":"LIGHT-IND-01","label":"Light IND-01","type":"light","region":"India","country":"🇮🇳"},
+        {"id":"LIGHT-UK-01", "label":"Light UK-01", "type":"light","region":"UK","country":"🇬🇧"},
+        {"id":"LIGHT-USA-01","label":"Light USA-01","type":"light","region":"USA","country":"🇺🇸"},
+    ]
+
+    # Health profiles per node (deterministic)
+    health_profiles = {
+        "VAL-KSA-01":  {"uptime":99.98,"latency_ms":12,"block_height":847293,"sync_lag":0,"status":"online"},
+        "VAL-KSA-02":  {"uptime":99.95,"latency_ms":14,"block_height":847293,"sync_lag":0,"status":"online"},
+        "VAL-UAE-01":  {"uptime":99.91,"latency_ms":18,"block_height":847293,"sync_lag":0,"status":"online"},
+        "VAL-UAE-02":  {"uptime":97.40,"latency_ms":45,"block_height":847280,"sync_lag":13,"status":"syncing"},
+        "VAL-IND-01":  {"uptime":99.87,"latency_ms":22,"block_height":847293,"sync_lag":0,"status":"online"},
+        "VAL-UK-01":   {"uptime":99.99,"latency_ms":9, "block_height":847293,"sync_lag":0,"status":"online"},
+        "VAL-USA-01":  {"uptime":99.92,"latency_ms":11,"block_height":847293,"sync_lag":0,"status":"online"},
+        "VAL-LBN-01":  {"uptime":84.20,"latency_ms":210,"block_height":847101,"sync_lag":192,"status":"degraded"},
+        "FULL-KSA-01": {"uptime":99.80,"latency_ms":16,"block_height":847293,"sync_lag":0,"status":"online"},
+        "FULL-KSA-02": {"uptime":99.75,"latency_ms":19,"block_height":847293,"sync_lag":0,"status":"online"},
+        "FULL-UAE-01": {"uptime":99.60,"latency_ms":24,"block_height":847292,"sync_lag":1,"status":"online"},
+        "FULL-IND-01": {"uptime":99.50,"latency_ms":28,"block_height":847293,"sync_lag":0,"status":"online"},
+        "FULL-IND-02": {"uptime":96.30,"latency_ms":88,"block_height":847265,"sync_lag":28,"status":"syncing"},
+        "FULL-UK-01":  {"uptime":99.95,"latency_ms":10,"block_height":847293,"sync_lag":0,"status":"online"},
+        "FULL-USA-01": {"uptime":99.90,"latency_ms":13,"block_height":847293,"sync_lag":0,"status":"online"},
+        "FULL-LBN-01": {"uptime":0.0,"latency_ms":9999,"block_height":0,"sync_lag":847293,"status":"offline"},
+        "RELAY-KSA-UAE":{"uptime":99.99,"latency_ms":8, "block_height":847293,"sync_lag":0,"status":"online"},
+        "RELAY-KSA-IND":{"uptime":99.85,"latency_ms":32,"block_height":847293,"sync_lag":0,"status":"online"},
+        "RELAY-KSA-UK": {"uptime":99.92,"latency_ms":20,"block_height":847293,"sync_lag":0,"status":"online"},
+        "RELAY-KSA-USA":{"uptime":99.88,"latency_ms":17,"block_height":847293,"sync_lag":0,"status":"online"},
+        "RELAY-KSA-LBN":{"uptime":72.10,"latency_ms":340,"block_height":847050,"sync_lag":243,"status":"degraded"},
+        "LIGHT-KSA-01": {"uptime":98.50,"latency_ms":35,"block_height":847290,"sync_lag":3,"status":"online"},
+        "LIGHT-UAE-01": {"uptime":97.80,"latency_ms":42,"block_height":847288,"sync_lag":5,"status":"online"},
+        "LIGHT-IND-01": {"uptime":95.20,"latency_ms":95,"block_height":847270,"sync_lag":23,"status":"syncing"},
+        "LIGHT-UK-01":  {"uptime":99.10,"latency_ms":22,"block_height":847293,"sync_lag":0,"status":"online"},
+        "LIGHT-USA-01": {"uptime":98.90,"latency_ms":18,"block_height":847292,"sync_lag":1,"status":"online"},
+    }
+
+    def classify_health(profile):
+        if profile["status"] == "offline":  return "offline"
+        if profile["status"] == "degraded": return "degraded"
+        if profile["uptime"] >= 99.0 and profile["latency_ms"] < 50 and profile["sync_lag"] <= 2:
+            return "healthy"
+        if profile["uptime"] >= 95.0 and profile["latency_ms"] < 150:
+            return "warning"
+        return "degraded"
+
+    nodes = []
+    for nd in node_definitions:
+        profile = health_profiles.get(nd["id"], {"uptime":99.0,"latency_ms":20,"block_height":847293,"sync_lag":0,"status":"online"})
+        health = classify_health(profile)
+        nodes.append({
+            "id":           nd["id"],
+            "label":        nd["label"],
+            "type":         nd["type"],
+            "region":       nd["region"],
+            "country":      nd["country"],
+            "health":       health,
+            "uptime":       profile["uptime"],
+            "latency_ms":   profile["latency_ms"],
+            "block_height": profile["block_height"],
+            "sync_lag":     profile["sync_lag"],
+            "status":       profile["status"],
+            "peers":        random.randint(8,32) if health != "offline" else 0,
+            "tx_pool":      random.randint(0,150) if health not in ("offline","degraded") else 0,
+        })
+
+    # P2P connections (mesh topology)
+    links = []
+    # Validators fully connected
+    validators = [n["id"] for n in nodes if n["type"] == "validator"]
+    for i, v1 in enumerate(validators):
+        for v2 in validators[i+1:]:
+            links.append({"source":v1,"target":v2,"type":"validator_mesh"})
+    # Full nodes connect to validators in same region + relay
+    for n in nodes:
+        if n["type"] == "full_node":
+            region = n["region"]
+            # Connect to validator in same region
+            val_same = next((v for v in validators if region.lower() in v.lower()), validators[0])
+            links.append({"source":n["id"],"target":val_same,"type":"full_to_validator"})
+            # Connect to relay
+            relay_id = "RELAY-KSA-" + region[:3].upper() if "RELAY-KSA-"+region[:3].upper() in health_profiles else "RELAY-KSA-UAE"
+            if relay_id != n["id"]:
+                links.append({"source":n["id"],"target":relay_id,"type":"full_to_relay"})
+    # Light nodes connect to full node + relay in same region
+    for n in nodes:
+        if n["type"] == "light":
+            region = n["region"]
+            full_same = next((f["id"] for f in nodes if f["type"]=="full_node" and region.lower() in f["id"].lower()), None)
+            if full_same:
+                links.append({"source":n["id"],"target":full_same,"type":"light_to_full"})
+    # Relay nodes connect to each other
+    relays = [n["id"] for n in nodes if n["type"] == "relay"]
+    for i, r1 in enumerate(relays):
+        for r2 in relays[i+1:]:
+            links.append({"source":r1,"target":r2,"type":"relay_mesh"})
+
+    summary = {
+        "healthy":  sum(1 for n in nodes if n["health"]=="healthy"),
+        "warning":  sum(1 for n in nodes if n["health"]=="warning"),
+        "degraded": sum(1 for n in nodes if n["health"]=="degraded"),
+        "offline":  sum(1 for n in nodes if n["health"]=="offline"),
+    }
+    return jsonify({"nodes": nodes, "links": links, "summary": summary})
+
 # --- Serve Frontend ---
 @app.route("/")
 def index():
