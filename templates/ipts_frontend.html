@@ -173,7 +173,7 @@ tailwind.config = {
       <i class="fas fa-check-circle mr-1"></i>Approvals
     </button>
     <button onclick="switchTab('aiml')" data-tab="aiml" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
-      <i class="fas fa-brain mr-1"></i>AI/ML
+      <i class="fas fa-brain mr-1"></i>AI Engine
     </button>
     <button onclick="switchTab('compliance')" data-tab="compliance" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-scale-balanced mr-1"></i>Compliance
@@ -762,7 +762,7 @@ tailwind.config = {
       </div>
     </div>
 
-    <!-- AI/ML TAB -->
+    <!-- AI ENGINE TAB -->
     <div id="tab-aiml" class="tab-content hidden fade-in">
       <!-- Model Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6" id="modelCards"></div>
@@ -2702,7 +2702,7 @@ function configureUIForRole() {
     }
   });
 
-  // For client: show AI Insights, hide full AI/ML sections
+  // For client: show AI Insights, hide full AI Engine sections
   const clientInsights = document.getElementById('clientAIInsights');
   const fullAIML = document.querySelectorAll('#tab-aiml > *:not(#clientAIInsights)');
   if (ROLE === 'client') {
@@ -2711,7 +2711,7 @@ function configureUIForRole() {
     document.getElementById('clientWelcomeName').textContent = FULL_NAME;
     // Rename AI/ML tab label to "AI Insights" for client
     const aimlBtn = document.querySelector('[data-tab="aiml"]');
-    if (aimlBtn) aimlBtn.innerHTML = '<i class="fas fa-sparkles mr-1"></i>AI Insights';
+    if (aimlBtn) aimlBtn.innerHTML = '<i class="fas fa-sparkles mr-1"></i>AI Engine';
   } else {
     clientInsights.classList.add('hidden');
     fullAIML.forEach(el => el.style.display = '');
@@ -2905,7 +2905,7 @@ function connectSSE() {
 
 // ============================================================
 
-// AI/ML functions → tab-aiml.js
+// AI Engine functions → tab-aiml.js
 
 // ============================================================
 

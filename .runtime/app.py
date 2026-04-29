@@ -2679,6 +2679,59 @@ def add_sanction():
               {"entity": entity_name}, request.remote_addr)
     return jsonify({"status": "added", "entity_name": entity_name})
 
+@app.route("/api/aml/screening", methods=["GET"])
+@zero_trust_required
+def aml_screening():
+    """AML screening results — cross-references recent settlements against sanctions & watchlists."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    # Pull last 200 settlements
+    c.execute("""SELECT id, beneficiary_name, amount, currency, risk_score, status, created_at
+                 FROM settlements ORDER BY created_at DESC LIMIT 200""")
+    settlements = c.fetchall()
+    # Pull sanctions list
+    c.execute("SELECT LOWER(entity_name) as name FROM sanctions_list")
+    sanctioned = {r["name"] for r in c.fetchall()}
+    conn.close()
+
+    WATCHLIST = {n.lower() for n in [
+        "Reza Tehrani", "Ahmad Karimi", "Yusuf Al-Sharif", "Viktor Petrov",
+        "Huang Wei", "Mohammed Al-Rashid", "Dimitri Volkov", "Omar Hassan",
+        "sanctions evader llc", "fraud syndicate global", "phantom bank"
+    ]}
+
+    results = []
+    stats = {"total_screened": len(settlements), "sanctions_hits": 0, "watchlist_hits": 0, "high_risk": 0, "clear": 0}
+
+    for s in settlements:
+        name_lower = (s["beneficiary_name"] or "").lower()
+        sanctions_hit = name_lower in sanctioned or any(w in name_lower for w in sanctioned)
+        watchlist_hit = any(w in name_lower for w in WATCHLIST)
+        risk = s["risk_score"] or 0
+        if sanctions_hit:
+            status_label = "SANCTIONS_HIT"; stats["sanctions_hits"] += 1
+        elif watchlist_hit:
+            status_label = "WATCHLIST_HIT"; stats["watchlist_hits"] += 1
+        elif risk >= 70:
+            status_label = "HIGH_RISK"; stats["high_risk"] += 1
+        else:
+            status_label = "CLEAR"; stats["clear"] += 1
+        results.append({
+            "settlement_id": s["id"],
+            "beneficiary":   s["beneficiary_name"],
+            "amount":        s["amount"],
+            "currency":      s["currency"],
+            "risk_score":    risk,
+            "settlement_status": s["status"],
+            "screening_status":  status_label,
+            "screened_at":   s["created_at"],
+        })
+
+    # Sort: hits first, then by risk score desc
+    results.sort(key=lambda x: (x["screening_status"] == "CLEAR", -x["risk_score"]))
+    return jsonify({"results": results, "stats": stats})
+
 # --- SWIFT GPI ---
 @app.route("/api/compliance/swift-gpi/<uetr>", methods=["GET"])
 @zero_trust_required
@@ -2986,6 +3039,28 @@ def get_case_timeline(case_id):
             seen.add(key)
             unique.append(e)
     return jsonify({"timeline": unique})
+
+@app.route("/api/compliance/cases/<case_id>/timeline", methods=["POST"])
+@zero_trust_required
+def add_case_timeline_event(case_id):
+    """Manually add a timeline event to a compliance case."""
+    data = request.get_json() or {}
+    event  = data.get("event", "").strip()
+    detail = data.get("detail", "").strip()
+    if not event:
+        return jsonify({"error": "event field is required"}), 400
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT id, case_number FROM compliance_cases WHERE id=? OR case_number=?", (case_id, case_id))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "Case not found"}), 404
+    actor = request.user.get("sub", "unknown")
+    log_audit("case_timeline_event", actor, {"case_id": row["id"], "event": event, "detail": detail}, request.remote_addr)
+    conn.close()
+    return jsonify({"success": True, "event": event, "detail": detail, "actor": actor})
 
 # --- Case Links ---
 @app.route("/api/compliance/cases/<case_id>/links", methods=["GET"])
