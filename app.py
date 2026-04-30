@@ -305,6 +305,14 @@ def add_notification(username, title, message, ntype="info"):
     except Exception as e:
         logger.warning(f"Notification insert failed: {e}")
 
+APPROVER_ROLES = {"admin", "compliance", "operator"}
+
+def notify_approvers(title, message, ntype="warning", exclude_username=None):
+    """Send a notification to all users with an approver role."""
+    for uname, udata in USERS.items():
+        if udata.get("role") in APPROVER_ROLES and uname != exclude_username:
+            add_notification(uname, title, message, ntype)
+
 # ============================================================
 # Database Setup
 # ============================================================
@@ -2379,6 +2387,13 @@ def create_settlement():
 
         add_notification(sender_username, "Transaction Blocked", f"Your transaction of ${amount:,.2f} to {beneficiary_name} was blocked by the AI risk engine.", "error")
 
+        notify_approvers(
+            "⚠️ HITL Review Required",
+            f"Transaction of ${amount:,.2f} from {sender_name} to {beneficiary_name} requires approval. Risk score: {risk_result['composite_score']}. Case {case_number} opened.",
+            ntype="warning",
+            exclude_username=sender_username
+        )
+
         push_sse("settlement", {
             "id": settlement_id, "status": "blocked",
             "amount": amount, "risk_score": risk_result["composite_score"]
@@ -2675,6 +2690,12 @@ def hitl_approve(hitl_id):
                 log_audit("four_eyes_first_approval", approver, {
                     "hitl_id": hitl_id, "amount": settle_amount}, request.remote_addr)
                 push_sse("hitl", {"id": hitl_id, "action": "first_approval", "approver": approver, "amount": settle_amount})
+                notify_approvers(
+                    "🔐 Second Approval Required",
+                    f"Transaction of ${settle_amount:,.2f} received first approval from {approver}. A second approver is required (four-eyes control). Please review the HITL queue.",
+                    ntype="warning",
+                    exclude_username=approver
+                )
                 return jsonify({
                     "status": "awaiting_second_approval",
                     "message": f"Four-eyes required for amounts >${FOUR_EYES_THRESHOLD:,}. First approval recorded by {approver}. A different approver must confirm.",
