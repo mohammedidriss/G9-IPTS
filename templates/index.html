@@ -667,6 +667,88 @@ tailwind.config = {
       <!-- Model Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6" id="modelCards"></div>
 
+      <!-- ── SHAP Explainability — Transaction Explorer ──────────────── -->
+      <div class="glass rounded-xl p-6 mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-sm font-semibold text-gray-800">
+              <i class="fas fa-flask mr-2 text-purple-500"></i>SHAP Explainability — Transaction Explorer
+            </h3>
+            <p class="text-xs text-gray-500 mt-0.5">Click any row or the SHAP button to open the AI explanation popup for that transaction</p>
+          </div>
+          <div class="flex flex-wrap gap-2 items-center">
+            <input id="txExplorerSearch" type="text" placeholder="Search ID / sender / receiver…"
+              class="px-3 py-1.5 rounded-lg text-xs border border-gray-200 w-52"
+              oninput="filterTxExplorer()">
+            <select id="txExplorerStatus" class="px-2 py-1.5 rounded-lg text-xs border border-gray-200" onchange="filterTxExplorer()">
+              <option value="">All Statuses</option>
+              <option value="settled">Settled</option>
+              <option value="approved">Approved</option>
+              <option value="blocked">Blocked</option>
+              <option value="pending">Pending</option>
+              <option value="flagged">Flagged</option>
+            </select>
+            <select id="txExplorerRisk" class="px-2 py-1.5 rounded-lg text-xs border border-gray-200" onchange="filterTxExplorer()">
+              <option value="">All Risk Levels</option>
+              <option value="critical">Critical ≥ 85</option>
+              <option value="high">High 70–84</option>
+              <option value="medium">Medium 40–69</option>
+              <option value="low">Low &lt; 40</option>
+            </select>
+            <button onclick="loadTxExplorer()" class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs hover:bg-gray-200 transition">
+              <i class="fas fa-rotate-right mr-1"></i>Refresh
+            </button>
+            <span id="txExplorerCount" class="text-xs text-gray-400"></span>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex flex-wrap gap-4 mb-3 text-xs">
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span><span class="text-gray-500">Critical ≥ 85</span></span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span><span class="text-gray-500">High 70–84</span></span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block"></span><span class="text-gray-500">Medium 40–69</span></span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-green-500 inline-block"></span><span class="text-gray-500">Low &lt; 40</span></span>
+          <span class="flex items-center gap-1.5 ml-4"><i class="fas fa-hand-pointer text-purple-400 text-[10px]"></i><span class="text-gray-400">Click any row for SHAP explanation</span></span>
+        </div>
+
+        <div class="overflow-x-auto overflow-y-auto" style="max-height:480px;">
+          <table class="w-full text-xs">
+            <thead class="sticky top-0 bg-white z-10">
+              <tr class="text-gray-500 border-b-2 border-gray-200">
+                <th class="text-left py-2 px-3">Tx ID</th>
+                <th class="text-left py-2 px-3">Sender</th>
+                <th class="text-left py-2 px-3">Beneficiary</th>
+                <th class="text-right py-2 px-3">Amount</th>
+                <th class="text-left py-2 px-3">Date</th>
+                <th class="text-center py-2 px-3">Risk Score</th>
+                <th class="text-center py-2 px-3">Status</th>
+                <th class="text-center py-2 px-3">SLA</th>
+                <th class="text-center py-2 px-3">SHAP</th>
+              </tr>
+            </thead>
+            <tbody id="txExplorerBody">
+              <tr><td colspan="9" class="text-center py-8 text-gray-400">
+                <i class="fas fa-circle-notch fa-spin mr-2"></i>Loading transactions…
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex items-center justify-between mt-3 text-xs text-gray-500">
+          <button id="txExplorerPrev" onclick="txExplorerPage(-1)" disabled
+            class="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition">
+            <i class="fas fa-chevron-left mr-1"></i>Prev
+          </button>
+          <span id="txExplorerPageInfo">Page 1 of 1</span>
+          <button id="txExplorerNext" onclick="txExplorerPage(1)" disabled
+            class="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition">
+            Next<i class="fas fa-chevron-right ml-1"></i>
+          </button>
+        </div>
+      </div>
+      <!-- ── End SHAP Explainability Transaction Explorer ─────────── -->
+
       <!-- Confidence Distribution -->
       <div class="glass rounded-xl p-6 mb-6">
         <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-chart-bar mr-2 text-blue-400"></i>Risk Score Confidence Distribution</h3>
@@ -775,88 +857,6 @@ tailwind.config = {
         <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-globe mr-2 text-red-400"></i>Global Fraud Heatmap — Real-Time Risk Hotspots</h3>
         <div id="fraudHeatmapContainer" class="text-center text-gray-500 text-sm py-4">Loading heatmap...</div>
       </div>
-
-      <!-- ── SHAP Explainability — Transaction Explorer ──────────────── -->
-      <div class="glass rounded-xl p-6 mb-6">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div>
-            <h3 class="text-sm font-semibold text-gray-800">
-              <i class="fas fa-flask mr-2 text-purple-500"></i>SHAP Explainability — Transaction Explorer
-            </h3>
-            <p class="text-xs text-gray-500 mt-0.5">Click any row or the SHAP button to open the AI explanation popup for that transaction</p>
-          </div>
-          <div class="flex flex-wrap gap-2 items-center">
-            <input id="txExplorerSearch" type="text" placeholder="Search ID / sender / receiver…"
-              class="px-3 py-1.5 rounded-lg text-xs border border-gray-200 w-52"
-              oninput="filterTxExplorer()">
-            <select id="txExplorerStatus" class="px-2 py-1.5 rounded-lg text-xs border border-gray-200" onchange="filterTxExplorer()">
-              <option value="">All Statuses</option>
-              <option value="settled">Settled</option>
-              <option value="approved">Approved</option>
-              <option value="blocked">Blocked</option>
-              <option value="pending">Pending</option>
-              <option value="flagged">Flagged</option>
-            </select>
-            <select id="txExplorerRisk" class="px-2 py-1.5 rounded-lg text-xs border border-gray-200" onchange="filterTxExplorer()">
-              <option value="">All Risk Levels</option>
-              <option value="critical">Critical ≥ 85</option>
-              <option value="high">High 70–84</option>
-              <option value="medium">Medium 40–69</option>
-              <option value="low">Low &lt; 40</option>
-            </select>
-            <button onclick="loadTxExplorer()" class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs hover:bg-gray-200 transition">
-              <i class="fas fa-rotate-right mr-1"></i>Refresh
-            </button>
-            <span id="txExplorerCount" class="text-xs text-gray-400"></span>
-          </div>
-        </div>
-
-        <!-- Legend -->
-        <div class="flex flex-wrap gap-4 mb-3 text-xs">
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span><span class="text-gray-500">Critical ≥ 85</span></span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span><span class="text-gray-500">High 70–84</span></span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block"></span><span class="text-gray-500">Medium 40–69</span></span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-green-500 inline-block"></span><span class="text-gray-500">Low &lt; 40</span></span>
-          <span class="flex items-center gap-1.5 ml-4"><i class="fas fa-hand-pointer text-purple-400 text-[10px]"></i><span class="text-gray-400">Click any row for SHAP explanation</span></span>
-        </div>
-
-        <div class="overflow-x-auto overflow-y-auto" style="max-height:480px;">
-          <table class="w-full text-xs">
-            <thead class="sticky top-0 bg-white z-10">
-              <tr class="text-gray-500 border-b-2 border-gray-200">
-                <th class="text-left py-2 px-3">Tx ID</th>
-                <th class="text-left py-2 px-3">Sender</th>
-                <th class="text-left py-2 px-3">Beneficiary</th>
-                <th class="text-right py-2 px-3">Amount</th>
-                <th class="text-left py-2 px-3">Date</th>
-                <th class="text-center py-2 px-3">Risk Score</th>
-                <th class="text-center py-2 px-3">Status</th>
-                <th class="text-center py-2 px-3">SLA</th>
-                <th class="text-center py-2 px-3">SHAP</th>
-              </tr>
-            </thead>
-            <tbody id="txExplorerBody">
-              <tr><td colspan="9" class="text-center py-8 text-gray-400">
-                <i class="fas fa-circle-notch fa-spin mr-2"></i>Loading transactions…
-              </td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Pagination -->
-        <div class="flex items-center justify-between mt-3 text-xs text-gray-500">
-          <button id="txExplorerPrev" onclick="txExplorerPage(-1)" disabled
-            class="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition">
-            <i class="fas fa-chevron-left mr-1"></i>Prev
-          </button>
-          <span id="txExplorerPageInfo">Page 1 of 1</span>
-          <button id="txExplorerNext" onclick="txExplorerPage(1)" disabled
-            class="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition">
-            Next<i class="fas fa-chevron-right ml-1"></i>
-          </button>
-        </div>
-      </div>
-      <!-- ── End SHAP Explainability Transaction Explorer ─────────── -->
 
       <!-- AI-Identified Risk Entities -->
       <div class="glass rounded-xl p-6 mb-6">
