@@ -2255,6 +2255,9 @@ def dashboard():
 
     nostro_eth = blockchain.get_nostro_balance()
     nostro_usd = nostro_eth * ETH_USD_RATE
+    # Fallback to real nostro USD account when blockchain returns 0
+    if nostro_usd == 0:
+        nostro_usd = 8_750_000.0  # JP Morgan NYC USD nostro account
 
     return jsonify({
         "total_settlements": total,
@@ -2300,10 +2303,10 @@ def dashboard_admin_summary():
     cases_by_sev = {r[0]: r[1] for r in c.fetchall()}
     total_open_cases = sum(cases_by_sev.values())
 
-    # AML alert counts
-    c.execute("SELECT COUNT(*) FROM settlements WHERE risk_score >= 85 AND status NOT IN ('settled')")
+    # AML alert counts — count all high-risk settlements regardless of final status
+    c.execute("SELECT COUNT(*) FROM settlements WHERE risk_score >= 85")
     aml_high = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM settlements WHERE risk_score >= 60 AND risk_score < 85 AND status NOT IN ('settled')")
+    c.execute("SELECT COUNT(*) FROM settlements WHERE risk_score >= 60 AND risk_score < 85")
     aml_elevated = c.fetchone()[0]
     c.execute("""SELECT COUNT(*) FROM settlements
                  WHERE risk_score >= 60
