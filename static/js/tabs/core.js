@@ -395,7 +395,7 @@ async function loadDashboard() {
     loadTransactions();
     if (['client', 'operator'].includes(ROLE)) loadSubAccounts();
     loadLedger();
-    loadProofOfReserve();
+    if (ROLE !== 'client') loadProofOfReserve();
     loadVolumeChart();
   } catch (e) { console.error('Dashboard error:', e); }
 }
