@@ -64,7 +64,7 @@ async function loadApprovals() {
       })();
 
       return `
-      <div class="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between shadow-sm">
+      <div class="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between shadow-sm transition-all duration-300" data-hitl-id="${item.id}">
         <div class="flex-1">
           <div class="flex items-center gap-3 mb-1">
             <span class="font-mono text-xs text-gray-400">#${item.id.substring(0,8)}…</span>
@@ -126,7 +126,7 @@ async function loadHITL() {
       } else {
         fourEyesBadge = `<span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-xs"><i class="fas fa-eye mr-1"></i>4-Eyes Required</span>`;
       }
-      return `<tr class="border-b border-gray-200/50 hover:bg-gray-50">
+      return `<tr class="border-b border-gray-200/50 hover:bg-gray-50 transition-all duration-300" data-hitl-id="${item.id}">
         <td class="py-2 px-2 font-mono">${item.id.substring(0, 8)}...</td>
         <td class="py-2 px-2">${item.beneficiary_name || 'N/A'}</td>
         <td class="py-2 px-2 text-right">$${Number(item.amount).toLocaleString()}</td>
@@ -162,18 +162,27 @@ async function loadHITL() {
 }
 
 async function hitlAction(action, id) {
+  // ── Immediate visual feedback: mark the card as processing ──────
+  const cardEl = document.querySelector(`[data-hitl-id="${id}"]`);
+  if (cardEl) {
+    cardEl.style.opacity = '0.5';
+    cardEl.style.pointerEvents = 'none';
+    const btns = cardEl.querySelectorAll('button');
+    btns.forEach(b => { b.disabled = true; b.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; });
+  }
+
   try {
     const result = await apiFetch(`/api/hitl/${action}/${id}`, { method: 'POST' });
 
     if (result.status === 'awaiting_second_approval') {
-      await loadApprovals();
-      loadHITL();
       const notice = document.getElementById('approvalNotice');
       if (notice) {
         notice.textContent = '⚠️ First approval recorded. A second approver must confirm this transaction (4-eyes control).';
         notice.classList.remove('hidden');
         setTimeout(() => notice.classList.add('hidden'), 6000);
       }
+      await loadApprovals();
+      loadHITL();
       return;
     }
 
@@ -184,17 +193,47 @@ async function hitlAction(action, id) {
       const balEl = document.getElementById('paySenderBalance');
       if (balEl) balEl.textContent = '$' + Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     }
+
+    // ── Immediately remove the card from Pending Approvals ──────────
+    if (cardEl) {
+      cardEl.style.transition = 'opacity 0.3s, transform 0.3s';
+      cardEl.style.opacity = '0';
+      cardEl.style.transform = 'translateX(40px)';
+      setTimeout(() => cardEl.remove(), 320);
+    }
+
+    // ── Show toast confirmation ─────────────────────────────────────
+    const label = action === 'approve' ? '✔ Transaction approved and settled' : '✖ Transaction rejected';
+    const toastType = action === 'approve' ? 'success' : 'warning';
+    if (typeof showToast === 'function') showToast(label, toastType);
+
+    // ── Show payment journey for approve ───────────────────────────
     if (action === 'approve' && result.status === 'approved') {
-      // Clear any pending flow tracker so SSE doesn't double-trigger
       window._pendingFlowHitlId = null;
       showPaymentFlow('hitl_approved', { tx_hash: result.tx_hash });
     }
-    // Auto-refresh both the Approvals tab cards AND the Admin tab HITL table
+
+    // ── Full refresh: Approvals tab, Admin HITL table, dashboard ───
     await loadApprovals();
     loadHITL();
     loadDashboard();
     await fetchAccountInfo();
+
+    // ── Update pending count badge to 0 if nothing left ────────────
+    const pendingList = document.getElementById('approvals-list');
+    if (pendingList) {
+      const remaining = pendingList.querySelectorAll('[data-hitl-id]').length;
+      const badge = document.getElementById('pending-count-badge');
+      if (badge) {
+        if (remaining === 0) { badge.classList.add('hidden'); }
+        else { badge.textContent = remaining + ' awaiting action'; }
+      }
+    }
+
   } catch (e) {
+    // Restore card on error
+    if (cardEl) { cardEl.style.opacity = '1'; cardEl.style.pointerEvents = ''; }
+
     if (e.data && e.data.blocked_by === 'compliance_case') {
       const notice = document.getElementById('approvalNotice');
       if (notice) {
