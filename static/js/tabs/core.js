@@ -64,13 +64,29 @@ async function doLogin() {
         }, 800);
       }
     } else {
-      document.getElementById('loginError').textContent = data.error || 'Login failed';
-      document.getElementById('loginError').classList.remove('hidden');
+      const msg = data.error || 'Login failed';
+      showLoginError(msg);
     }
   } catch (e) {
-    document.getElementById('loginError').textContent = e.message || 'Connection error';
-    document.getElementById('loginError').classList.remove('hidden');
+    const msg = (e.data && e.data.error) ? e.data.error : (e.message || 'Connection error');
+    showLoginError(msg);
   }
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('loginError');
+  if (!el) return;
+  const isLocked = msg.toLowerCase().includes('locked');
+  el.innerHTML = isLocked
+    ? `<span><i class="fas fa-lock mr-1"></i>${msg}</span>`
+    : `<span><i class="fas fa-exclamation-circle mr-1"></i>${msg}</span>`;
+  el.className = isLocked
+    ? 'text-sm text-center mt-2 px-3 py-2 rounded-lg bg-red-100 border border-red-300 text-red-700 font-medium'
+    : 'text-sm text-center mt-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-500';
+  el.classList.remove('hidden');
+  // Clear password field for security
+  const passEl = document.getElementById('loginPass');
+  if (passEl) passEl.value = '';
 }
 
 async function fetchAccountInfo() {
