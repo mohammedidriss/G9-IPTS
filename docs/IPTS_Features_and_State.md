@@ -1,7 +1,7 @@
 # IPTS — Integrated Payment Transformation System
 ## Features, Functions & Tab State Reference
 
-> **Last updated:** 2026-04-29  
+> **Last updated:** 2026-04-30  
 > **Purpose:** Canonical reference for all features built, current state of every tab, architecture facts, and field-name mappings. Use this file to verify state before making changes and to avoid regressions.
 
 ---
@@ -216,20 +216,30 @@ node_validators, node_full, node_relay, node_light
 `loadSecurity`, `submitKYC`, `verifyKYC`, `loadFraudAlerts`, `loadDocuments`, `uploadDocument`
 
 ### tab-defi.js
-`loadDefiTab`, `previewSwap`, `submitSwap`, `loadPools`, `stakeAmount`, `unstake`, `loadStakingPositions`, `createEscrow`, `claimEscrow`, `loadEscrows`, `loadGovernance`, `submitProposal`, `showDefiClientSection`, `showDefiAdminSection`
+`loadDefiTab`, `loadDefiPortfolio`, `getSwapParams`, `onSwapTokenChange`, `flipSwap`, `previewSwap`, `executeSwap`, `loadPools`, `stakeAmount`, `unstake`, `loadStaking`, `updateEscrowCountdowns`, `startEscrowCountdowns`, `createEscrow`, `claimEscrow`, `loadEscrows`, `loadGovernance`, `submitProposal`, `showDefiClientSection`, `showDefiAdminSection`
 
 ---
 
 ## Tab States
 
 ### ✅ Dashboard
-**Status:** Fully working  
-**What it shows:**
+**Status:** Fully working — role-adaptive view  
+**What it shows (Client role):**
+- Welcome banner with account holder name
 - 4 KPI cards: Total Settlements, Blocked Transactions, Flagged, Nostro Liquidity (USD)
-- **Proof of Reserve card**: Off-chain total vs on-chain `totalSupply()`, ratio, 1:1 backing indicator (green ✓ or red warning)
+- Sub-account cards: Checking, Savings, Business with balances
 - Live FX Rates ticker: USD/AED, USD/AUD, USD/CAD, USD/CHF, USD/CNY, USD/EUR, USD/GBP, USD/HKD, USD/INR, USD/JPY, USD/SAR, USD/SGD
-- Real-time Ledger: date, type (DEBIT/CREDIT), description, amount, running balance
-**APIs called:** `/api/dashboard/stats`, `/api/fx/rates`, `/api/ledger`, `/api/defi/proof-of-reserve`
+- Settlement Volume chart
+- Recent Transactions list
+
+**What it shows (Admin / Compliance / Operator roles — Admin Command Center):**
+- 3 action cards: HITL Queue (orange, pending + awaiting counts), Open Cases (red, by severity), AML Alerts (yellow, high/elevated + 24h new)
+- System health strip: blockchain connection dot, model accuracy %, last transaction timestamp
+- Recent Activity feed (last 5 audit log entries)
+- Clicking any card navigates to the relevant tab
+
+**APIs called:** `/api/dashboard/stats`, `/api/fx/rates`, `/api/ledger`, `/api/dashboard/admin-summary`  
+⚠️ Proof of Reserve **moved** to Compliance tab (no longer on Dashboard)
 
 ---
 
@@ -253,8 +263,11 @@ node_validators, node_full, node_relay, node_light
 
 ### ✅ Compliance
 **Status:** Working  
-**What it shows:** Sanctions list management, entity screening, Nostro position management  
-**APIs called:** `/api/compliance/sanctions`, `/api/nostro/positions`
+**What it shows:**
+- **Proof of Reserve card** (top of tab, admin-only): Off-chain total vs on-chain `totalSupply()`, ratio, 1:1 backing indicator (green ✓ or red ✗)
+- Sanctions list management and entity screening
+- Nostro position management  
+**APIs called:** `/api/compliance/sanctions`, `/api/nostro/positions`, `/api/defi/proof-of-reserve`
 
 ---
 
@@ -387,6 +400,10 @@ node_validators, node_full, node_relay, node_light
 **Status:** Working (admin and client views)  
 **What it shows:**
 
+#### Portfolio Strip (all client sub-tabs)
+- 4 KPI chips above sub-tab buttons: Available balance, Total Staked, Locked in Escrow, Accrued Yield
+- Populated by `loadDefiPortfolio()` → `GET /api/defi/portfolio`
+
 #### Admin view
 - KPI cards: Total TVL, 24h Volume, Accrued Fees, Active Stakes
 - Pool Management: AMM pool list with reserves, price, TVL, 24h volume
@@ -394,14 +411,18 @@ node_validators, node_full, node_relay, node_light
 - Governance: proposal creation/voting, parameter changes, emergency controls
 
 #### Client view (sub-tabs: Swap / Staking / Escrow)
-- **Swap**: From/To currency, amount input, price impact preview, Swap button  
+- **Swap**: Bidirectional FROM/TO token selectors; flip button swaps tokens; same-token guard; live price preview  
   Uses constant-product AMM formula: `x * y = k`  
-  Pool pairs: USD/EUR, USD/GBP, USD/JPY, USD/CHF, USD/AED, USD/ETH
-- **Staking**: Three tiers: Flexible (3.5% APY), 30-day lock (5.2% APY), 90-day lock (8.1% APY); stake/unstake with accrued yield calculation
-- **Escrow (HTLC)**: Create escrow with hashlock + timelock, claim with pre-image secret, refund after expiry
+  All swaps are USD-anchored: `buy` = USD→foreign, `sell` = foreign→USD  
+  Pool pairs: USD/EUR, USD/GBP, USD/JPY, USD/CHF, USD/AED, USD/ETH  
+- **Staking**: Three tiers: Flexible (3.5% APY, no lock), 30-day lock (5.2% APY), 90-day lock (8.1% APY)  
+  Active positions show progress bar + days-remaining countdown; "Flexible — unstake anytime" for flexible tier  
+- **Escrow (HTLC)**: Create escrow with SHA-256 hashlock + configurable timelock, claim with pre-image secret, refund after expiry  
+  Locked contracts show live countdown timer (updated every 30 seconds via `startEscrowCountdowns`)
 
-**New DB tables:** `amm_pools`, `staking_positions`, `escrow_contracts`, `swap_history`  
-**JS file:** `tab-defi.js`
+**DB tables:** `amm_pools`, `staking_positions`, `escrow_contracts`, `swap_history`  
+**JS file:** `tab-defi.js`  
+**APIs:** `/api/defi/portfolio`, `/api/defi/swap`, `/api/defi/pools`, `/api/defi/staking`, `/api/defi/unstake/<id>`, `/api/defi/escrow`, `/api/defi/escrow/create`, `/api/defi/escrow/<id>/claim`, `/api/defi/escrow/<id>/refund`
 
 ---
 
@@ -434,7 +455,7 @@ node_validators, node_full, node_relay, node_light
 ### Phase 3 — DeFi Features
 | Feature | Description |
 |---------|-------------|
-| Proof of Reserve card | Dashboard card: off-chain vs on-chain totals, 1:1 backing indicator |
+| Proof of Reserve | Compliance tab card: off-chain vs on-chain totals, 1:1 backing indicator (moved from Dashboard) |
 | DEX / AMM | Constant-product formula (x·y=k), USD/EUR/GBP/JPY/AED/ETH pools |
 | Yield Farming / Staking | 3 tiers (Flexible 3.5%, 30-day 5.2%, 90-day 8.1%), accrued yield calc |
 | HTLC Escrow | Hash-time-locked contracts, claim with pre-image, refund after timelock |
@@ -460,6 +481,19 @@ node_validators, node_full, node_relay, node_light
 | Per-tab isolation | Each tab's logic in its own file — editing one cannot break others |
 | topojson CDN | Added `topojson-client` CDN for geo maps (was missing) |
 | HTML size reduction | `index.html` reduced from ~7500 lines to ~2500 lines |
+
+### Phase 6 — UX, Ops & DeFi Enhancements
+| Feature | Description |
+|---------|-------------|
+| Admin Command Center | Role-aware dashboard replacing generic KPIs for admin/compliance/operator: HITL queue, open cases, AML alerts, system health, activity feed |
+| Proof of Reserve relocated | Moved from Dashboard to Compliance tab — logically correct placement |
+| DeFi portfolio strip | 4-chip summary (balance, staked, escrow, yield) above DeFi sub-tabs |
+| Bidirectional token swap | FROM/TO selectors, flip button, same-token guard, `getSwapParams()` derives direction |
+| Staking countdown | Progress bar + days-remaining for locked positions; "Flexible — unstake anytime" for flexible tier |
+| Escrow live timer | `.escrow-countdown` spans updated every 30 seconds by `startEscrowCountdowns()` |
+| MLOps sequence detector fix | `feature_importances_` used instead of `get_booster()` (GradientBoostingClassifier, not XGBoost) |
+| SHAP last-tx panel removed | Stale dead panel and `featureChart` canvas removed from MLOps tab |
+| macOS LaunchAgent | `com.ipts.server.plist` auto-starts IPTS on login with `KeepAlive: true` crash recovery |
 
 ---
 
@@ -513,13 +547,25 @@ These mismatches caused bugs and have been fixed. Always use the DB column names
 **Problem:** `python app.py` from wrong CWD can't find DB (which is at project root, not `.runtime/`).  
 **Solution:** Always start with: `cd /Users/mohamadidriss/Projects/IPTS && .venv/bin/python3 .runtime/app.py`
 
+### 10. sequence_detector missing from MLOps insights
+**Problem:** `hasattr(model, 'get_booster')` returned False because `sequence_detector` is a sklearn `GradientBoostingClassifier`, not XGBoost. The endpoint returned no data for that model.  
+**Fix:** Check `hasattr(model, 'feature_importances_')` first (covers GradientBoosting + RandomForest); fall back to `get_booster().get_fscore()` for XGBoost only.
+
+### 11. Port 5001 already in use after restart
+**Problem:** Stale Python process holds the port after system wake/crash.  
+**Fix:** `lsof -ti :5001 | xargs kill -9` then restart. The LaunchAgent handles this automatically on clean boot.
+
+### 12. DeFi swap direction wrong for non-USD FROM token
+**Problem:** Old `previewSwap()` always assumed FROM=USD. Selecting EUR→USD gave wrong output amount.  
+**Fix:** `getSwapParams()` derives `{pair, direction}` from FROM/TO selectors. `direction='buy'` = USD→foreign; `direction='sell'` = foreign→USD.
+
 ---
 
 ## Verification Checklist
 
 Run this after any major change to confirm all tabs still work:
 
-- [ ] Dashboard loads with KPIs, Proof of Reserve, FX rates, ledger
+- [ ] Dashboard loads KPIs and Admin Command Center (admin) or welcome banner (client)
 - [ ] Network → Node Network: 26 nodes visible, KPIs show 26/20/2/3/1
 - [ ] Network → Node Explorer: table shows all 26 nodes with actions
 - [ ] Network → Node Locations: world map loads with node bubbles

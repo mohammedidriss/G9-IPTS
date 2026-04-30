@@ -294,7 +294,7 @@ tailwind.config = {
       <!-- Admin Command Center (admin/compliance/operator only) -->
       <div id="adminCommandCenter" class="hidden mb-6">
         <!-- Actionable alert cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <!-- HITL Queue -->
           <div onclick="switchTab('approvals')" class="glass rounded-xl p-4 border-l-4 border-orange-400 cursor-pointer hover:shadow-md transition group">
             <div class="flex justify-between items-start mb-3">
@@ -353,6 +353,27 @@ tailwind.config = {
               </div>
             </div>
             <div class="mt-2 text-xs text-yellow-400 group-hover:underline"><i class="fas fa-arrow-right mr-1"></i>AML monitor</div>
+          </div>
+
+          <!-- Proof of Reserve -->
+          <div onclick="switchTab('compliance')" class="glass rounded-xl p-4 border-l-4 border-teal-400 cursor-pointer hover:shadow-md transition group" id="accPorCard">
+            <div class="flex justify-between items-start mb-3">
+              <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wider">Proof of Reserve</p>
+                <p id="accPorRatio" class="text-3xl font-bold text-teal-400 mt-1">—</p>
+              </div>
+              <div class="w-10 h-10 rounded-lg bg-teal-500/20 flex items-center justify-center">
+                <i id="accPorIcon" class="fas fa-shield-halved text-teal-400"></i>
+              </div>
+            </div>
+            <div class="text-xs text-gray-500 space-y-0.5">
+              <div>Off-chain: <span id="accPorOffchain" class="font-semibold text-gray-700">—</span></div>
+              <div>On-chain: <span id="accPorOnchain" class="font-semibold text-gray-700">—</span></div>
+            </div>
+            <div class="mt-2 flex items-center justify-between">
+              <span id="accPorBadge" class="text-xs px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-500 font-semibold">—</span>
+              <span class="text-xs text-teal-400 group-hover:underline"><i class="fas fa-arrow-right mr-1"></i>Compliance</span>
+            </div>
           </div>
         </div>
 

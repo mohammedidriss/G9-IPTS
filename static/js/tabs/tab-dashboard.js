@@ -176,6 +176,31 @@ async function loadAdminCommandCenter() {
         }).join('');
       }
     }
+
+    // Proof of Reserve card
+    try {
+      const por = await apiFetch('/api/defi/proof-of-reserve');
+      const porRatio    = document.getElementById('accPorRatio');
+      const porOffchain = document.getElementById('accPorOffchain');
+      const porOnchain  = document.getElementById('accPorOnchain');
+      const porBadge    = document.getElementById('accPorBadge');
+      const porIcon     = document.getElementById('accPorIcon');
+      const porCard     = document.getElementById('accPorCard');
+      const fmt = n => '$' + Number(n || 0).toLocaleString('en-US', {maximumFractionDigits: 0});
+      if (porRatio)    porRatio.textContent    = (por.ratio !== null ? (por.ratio * 100).toFixed(1) + '%' : '—');
+      if (porOffchain) porOffchain.textContent = fmt(por.offchain_total);
+      if (porOnchain)  porOnchain.textContent  = fmt(por.onchain_total);
+      const backed = por.backed;
+      if (porBadge) {
+        porBadge.textContent  = backed ? '✓ Fully Backed' : '⚠ Under-Collateralised';
+        porBadge.className    = 'text-xs px-2 py-0.5 rounded-full font-semibold ' +
+          (backed ? 'bg-teal-500/20 text-teal-500' : 'bg-red-500/20 text-red-400');
+      }
+      if (porRatio) porRatio.className = 'text-3xl font-bold mt-1 ' + (backed ? 'text-teal-400' : 'text-red-400');
+      if (porIcon)  porIcon.className  = 'fas ' + (backed ? 'fa-shield-halved text-teal-400' : 'fa-shield-exclamation text-red-400');
+      if (porCard)  porCard.className  = porCard.className.replace(/border-[a-z]+-400/, backed ? 'border-teal-400' : 'border-red-400');
+    } catch (_) { /* PoR fetch failed silently */ }
+
   } catch (e) {
     console.error('Admin command center error:', e);
   }

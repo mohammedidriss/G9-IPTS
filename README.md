@@ -46,18 +46,21 @@ The system integrates:
 - **GDPR-Compliant Data Sovereignty** — Off-chain PII vaulting with on-chain hash anchoring
 - **SLA Tracking** — Severity-based countdown timers (Critical 4h, High 24h, Medium 72h, Low 7d)
 - **Health Monitoring** — 30-second polling of all system components with visual status indicator
-- **Real-Time Dashboard** — SSE-powered live telemetry with 14 functional tabs and Proof of Reserve indicator
+- **Real-Time Dashboard** — SSE-powered live telemetry with 14 functional tabs; role-adaptive view (Admin Command Center vs. Client overview)
+- **Admin Command Center** — Operational dashboard for admin/compliance/operator roles: HITL queue, open cases, AML alert counts, system health strip, and recent activity feed
 - **Notification Center** — Real-time push notifications via SSE with bell badge and dropdown panel
 - **Support Chat Bot (LLM)** — AI-powered chat using local Ollama/Llama 3.2 with user context injection
 - **Virtual Card Services** — Generate, freeze, cancel, and provision Visa/MC cards to digital wallets
 - **Spending 360 Analytics** — Comprehensive spending reports with charts, trends, and beneficiary rankings
 - **E-KYC Verification** — Animated 3-phase identity verification with confidence scoring
-- **DeFi Hub** — DEX/AMM with constant-product pricing across 6 liquidity pools, 3-tier yield staking (3.5–8.1% APY), and HTLC programmable escrow
+- **DeFi Hub** — DEX/AMM with bidirectional token swap (flip button), portfolio summary strip, 3-tier yield staking with countdown timers (3.5–8.1% APY), and HTLC escrow with live expiry countdown
 - **7 Payment Channels** — Settlement, P2P, ACH/Wire/SEPA, Scheduled, QR Pay, AMM Swap, HTLC Escrow
 - **Fraud Heatmap** — Global risk hotspot visualization with country-level analytics
 - **SAR Auto-Generation** — Automated FinCEN-format Suspicious Activity Reports from compliance cases
-- **MLOps Center** — Admin-only model performance monitoring, per-model interpretability charts, and selective retraining
+- **Proof of Reserve** — Live off-chain vs on-chain reserve reconciliation with 1:1 backing indicator (Compliance tab)
+- **MLOps Center** — Admin-only model performance monitoring with fixed feature importance charts for all 5 models including Sequence Detector (GradientBoostingClassifier)
 - **ML Model Caching** — Models persist to disk; skip training on subsequent startups
+- **Auto-Start (macOS)** — LaunchAgent (`com.ipts.server`) starts IPTS on login and auto-restarts on crash via `KeepAlive`
 
 ---
 
@@ -590,7 +593,7 @@ erDiagram
 
 ### MLOps Center (Admin only)
 - **5 Model Performance Cards** — Accuracy %, F1 Score %, config parameters, and progress bar per model
-- **Per-Model Interpretability Charts** — Tabbed chart panel with model-appropriate visualization per model
+- **Per-Model Interpretability Charts** — Tabbed chart panel with model-appropriate visualization per model; Sequence Detector (GradientBoostingClassifier) uses `feature_importances_` correctly
 - **Selective Retraining** — Admin selects which models to retrain via checkboxes; unselected models preserved
 - **Live Training Log** — Terminal-style SSE-powered log showing per-model progress in real time
 - **Refresh Controls** — Independent refresh buttons for performance cards and interpretability charts
@@ -613,9 +616,10 @@ erDiagram
 
 ### DeFi Hub
 - **DEX/AMM (Automated Market Maker)** — Constant-product (x·y=k) pricing across 6 liquidity pools (USD/EUR, GBP, JPY, CHF, AED, ETH) with 0.3% swap fee and price impact visualization
-- **Yield Farming / Staking** — 3-tier system: Flexible (3.5% APY, no lock), 30-Day Lock (5.2% APY), 90-Day Lock (8.1% APY) with real-time yield accrual
-- **HTLC Escrow** — Hash Time-Locked Contracts with SHA-256 hashlock, configurable timelock, and create/claim/refund lifecycle
-- **Proof of Reserve** — Dashboard card showing off-chain vs on-chain reserve totals with 1:1 backing indicator
+- **Bidirectional Swap** — Any token ↔ USD with flip button; FROM/TO selectors prevent same-token pairs; live price preview
+- **DeFi Portfolio Strip** — Available balance, total staked, locked escrow, and accrued yield shown above sub-tabs
+- **Yield Farming / Staking** — 3-tier system: Flexible (3.5% APY, no lock), 30-Day Lock (5.2% APY), 90-Day Lock (8.1% APY) with progress bar and days-remaining countdown
+- **HTLC Escrow** — Hash Time-Locked Contracts with SHA-256 hashlock, configurable timelock, and create/claim/refund lifecycle; live countdown timer on locked contracts
 - **Fraud Heatmap** — Global risk hotspot visualization with country-level alert counts, average risk scores, and transaction volumes
 
 ### Compliance & Regulation
@@ -643,14 +647,17 @@ erDiagram
 ### Dashboard & UI
 - **Health Monitoring** — /api/health polled every 30 seconds with green/yellow/red status dot
 - **Role-Filtered Tab Interface** — Up to 14 tabs depending on role (Admin: 11, Operator: 9, Compliance: 7, Client: 8, Auditor: 6, Data Scientist: 5)
+- **Admin Command Center** — Role-aware dashboard panel showing HITL queue depth, open compliance cases, AML alert counts, system health (blockchain status, model accuracy, last tx), and recent audit activity
 - **Notification Center** — Real-time notification bell with badge count, dropdown panel, and mark-as-read functionality (SSE-powered)
 - **Support Chat Widget** — Floating AI-powered chat bot powered by local Ollama/llama3.2
 - **Multi-Account Dashboard** — Sub-account cards (Checking, Savings, Business) with balances displayed on the Dashboard
 - **Real-Time Ledger** — Live transaction feed on Dashboard showing debit/credit direction, counterparty, and status
+- **Proof of Reserve (Compliance Tab)** — Off-chain vault total vs. on-chain `totalSupply()`, ratio, and backing status badge
 - **SHAP Visualization** — Inline feature contributions + horizontal bar chart in AI/ML tab
 - **FX Converter** — Standalone currency conversion tool in Compliance tab
 - **Professional Dark Theme** — Fintech-grade UI with Tailwind CSS glassmorphism design
 - **Interactive Charts** — Chart.js for volume analytics, D3.js for network visualization and fraud heatmap
+- **Auto-Start Service** — macOS LaunchAgent (`~/Library/LaunchAgents/com.ipts.server.plist`) auto-launches IPTS on login with `KeepAlive` crash recovery
 
 ---
 
