@@ -267,7 +267,7 @@ velocity_tracker = VelocityTracker()
 
 # Rate limiting
 RATE_LIMIT = {}
-RATE_LIMIT_MAX = 100  # requests per minute per IP
+RATE_LIMIT_MAX = 300  # requests per minute per IP
 RATE_LIMIT_WINDOW = 60
 
 # ============================================================

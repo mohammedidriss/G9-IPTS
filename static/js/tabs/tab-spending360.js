@@ -1,6 +1,6 @@
 // tab-spending360.js — Spending 360 module for IPTS
 
-let rptMonthlyChart = null;
+let spt360MonthlyChart = null;
 let rptStatusChart = null;
 let rptRiskChart = null;
 let rptCurrencyChart = null;
@@ -42,8 +42,8 @@ function makeChart(canvasId, config) {
 }
 
 function renderMonthlyTrend(data) {
-  if (rptMonthlyChart) rptMonthlyChart.destroy();
-  rptMonthlyChart = makeChart('rptMonthlyChart', {
+  if (spt360MonthlyChart) spt360MonthlyChart.destroy();
+  spt360MonthlyChart = makeChart('spt360MonthlyChart', {
     type: 'line',
     data: {
       labels: data.map(d => d.month),
