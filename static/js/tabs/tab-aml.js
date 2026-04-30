@@ -11,6 +11,7 @@ async function loadAmlMonitor() {
     loadAmlAlerts(),
     loadAmlRules(),
     loadAmlSarTracker(),
+    loadTransactions(),
   ]);
 }
 

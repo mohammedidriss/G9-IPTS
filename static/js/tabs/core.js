@@ -400,7 +400,6 @@ async function loadDashboard() {
     if (subAccSection) {
       subAccSection.style.display = ['client', 'operator'].includes(ROLE) ? '' : 'none';
     }
-    loadTransactions();
     if (['client', 'operator'].includes(ROLE)) loadSubAccounts();
     loadLedger();
     if (ROLE !== 'client') loadProofOfReserve();

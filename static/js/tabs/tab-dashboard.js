@@ -135,37 +135,7 @@ async function loadLedger() {
   }
 }
 
-async function loadTransactions() {
-  const tbody = document.getElementById('telemetryBody');
-  if (!tbody) return;
-  try {
-    // Fix 5: use limit/offset pagination params
-    const data = await apiFetch('/api/transactions?limit=50&offset=0');
-    if (!data.transactions || data.transactions.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-600">No transactions yet.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = data.transactions.map(tx => {
-      const statusClass  = `status-${tx.status}`;
-      const rowBg        = tx.status === 'blocked' ? 'bg-red-500/5' : tx.status === 'flagged' ? 'bg-yellow-500/5' : 'bg-green-500/5';
-      const shortHash    = tx.tx_hash ? tx.tx_hash.substring(0, 12) + '...' : 'N/A';
-      const senderDisplay = tx.sender || 'N/A';
-      const benefDisplay  = tx.beneficiary_name || 'N/A';
-      return `<tr class="${rowBg} border-b border-gray-200/50 hover:bg-gray-50">
-        <td class="py-2 px-2">${tx.created_at || '-'}</td>
-        <td class="py-2 px-2">${senderDisplay.length > 20 ? senderDisplay.substring(0, 18) + '...' : senderDisplay}</td>
-        <td class="py-2 px-2">${benefDisplay.length > 20 ? benefDisplay.substring(0, 18) + '...' : benefDisplay}</td>
-        <td class="py-2 px-2 text-right">$${Number(tx.amount).toLocaleString()}</td>
-        <td class="py-2 px-2 text-right font-mono ${tx.risk_score >= 80 ? 'text-red-400' : tx.risk_score >= 60 ? 'text-yellow-400' : 'text-green-400'}">${(tx.risk_score || 0).toFixed(1)}</td>
-        <td class="py-2 px-2 text-center"><span class="${statusClass} uppercase font-medium">${tx.status}</span></td>
-        <td class="py-2 px-2 font-mono text-gray-500">${shortHash}</td>
-      </tr>`;
-    }).join('');
-  } catch (e) {
-    console.error('Transactions error:', e);
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-red-400">Could not load transactions.</td></tr>';
-  }
-}
+// loadTransactions() lives in core.js — full explorer with search/filter/pagination
 
 function initVolumeChart(labels = [], settled = [], blocked = []) {
   const ctx = document.getElementById('volumeChart');
