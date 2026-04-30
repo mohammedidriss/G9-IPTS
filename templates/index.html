@@ -431,108 +431,7 @@ tailwind.config = {
       <div id="paysub-settlement" class="paysub-content">
 
       <!-- Payment Journey Flow Visualization Panel -->
-      <div id="paymentFlowPanel" class="hidden mb-6 rounded-xl p-6 border border-blue-500/30" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);">
-        <div class="flex items-center justify-between mb-5">
-          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-            <span id="flowPanelIcon" class="text-lg">💸</span>
-            <span>Payment Journey</span>
-          </h3>
-          <span id="flowStatusBadge" class="text-xs px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40">Initiating...</span>
-        </div>
-
-        <!-- Node flow diagram -->
-        <div class="relative overflow-x-auto pb-2">
-          <div id="flowNodesRow" class="flex items-start justify-between min-w-max mx-auto gap-0" style="min-width:700px;">
-
-            <!-- Node 1: Sender Bank -->
-            <div class="flow-node flex flex-col items-center w-24" id="flowNode1">
-              <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle1">🏦</div>
-              <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel1">Sender Bank</p>
-              <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail1">Initiating transfer</p>
-            </div>
-
-            <!-- Connector 1→2 -->
-            <div class="flow-connector flex-1 relative flex items-center mt-7" id="flowConn1" style="min-width:60px;">
-              <div class="w-full h-0.5 bg-gray-700 relative overflow-visible">
-                <div class="flow-line-fill absolute left-0 top-0 h-0.5 bg-blue-400 transition-all duration-500 w-0" id="flowLine1"></div>
-              </div>
-              <div class="flow-dot absolute w-3 h-3 rounded-full bg-blue-400 shadow-lg hidden opacity-0 transition-opacity duration-300" id="flowDot1" style="left:0; top:-5px; box-shadow:0 0 8px #60a5fa;"></div>
-            </div>
-
-            <!-- Node 2: AML -->
-            <div class="flow-node flex flex-col items-center w-24" id="flowNode2">
-              <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle2">🔐</div>
-              <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel2">AML Engine</p>
-              <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail2">Awaiting...</p>
-            </div>
-
-            <!-- Connector 2→3 -->
-            <div class="flow-connector flex-1 relative flex items-center mt-7" id="flowConn2" style="min-width:60px;">
-              <div class="w-full h-0.5 bg-gray-700 relative overflow-visible">
-                <div class="flow-line-fill absolute left-0 top-0 h-0.5 bg-blue-400 transition-all duration-500 w-0" id="flowLine2"></div>
-              </div>
-              <div class="flow-dot absolute w-3 h-3 rounded-full bg-blue-400 shadow-lg hidden opacity-0 transition-opacity duration-300" id="flowDot2" style="left:0; top:-5px; box-shadow:0 0 8px #60a5fa;"></div>
-            </div>
-
-            <!-- Node 3: ISO 20022 -->
-            <div class="flow-node flex flex-col items-center w-24" id="flowNode3">
-              <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle3">📋</div>
-              <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel3">ISO 20022</p>
-              <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail3">Awaiting...</p>
-            </div>
-
-            <!-- Connector 3→4 -->
-            <div class="flow-connector flex-1 relative flex items-center mt-7" id="flowConn3" style="min-width:60px;">
-              <div class="w-full h-0.5 bg-gray-700 relative overflow-visible">
-                <div class="flow-line-fill absolute left-0 top-0 h-0.5 bg-blue-400 transition-all duration-500 w-0" id="flowLine3"></div>
-              </div>
-              <div class="flow-dot absolute w-3 h-3 rounded-full bg-blue-400 shadow-lg hidden opacity-0 transition-opacity duration-300" id="flowDot3" style="left:0; top:-5px; box-shadow:0 0 8px #60a5fa;"></div>
-            </div>
-
-            <!-- Node 4: Blockchain -->
-            <div class="flow-node flex flex-col items-center w-24" id="flowNode4">
-              <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle4">⛓️</div>
-              <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel4">Blockchain</p>
-              <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail4">Awaiting...</p>
-            </div>
-
-            <!-- Connector 4→5 -->
-            <div class="flow-connector flex-1 relative flex items-center mt-7" id="flowConn4" style="min-width:60px;">
-              <div class="w-full h-0.5 bg-gray-700 relative overflow-visible">
-                <div class="flow-line-fill absolute left-0 top-0 h-0.5 bg-blue-400 transition-all duration-500 w-0" id="flowLine4"></div>
-              </div>
-              <div class="flow-dot absolute w-3 h-3 rounded-full bg-blue-400 shadow-lg hidden opacity-0 transition-opacity duration-300" id="flowDot4" style="left:0; top:-5px; box-shadow:0 0 8px #60a5fa;"></div>
-            </div>
-
-            <!-- Node 5: SWIFT GPI -->
-            <div class="flow-node flex flex-col items-center w-24" id="flowNode5">
-              <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle5">🌐</div>
-              <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel5">SWIFT GPI</p>
-              <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail5">Awaiting...</p>
-            </div>
-
-            <!-- Connector 5→6 -->
-            <div class="flow-connector flex-1 relative flex items-center mt-7" id="flowConn5" style="min-width:60px;">
-              <div class="w-full h-0.5 bg-gray-700 relative overflow-visible">
-                <div class="flow-line-fill absolute left-0 top-0 h-0.5 bg-blue-400 transition-all duration-500 w-0" id="flowLine5"></div>
-              </div>
-              <div class="flow-dot absolute w-3 h-3 rounded-full bg-blue-400 shadow-lg hidden opacity-0 transition-opacity duration-300" id="flowDot5" style="left:0; top:-5px; box-shadow:0 0 8px #60a5fa;"></div>
-            </div>
-
-            <!-- Node 6: Beneficiary Bank -->
-            <div class="flow-node flex flex-col items-center w-24" id="flowNode6">
-              <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle6">✅</div>
-              <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel6">Beneficiary</p>
-              <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail6">Awaiting...</p>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- Progress message -->
-        <p id="flowProgressMsg" class="text-center text-xs text-blue-300 mt-4 italic">Connecting to banking network...</p>
-      </div>
-      <!-- End Payment Journey Panel -->
+      <!-- Payment Journey Panel anchor (panel is now a global modal overlay — see bottom of body) -->
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Settlement Form -->
@@ -4136,5 +4035,120 @@ async function renderCorridorMap_legacy() {
   <script src="/static/js/tabs/tab-ledger.js?v=5"></script>
   <script src="/static/js/tabs/tab-dsworkbench.js?v=5"></script>
   <script src="/static/js/tabs/tab-defi.js?v=5"></script>
+
+  <!-- ============================================================ -->
+  <!-- GLOBAL Payment Journey Modal Overlay                         -->
+  <!-- Floats above any tab so admin can see it from Approvals/Admin-->
+  <!-- ============================================================ -->
+  <div id="paymentFlowOverlay" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);">
+    <div id="paymentFlowPanel" class="relative w-full max-w-4xl mx-4 rounded-2xl p-6 border border-blue-500/30 shadow-2xl" style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+          <span id="flowPanelIcon" class="text-lg">💸</span>
+          <span>Payment Journey</span>
+        </h3>
+        <div class="flex items-center gap-3">
+          <span id="flowStatusBadge" class="text-xs px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40">Initiating...</span>
+          <button id="flowCloseBtn" onclick="closePaymentFlowModal()" class="hidden text-gray-400 hover:text-white transition text-lg leading-none" title="Close">&times;</button>
+        </div>
+      </div>
+
+      <!-- Node flow diagram -->
+      <div class="relative overflow-x-auto pb-2">
+        <div id="flowNodesRow" class="flex items-start justify-between min-w-max mx-auto gap-0" style="min-width:700px;">
+
+          <!-- Node 1: Sender Bank -->
+          <div class="flow-node flex flex-col items-center w-24" id="flowNode1">
+            <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle1">🏦</div>
+            <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel1">Sender Bank</p>
+            <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail1">Initiating transfer</p>
+          </div>
+
+          <!-- Connector 1→2 -->
+          <div class="flow-connector flex-1 relative flex items-center mt-7" id="flowConn1" style="min-width:60px;">
+            <div class="w-full h-0.5 bg-gray-700 relative overflow-visible">
+              <div class="flow-line-fill absolute left-0 top-0 h-0.5 bg-blue-400 transition-all duration-500 w-0" id="flowLine1"></div>
+            </div>
+            <div class="flow-dot absolute w-3 h-3 rounded-full bg-blue-400 shadow-lg hidden opacity-0 transition-opacity duration-300" id="flowDot1" style="left:0;top:-5px;box-shadow:0 0 8px #60a5fa;"></div>
+          </div>
+
+          <!-- Node 2: AML -->
+          <div class="flow-node flex flex-col items-center w-24" id="flowNode2">
+            <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle2">🔐</div>
+            <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel2">AML Engine</p>
+            <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail2">Awaiting...</p>
+          </div>
+
+          <!-- Connector 2→3 -->
+          <div class="flow-connector flex-1 relative flex items-center mt-7" id="flowConn2" style="min-width:60px;">
+            <div class="w-full h-0.5 bg-gray-700 relative overflow-visible">
+              <div class="flow-line-fill absolute left-0 top-0 h-0.5 bg-blue-400 transition-all duration-500 w-0" id="flowLine2"></div>
+            </div>
+            <div class="flow-dot absolute w-3 h-3 rounded-full bg-blue-400 shadow-lg hidden opacity-0 transition-opacity duration-300" id="flowDot2" style="left:0;top:-5px;box-shadow:0 0 8px #60a5fa;"></div>
+          </div>
+
+          <!-- Node 3: ISO 20022 -->
+          <div class="flow-node flex flex-col items-center w-24" id="flowNode3">
+            <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle3">📋</div>
+            <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel3">ISO 20022</p>
+            <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail3">Awaiting...</p>
+          </div>
+
+          <!-- Connector 3→4 -->
+          <div class="flow-connector flex-1 relative flex items-center mt-7" id="flowConn3" style="min-width:60px;">
+            <div class="w-full h-0.5 bg-gray-700 relative overflow-visible">
+              <div class="flow-line-fill absolute left-0 top-0 h-0.5 bg-blue-400 transition-all duration-500 w-0" id="flowLine3"></div>
+            </div>
+            <div class="flow-dot absolute w-3 h-3 rounded-full bg-blue-400 shadow-lg hidden opacity-0 transition-opacity duration-300" id="flowDot3" style="left:0;top:-5px;box-shadow:0 0 8px #60a5fa;"></div>
+          </div>
+
+          <!-- Node 4: Blockchain -->
+          <div class="flow-node flex flex-col items-center w-24" id="flowNode4">
+            <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle4">⛓️</div>
+            <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel4">Blockchain</p>
+            <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail4">Awaiting...</p>
+          </div>
+
+          <!-- Connector 4→5 -->
+          <div class="flow-connector flex-1 relative flex items-center mt-7" id="flowConn4" style="min-width:60px;">
+            <div class="w-full h-0.5 bg-gray-700 relative overflow-visible">
+              <div class="flow-line-fill absolute left-0 top-0 h-0.5 bg-blue-400 transition-all duration-500 w-0" id="flowLine4"></div>
+            </div>
+            <div class="flow-dot absolute w-3 h-3 rounded-full bg-blue-400 shadow-lg hidden opacity-0 transition-opacity duration-300" id="flowDot4" style="left:0;top:-5px;box-shadow:0 0 8px #60a5fa;"></div>
+          </div>
+
+          <!-- Node 5: SWIFT GPI -->
+          <div class="flow-node flex flex-col items-center w-24" id="flowNode5">
+            <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle5">🌐</div>
+            <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel5">SWIFT GPI</p>
+            <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail5">Awaiting...</p>
+          </div>
+
+          <!-- Connector 5→6 -->
+          <div class="flow-connector flex-1 relative flex items-center mt-7" id="flowConn5" style="min-width:60px;">
+            <div class="w-full h-0.5 bg-gray-700 relative overflow-visible">
+              <div class="flow-line-fill absolute left-0 top-0 h-0.5 bg-blue-400 transition-all duration-500 w-0" id="flowLine5"></div>
+            </div>
+            <div class="flow-dot absolute w-3 h-3 rounded-full bg-blue-400 shadow-lg hidden opacity-0 transition-opacity duration-300" id="flowDot5" style="left:0;top:-5px;box-shadow:0 0 8px #60a5fa;"></div>
+          </div>
+
+          <!-- Node 6: Beneficiary Bank -->
+          <div class="flow-node flex flex-col items-center w-24" id="flowNode6">
+            <div class="flow-node-circle w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-gray-600 bg-gray-800 transition-all duration-500 relative z-10" id="flowCircle6">✅</div>
+            <p class="text-xs text-gray-400 mt-2 text-center font-semibold" id="flowLabel6">Beneficiary</p>
+            <p class="text-xs text-gray-500 mt-1 text-center leading-tight w-20" id="flowDetail6">Awaiting...</p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Progress message -->
+      <p id="flowProgressMsg" class="text-center text-xs text-blue-300 mt-4 italic">Connecting to banking network...</p>
+    </div>
+  </div>
+  <!-- End Global Payment Journey Modal -->
+
 </body>
 </html>

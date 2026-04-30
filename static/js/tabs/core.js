@@ -259,7 +259,15 @@ function switchTab(tab) {
   if (btn) { btn.classList.add('tab-active'); btn.classList.remove('text-gray-500'); }
 
   if (tab === 'dashboard') { loadDashboard(); loadSlaDashboard(); if (ROLE === 'client') loadClientTransactions(); }
-  if (tab === 'payments') { if (typeof switchPaySub === 'function') switchPaySub('settlement'); if (typeof loadBeneficiaries === 'function') loadBeneficiaries(); }
+  if (tab === 'payments') {
+    if (typeof switchPaySub === 'function') switchPaySub('settlement');
+    if (typeof loadBeneficiaries === 'function') loadBeneficiaries();
+    // Populate sender info panel
+    const senderNameEl = document.getElementById('paySenderName');
+    const senderBalEl  = document.getElementById('paySenderBalance');
+    if (senderNameEl) senderNameEl.textContent = FULL_NAME || USER || 'Me';
+    if (senderBalEl)  senderBalEl.textContent  = '$' + Number(BALANCE || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
   if (tab === 'aiml') {
     if (ROLE === 'client') { loadClientAIInsights(); }
     else {

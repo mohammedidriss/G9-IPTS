@@ -94,13 +94,28 @@
     }, duration / steps);
   }
 
+  // Helper: open/close the global overlay
+  function pfOpenOverlay() {
+    const overlay = document.getElementById('paymentFlowOverlay');
+    if (overlay) overlay.classList.remove('hidden');
+  }
+  function pfCloseOverlay() {
+    const overlay = document.getElementById('paymentFlowOverlay');
+    if (overlay) overlay.classList.add('hidden');
+  }
+  window.closePaymentFlowModal = function() {
+    pfCloseOverlay();
+  };
+
   window.showPaymentFlow = function(phase, data) {
     const panel = document.getElementById('paymentFlowPanel');
     if (!panel) return;
+    const closeBtn = document.getElementById('flowCloseBtn');
 
     if (phase === 'start') {
       pfReset();
-      panel.classList.remove('hidden');
+      pfOpenOverlay();
+      if (closeBtn) closeBtn.classList.add('hidden');
       pfActivateNode(1, 'Initiating transfer', 'blue');
       document.getElementById('flowProgressMsg').textContent = 'Step 1/6 — Connecting to Sender Bank...';
       pfTimeout(() => {
@@ -126,6 +141,8 @@
 
     if (phase === 'hitl_pending') {
       pfReset();
+      pfOpenOverlay();
+      if (closeBtn) closeBtn.classList.add('hidden');
       const riskScore = data && data.risk_score !== undefined ? data.risk_score.toFixed(1) : '—';
       pfActivateNode(1, 'Transfer initiated ✓', 'green');
       pfActivateNode(2, '⏳ Pending HITL  score: ' + riskScore, 'yellow');
@@ -136,21 +153,21 @@
       if (icon)  icon.textContent = '⏳';
       if (msg)   { msg.textContent='Payment held for compliance review — journey will resume once approved.'; msg.style.color='#fde68a'; }
       [3, 4, 5, 6].forEach(pfDimNode);
+      // Show close button after a short delay so user can dismiss if needed
+      pfTimeout(() => { if (closeBtn) closeBtn.classList.remove('hidden'); }, 3000);
       return;
     }
 
     if (phase === 'hitl_approved') {
       const txHash = data && data.tx_hash ? data.tx_hash.slice(0,14) + '...' : 'confirmed';
       const uetr   = data && data.uetr    ? data.uetr.slice(0,13) + '...' : 'routed';
-      panel.classList.remove('hidden');
-      const payTab = document.querySelector('[data-tab="payments"]');
-      if (payTab) payTab.click();
-      pfTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 150);
+      pfOpenOverlay();
+      if (closeBtn) closeBtn.classList.add('hidden');
 
       const badge = document.getElementById('flowStatusBadge');
       const icon  = document.getElementById('flowPanelIcon');
       const msg   = document.getElementById('flowProgressMsg');
-      if (badge) { badge.textContent='APPROVED'; badge.className='text-xs px-3 py-1 rounded-full bg-green-500/20 text-green-300 border border-green-500/40'; }
+      if (badge) { badge.textContent='APPROVED — RESUMING'; badge.className='text-xs px-3 py-1 rounded-full bg-green-500/20 text-green-300 border border-green-500/40'; }
       if (icon)  icon.textContent = '✅';
 
       pfActivateNode(1, 'Transfer initiated ✓', 'green');
@@ -180,6 +197,7 @@
           pfActivateNode(6, '🎉 Funds credited!', 'green');
           if (badge) { badge.textContent='COMPLETED'; badge.className='text-xs px-3 py-1 rounded-full bg-green-500/20 text-green-300 border border-green-500/40'; }
           if (msg)   { msg.textContent='Payment journey complete — funds successfully transferred after compliance approval.'; msg.style.color='#86efac'; }
+          if (closeBtn) closeBtn.classList.remove('hidden');
         });
       }, 1600);
       return;
@@ -187,6 +205,7 @@
 
     if (phase === 'blocked') {
       pfReset();
+      pfOpenOverlay();
       const riskScore = data && data.risk_score !== undefined ? data.risk_score.toFixed(1) : '—';
       pfActivateNode(1, 'Transfer initiated ✓', 'green');
       pfActivateNode(2, '❌ BLOCKED  score: ' + riskScore, 'red');
@@ -197,10 +216,13 @@
       if (icon)  icon.textContent = '🚫';
       if (msg)   { msg.textContent='Transaction blocked by AML Engine — funds not transferred.'; msg.style.color='#fca5a5'; }
       [3, 4, 5, 6].forEach(pfDimNode);
+      if (closeBtn) closeBtn.classList.remove('hidden');
       return;
     }
 
     if (phase === 'complete') {
+      pfOpenOverlay();
+      if (closeBtn) closeBtn.classList.add('hidden');
       const riskScore = data && data.risk_score !== undefined ? data.risk_score.toFixed(1) : '—';
       const txHash    = data && data.tx_hash ? data.tx_hash.slice(0,14) + '...' : 'confirmed';
       const uetr      = data && data.uetr    ? data.uetr.slice(0,13) + '...' : 'routed';
@@ -228,12 +250,15 @@
           if (icon)  icon.textContent = '✅';
           if (msg)   { msg.textContent='Payment journey complete — funds successfully transferred.'; msg.style.color='#86efac'; }
           ['flowLine1','flowLine2'].forEach(id => { const el=document.getElementById(id); if(el) el.style.backgroundColor='#22c55e'; });
+          if (closeBtn) closeBtn.classList.remove('hidden');
         });
       }, 750);
       return;
     }
 
     if (phase === 'error') {
+      pfOpenOverlay();
+      if (closeBtn) closeBtn.classList.remove('hidden');
       const msg = document.getElementById('flowProgressMsg');
       const badge = document.getElementById('flowStatusBadge');
       if (badge) { badge.textContent='ERROR'; badge.className='text-xs px-3 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-500/40'; }
