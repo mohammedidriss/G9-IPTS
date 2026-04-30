@@ -61,7 +61,7 @@ USERS = {
     "mohamad":      {"password": "Mohamad@2026!",    "role": "admin"},
     "rohit":        {"password": "Rohit@2026!",      "role": "compliance"},
     "sriram":       {"password": "Sriram@2026!",     "role": "operator"},
-    "walid":        {"password": "Walid@2026!",      "role": "auditor"},
+    "ali":          {"password": "Ali@2026!",        "role": "auditor"},
     "vibin":        {"password": "Vibin@2026!",      "role": "datascientist"},
     "sara":         {"password": "Sara@2026!",       "role": "client"},
     "lena":         {"password": "Lena@2026!",       "role": "client"},
@@ -78,9 +78,9 @@ USER_ACCOUNTS = {
     "mohamad":      {"full_name": "Mohamad Idriss",            "balance": 1000000.00, "currency": "USD", "wallet_idx": 0},
     "rohit":        {"full_name": "Rohit Jacob Isaac",         "balance": 750000.00,  "currency": "USD", "wallet_idx": 1},
     "sriram":       {"full_name": "Sriram Acharya Mudumbai",   "balance": 500000.00,  "currency": "USD", "wallet_idx": 2},
-    "walid":        {"full_name": "Walid Elmahdy",             "balance": 350000.00,  "currency": "USD", "wallet_idx": 3},
+    "ali":          {"full_name": "Ali Hassan",                "balance": 350000.00,  "currency": "USD", "wallet_idx": 3},
     "vibin":        {"full_name": "Vibin Chandrabose",         "balance": 150000.00,  "currency": "USD", "wallet_idx": 4},
-    "sara":         {"full_name": "Sara Mitchell",             "balance": 850000.00,  "currency": "USD", "wallet_idx": 5},
+    "sara":         {"full_name": "Walid ElMahdy",             "balance": 850000.00,  "currency": "USD", "wallet_idx": 5},
     "lena":         {"full_name": "Lena Novak",                "balance": 125000.00,  "currency": "USD", "wallet_idx": 6},
     "james":        {"full_name": "James Okafor",              "balance": 87500.00,   "currency": "USD", "wallet_idx": 7},
     "mei":          {"full_name": "Mei Lin",                   "balance": 310000.00,  "currency": "USD", "wallet_idx": 8},
@@ -95,9 +95,9 @@ BENEFICIARIES = [
     {"name": "Mohamad Idriss", "type": "individual", "risk": "low"},
     {"name": "Rohit Jacob Isaac", "type": "individual", "risk": "low"},
     {"name": "Sriram Acharya Mudumbai", "type": "individual", "risk": "low"},
-    {"name": "Walid Elmahdy", "type": "individual", "risk": "low"},
+    {"name": "Ali Hassan", "type": "individual", "risk": "low"},
     {"name": "Vibin Chandrabose", "type": "individual", "risk": "low"},
-    {"name": "Sara Mitchell",    "type": "individual", "risk": "low"},
+    {"name": "Walid ElMahdy",    "type": "individual", "risk": "low"},
     {"name": "Lena Novak",       "type": "individual", "risk": "low"},
     {"name": "James Okafor",     "type": "individual", "risk": "low"},
     {"name": "Mei Lin",          "type": "individual", "risk": "low"},
@@ -228,7 +228,7 @@ iso20022 = ISO20022Generator()
 # BIC codes for users
 USER_BIC_CODES = {
     "mohamad": "IPTSUSDM001", "rohit": "IPTSUSDM002", "sriram": "IPTSUSDM003",
-    "walid": "IPTSUSDM004", "vibin": "IPTSUSDM005",
+    "ali": "IPTSUSDM004", "vibin": "IPTSUSDM005",
 }
 
 # ============================================================
@@ -5396,7 +5396,7 @@ def compliance_ubo_registry():
         return jsonify({"error":"Forbidden"}),403
     return jsonify({"entities":[
         {"id":"UBO-001","entity":"IPTS Holdings Ltd","ubo_name":"Mohamad Idriss","ownership_pct":45.0,"country":"UAE","verified":True,"last_review":"2025-10-01"},
-        {"id":"UBO-002","entity":"Gulf Trade Finance","ubo_name":"Walid Elmahdy","ownership_pct":32.5,"country":"SA","verified":True,"last_review":"2025-08-15"},
+        {"id":"UBO-002","entity":"Gulf Trade Finance","ubo_name":"Ali Hassan","ownership_pct":32.5,"country":"SA","verified":True,"last_review":"2025-08-15"},
         {"id":"UBO-003","entity":"Pacific Settlement Corp","ubo_name":"Mei Chen","ownership_pct":67.0,"country":"SG","verified":False,"last_review":"2024-12-20"},
         {"id":"UBO-004","entity":"Nordic Payments AS","ubo_name":"Henrik Larsson","ownership_pct":55.0,"country":"SE","verified":True,"last_review":"2025-11-30"},
     ]})
