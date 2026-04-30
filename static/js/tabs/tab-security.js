@@ -2,19 +2,19 @@
 // Security — role-based entry point
 // ============================================================
 function loadSecurity() {
-  const role = (localStorage.getItem('ipts_role') || '').toLowerCase();
-  const isAdmin      = role === 'admin';
-  const isCompliance = role === 'compliance' || role === 'auditor';
+  const role = (localStorage.getItem('ipts_role') || window.ROLE || '').toLowerCase();
+  // All staff roles (admin, compliance, operator, auditor, datascientist) → Security Operations Center
+  const isStaff  = ['admin','compliance','operator','auditor','datascientist'].includes(role);
+  const isClient = !isStaff;
 
-  document.getElementById('secAdminSOC').classList.toggle('hidden', !isAdmin);
-  document.getElementById('secComplianceView').classList.toggle('hidden', !isCompliance);
-  document.getElementById('secClientView').classList.toggle('hidden', isAdmin || isCompliance);
+  document.getElementById('secAdminSOC').classList.toggle('hidden', !isStaff);
+  document.getElementById('secComplianceView').classList.toggle('hidden', true); // merged into SOC
+  document.getElementById('secClientView').classList.toggle('hidden', !isClient);
 
-  if (isAdmin) {
+  if (isStaff) {
     loadSOC();
-  } else if (isCompliance) {
-    loadComplianceSecurity();
   } else {
+    // Client: show E-KYC verification + fraud alerts
     loadKYCStatus();
     loadFraudAlerts();
   }

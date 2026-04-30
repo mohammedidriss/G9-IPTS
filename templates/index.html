@@ -3725,7 +3725,7 @@ function switchTab(tab) {
   if (tab === 'spending360') { if (typeof loadSpending360 === 'function') loadSpending360(); }
   if (tab === 'approvals') { if (typeof loadApprovals === 'function') loadApprovals(); }
   if (tab === 'cards') { if (typeof loadCards === 'function') loadCards(); if (ROLE === 'admin' && typeof loadCardRequests === 'function') loadCardRequests(); }
-  if (tab === 'security') { if (typeof loadSOC === 'function') loadSOC(); }
+  if (tab === 'security') { if (typeof loadSecurity === 'function') loadSecurity(); }
   if (tab === 'documents') { if (typeof loadDocuments === 'function') loadDocuments(); initStatementMonthPicker(); }
   if (tab === 'corridors') { if (typeof loadCorridors === 'function') loadCorridors(); }
   if (tab === 'aml') { if (typeof loadAmlMonitor === 'function') loadAmlMonitor(); }
