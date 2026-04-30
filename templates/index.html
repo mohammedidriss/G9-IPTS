@@ -1126,7 +1126,7 @@ tailwind.config = {
       <!-- User Management (Admin only) -->
       <div id="adminUserMgmt" class="glass rounded-xl p-6 mb-6">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-users-cog mr-2 text-accent"></i>User Management</h3>
+          <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-users-cog mr-2 text-accent"></i>User Management <span id="adminUserCount" class="ml-2 px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500 font-medium"></span></h3>
           <button onclick="loadAdminUsers()" class="text-xs text-accent hover:underline"><i class="fas fa-refresh mr-1"></i>Refresh</button>
         </div>
         <!-- Bulk action bar (hidden by default) -->
@@ -1145,9 +1145,9 @@ tailwind.config = {
           </select>
           <button onclick="bulkAction('role')" class="text-xs px-3 py-1 rounded bg-purple-100 text-purple-700 hover:bg-purple-200 transition">Apply Role</button>
         </div>
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto overflow-y-auto" style="max-height:480px;">
           <table class="w-full text-xs">
-            <thead>
+            <thead class="sticky top-0 bg-white z-10">
               <tr class="text-gray-500 border-b border-gray-200">
                 <th class="py-2 px-2"><input type="checkbox" id="bulkSelectAll" onchange="toggleSelectAll(this)" class="rounded"/></th>
                 <th class="text-left py-2 px-2">User</th>

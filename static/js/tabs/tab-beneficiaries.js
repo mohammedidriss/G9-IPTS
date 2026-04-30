@@ -7,7 +7,25 @@ async function loadBeneficiaries() {
     const data = await apiFetch('/api/beneficiaries');
     ALL_BENEFICIARIES = data.beneficiaries || [];
     renderBeneficiaries(ALL_BENEFICIARIES);
+    populatePaymentBeneficiaryDropdown(ALL_BENEFICIARIES);
   } catch (e) { console.error('Load beneficiaries error:', e); }
+}
+
+function populatePaymentBeneficiaryDropdown(list) {
+  const sel = document.getElementById('payBeneficiary');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Select beneficiary...</option>';
+  list.forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b.name;
+    opt.dataset.currency = b.currency || 'USD';
+    opt.dataset.country = b.country || '';
+    opt.dataset.bank = b.bank_name || '';
+    opt.textContent = b.name + (b.bank_name ? ` — ${b.bank_name}` : '') + (b.country ? ` (${b.country})` : '');
+    sel.appendChild(opt);
+  });
+  if (current) sel.value = current;
 }
 
 function filterBeneficiaries() {

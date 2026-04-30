@@ -266,6 +266,8 @@ async function loadAdminUsers() {
   try {
     const d = await apiFetch('/api/admin/users');
     const tbody = document.getElementById('adminUsersBody');
+    const countBadge = document.getElementById('adminUserCount');
+    if (countBadge) countBadge.textContent = `${d.users.length} users`;
     if (!d.users.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-400">No users found</td></tr>'; return; }
     tbody.innerHTML = d.users.map(u => {
       const roleClass = ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600';

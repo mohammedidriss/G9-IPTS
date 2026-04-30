@@ -259,7 +259,7 @@ function switchTab(tab) {
   if (btn) { btn.classList.add('tab-active'); btn.classList.remove('text-gray-500'); }
 
   if (tab === 'dashboard') { loadDashboard(); loadSlaDashboard(); if (ROLE === 'client') loadClientTransactions(); }
-  if (tab === 'payments') { if (typeof switchPaySub === 'function') switchPaySub('settlement'); }
+  if (tab === 'payments') { if (typeof switchPaySub === 'function') switchPaySub('settlement'); if (typeof loadBeneficiaries === 'function') loadBeneficiaries(); }
   if (tab === 'aiml') {
     if (ROLE === 'client') { loadClientAIInsights(); }
     else {
