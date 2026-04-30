@@ -3557,7 +3557,7 @@ def model_insights():
         except Exception as e:
             logger.warning(f"AE insights error: {e}")
 
-        # Sequence Detector — XGBoost gain importance (21 sequence features)
+        # Sequence Detector — GradientBoostingClassifier feature_importances_
         try:
             import numpy as np
             seq = joblib.load(os.path.join(MODELS_DIR, "sequence_detector.pkl"))
@@ -3565,7 +3565,19 @@ def model_insights():
             n_seq_extra = meta.get("n_seq_extra", 5)
             # Build feature name list: base 16 + sequence lag features
             seq_feat_names = feature_names[:] + [f"seq_lag_{i+1}" for i in range(n_seq_extra)]
-            if hasattr(seq, 'get_booster'):
+
+            if hasattr(seq, 'feature_importances_'):
+                # sklearn GradientBoostingClassifier / RandomForest / etc.
+                fi = seq.feature_importances_.tolist()
+                names = seq_feat_names[:len(fi)]
+                insights["sequence_detector"] = {
+                    "label": "Feature Importance (Gradient Boosting — Sequence + Velocity)",
+                    "type": "feature_importance",
+                    "features": names,
+                    "values": fi
+                }
+            elif hasattr(seq, 'get_booster'):
+                # XGBoost fallback (gain)
                 gain = seq.get_booster().get_score(importance_type='gain')
                 fi_names, fi_vals = [], []
                 for i, name in enumerate(seq_feat_names):
@@ -3578,6 +3590,16 @@ def model_insights():
                     "type": "feature_importance",
                     "features": fi_names,
                     "values": fi_vals
+                }
+            elif hasattr(seq, 'coef_'):
+                # SGD / linear model — use absolute coefficient magnitude
+                fi = np.abs(seq.coef_[0] if seq.coef_.ndim > 1 else seq.coef_).tolist()
+                names = seq_feat_names[:len(fi)]
+                insights["sequence_detector"] = {
+                    "label": "Feature Weight Magnitude (Linear — Sequence + Velocity)",
+                    "type": "feature_importance",
+                    "features": names,
+                    "values": fi
                 }
         except Exception as e:
             logger.warning(f"SEQ insights error: {e}")
