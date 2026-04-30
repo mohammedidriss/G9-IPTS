@@ -459,31 +459,112 @@ async function loadLedger() {
   } catch (e) { console.error('Ledger error:', e); }
 }
 
+// ── AML Telemetry Transaction Explorer ────────────────────────
+let _telemetryAll  = [];
+let _telemetryFilt = [];
+let _telemetryPage = 1;
+const TELEMETRY_PAGE_SIZE = 15;
+
 async function loadTransactions() {
+  const tbody = document.getElementById('telemetryBody');
+  if (!tbody) return;
   try {
-    const data = await apiFetch('/api/transactions?per_page=15');
-    const tbody = document.getElementById('telemetryBody');
-    if (!data.transactions || data.transactions.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-600">No transactions yet.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = data.transactions.map(tx => {
-      const statusClass = `status-${tx.status}`;
-      const rowBg = tx.status === 'blocked' ? 'bg-red-500/5' : tx.status === 'flagged' ? 'bg-yellow-500/5' : 'bg-green-500/5';
-      const shortHash = tx.tx_hash ? tx.tx_hash.substring(0, 12) + '...' : 'N/A';
-      const senderDisplay = tx.sender || 'N/A';
-      const benefDisplay = tx.beneficiary_name || 'N/A';
-      return `<tr class="${rowBg} border-b border-gray-200/50 hover:bg-gray-50">
-        <td class="py-2 px-2">${tx.created_at || '-'}</td>
-        <td class="py-2 px-2">${senderDisplay.length > 20 ? senderDisplay.substring(0, 18) + '...' : senderDisplay}</td>
-        <td class="py-2 px-2">${benefDisplay.length > 20 ? benefDisplay.substring(0, 18) + '...' : benefDisplay}</td>
-        <td class="py-2 px-2 text-right">$${Number(tx.amount).toLocaleString()}</td>
-        <td class="py-2 px-2 text-right font-mono ${tx.risk_score >= 80 ? 'text-red-400' : tx.risk_score >= 60 ? 'text-yellow-400' : 'text-green-400'}">${(tx.risk_score || 0).toFixed(1)}</td>
-        <td class="py-2 px-2 text-center"><span class="${statusClass} uppercase font-medium">${tx.status}</span></td>
-        <td class="py-2 px-2 font-mono text-gray-500">${shortHash}</td>
-      </tr>`;
-    }).join('');
-  } catch (e) { console.error('Transactions error:', e); }
+    const data = await apiFetch('/api/transactions?per_page=500');
+    _telemetryAll  = data.transactions || [];
+    _telemetryPage = 1;
+    filterTelemetry();
+  } catch (e) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-400">Failed to load transactions.</td></tr>';
+    console.error('Transactions error:', e);
+  }
+}
+
+function refreshTelemetry() { loadTransactions(); }
+
+function filterTelemetry() {
+  const q       = (document.getElementById('telemetrySearch')?.value || '').toLowerCase();
+  const status  = document.getElementById('telemetryStatusFilter')?.value || '';
+  const risk    = document.getElementById('telemetryRiskFilter')?.value || '';
+
+  _telemetryFilt = _telemetryAll.filter(tx => {
+    const matchQ = !q || (tx.sender||'').toLowerCase().includes(q)
+                      || (tx.beneficiary_name||'').toLowerCase().includes(q)
+                      || (tx.id||'').toLowerCase().includes(q)
+                      || (tx.tx_hash||'').toLowerCase().includes(q);
+    const matchStatus = !status || (tx.status||'') === status;
+    const score = tx.risk_score || 0;
+    const matchRisk = !risk
+      || (risk === 'critical' && score >= 85)
+      || (risk === 'high'     && score >= 70 && score < 85)
+      || (risk === 'medium'   && score >= 40 && score < 70)
+      || (risk === 'low'      && score < 40);
+    return matchQ && matchStatus && matchRisk;
+  });
+
+  _telemetryPage = 1;
+  renderTelemetry();
+}
+
+function telemetryPage(dir) {
+  const total = Math.ceil(_telemetryFilt.length / TELEMETRY_PAGE_SIZE) || 1;
+  _telemetryPage = Math.max(1, Math.min(total, _telemetryPage + dir));
+  renderTelemetry();
+}
+
+function renderTelemetry() {
+  const tbody   = document.getElementById('telemetryBody');
+  const countEl = document.getElementById('telemetryCount');
+  const pageEl  = document.getElementById('telemetryPageInfo');
+  const prevBtn = document.getElementById('telemetryPrev');
+  const nextBtn = document.getElementById('telemetryNext');
+  if (!tbody) return;
+
+  const total = Math.ceil(_telemetryFilt.length / TELEMETRY_PAGE_SIZE) || 1;
+  const start = (_telemetryPage - 1) * TELEMETRY_PAGE_SIZE;
+  const page  = _telemetryFilt.slice(start, start + TELEMETRY_PAGE_SIZE);
+
+  if (countEl) countEl.textContent = `${_telemetryFilt.length} transaction${_telemetryFilt.length !== 1 ? 's' : ''}`;
+  if (pageEl)  pageEl.textContent  = `Page ${_telemetryPage} of ${total}`;
+  if (prevBtn) prevBtn.disabled = _telemetryPage <= 1;
+  if (nextBtn) nextBtn.disabled = _telemetryPage >= total;
+
+  if (!page.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-400">No transactions match the current filters.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = page.map(tx => {
+    const score   = tx.risk_score || 0;
+    const dotColor = score >= 85 ? 'bg-red-500' : score >= 70 ? 'bg-orange-400' : score >= 40 ? 'bg-yellow-400' : 'bg-green-500';
+    const rowBg    = tx.status === 'blocked' ? 'bg-red-500/5' : tx.status === 'flagged' ? 'bg-yellow-500/5' : '';
+    const shortId  = tx.id ? tx.id.substring(0, 8) + '…' : '—';
+    const shortHash= tx.tx_hash ? tx.tx_hash.substring(0, 14) + '…' : '—';
+    const statusBadge = {
+      settled:  'bg-green-100 text-green-700',
+      approved: 'bg-blue-100 text-blue-700',
+      blocked:  'bg-red-100 text-red-700',
+      pending:  'bg-yellow-100 text-yellow-700',
+      flagged:  'bg-orange-100 text-orange-700',
+    }[tx.status] || 'bg-gray-100 text-gray-600';
+
+    return `<tr class="${rowBg} border-b border-gray-100 hover:bg-gray-50 transition cursor-default">
+      <td class="py-2 px-3 whitespace-nowrap text-gray-400">${(tx.created_at||'—').replace('T',' ').substring(0,16)}</td>
+      <td class="py-2 px-3 font-mono text-gray-500" title="${tx.id||''}">${shortId}</td>
+      <td class="py-2 px-3">${tx.sender||'—'}</td>
+      <td class="py-2 px-3">${tx.beneficiary_name||'—'}</td>
+      <td class="py-2 px-3 text-right font-semibold">$${Number(tx.amount||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td class="py-2 px-3 text-center">
+        <span class="inline-flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full ${dotColor} inline-block flex-shrink-0"></span>
+          <span class="font-mono font-semibold ${score>=85?'text-red-600':score>=70?'text-orange-500':score>=40?'text-yellow-600':'text-green-600'}">${score.toFixed(1)}</span>
+        </span>
+      </td>
+      <td class="py-2 px-3 text-center">
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${statusBadge}">${tx.status||'—'}</span>
+      </td>
+      <td class="py-2 px-3 font-mono text-gray-400" title="${tx.tx_hash||''}">${shortHash}</td>
+    </tr>`;
+  }).join('');
 }
 
 function initVolumeChart(labels = [], settled = [], blocked = []) {
