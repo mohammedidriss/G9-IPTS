@@ -281,7 +281,9 @@ _announcement = {"message": "", "active": False, "created_at": ""}
 # ============================================================
 # Flask App Setup
 # ============================================================
-app = Flask(__name__, template_folder="templates")
+app = Flask(__name__,
+            template_folder=os.path.join(_BASE_DIR, "templates"),
+            static_folder=os.path.join(_BASE_DIR, "static"))
 app.config['SECRET_KEY'] = APP_SECRET
 app.config['TEMPLATES_AUTO_RELOAD'] = True      # Always reload templates from disk
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0     # Never cache static files in development
