@@ -3710,7 +3710,7 @@ function switchTab(tab) {
   if (tab === 'payments') { if (typeof executeSettlement === 'function') {} if (typeof switchPaySub === 'function') switchPaySub('settlement'); }
   if (tab === 'aiml') {
     if (ROLE === 'client') { if (typeof loadClientAIInsights === 'function') loadClientAIInsights(); }
-    else { if (typeof loadModelMetrics === 'function') loadModelMetrics(); loadFraudHeatmap(); if (typeof loadRiskEntities === 'function') loadRiskEntities(); if (typeof loadRiskTrend === 'function') loadRiskTrend(); }
+    else { if (typeof loadAIKpis === 'function') loadAIKpis(); if (typeof loadModelMetrics === 'function') loadModelMetrics(); loadFraudHeatmap(); if (typeof loadRiskEntities === 'function') loadRiskEntities(); if (typeof loadRiskTrend === 'function') loadRiskTrend(); if (typeof loadConfidenceDistribution === 'function') loadConfidenceDistribution(); if (typeof loadDriftMonitor === 'function') loadDriftMonitor(); }
   }
   if (tab === 'graph') { if (typeof loadNetworkData === 'function') loadNetworkData(); }
   if (tab === 'mlops') { if (typeof loadMLOps === 'function') loadMLOps(); }
