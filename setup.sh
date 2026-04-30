@@ -51,16 +51,33 @@ pip install --upgrade pip -q
 pip install -r requirements.txt -q
 echo "  ✓ All packages installed"
 
-# ── 4. Train ML models ────────────────────────────────────────
-echo "[4/5] Training ML models on real data..."
+# ── 4. Restore database from backup (if no live DB exists) ───
+echo "[4/6] Checking database..."
+if [ ! -f "ipts_vault.db" ]; then
+    # Find the most recent backup SQL file
+    BACKUP_FILE=$(ls -t backup/ipts_vault_*.sql 2>/dev/null | head -1)
+    if [ -n "$BACKUP_FILE" ]; then
+        echo "  ℹ No database found. Restoring from backup: $BACKUP_FILE"
+        sqlite3 ipts_vault.db < "$BACKUP_FILE"
+        echo "  ✓ Database restored from $BACKUP_FILE"
+    else
+        echo "  ℹ No database or backup found — a fresh database will be created on first run"
+    fi
+else
+    echo "  ✓ Existing database found — keeping current data"
+    echo "    (To restore from backup, delete ipts_vault.db and re-run setup.sh)"
+fi
+
+# ── 5. Train ML models ────────────────────────────────────────
+echo "[5/6] Training ML models on real data..."
 echo "      (downloads 144 MB dataset on first run — takes ~90 seconds)"
 python3 train_on_real_data.py
 echo "  ✓ Models trained and saved to models/"
 
-# ── 5. Start server ───────────────────────────────────────────
-echo "[5/5] Starting IPTS server..."
+# ── 6. Start server ───────────────────────────────────────────
+echo "[6/6] Starting IPTS server..."
 echo ""
-echo "  ✓ Setup complete!"
+echo "  ✓ Setup complete! (6/6 steps done)"
 echo ""
 echo "  ┌─────────────────────────────────────────────────┐"
 echo "  │  Server starting at: http://localhost:${PORT}      │"
