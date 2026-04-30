@@ -387,30 +387,6 @@ tailwind.config = {
         </div>
       </div>
 
-      <!-- Proof of Reserve (admin/compliance/operator only) -->
-      <div id="proofOfReserve" class="hidden glass rounded-xl p-4 mb-6">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-              <i class="fas fa-shield-alt text-green-400"></i>
-            </div>
-            <div>
-              <p class="text-xs text-gray-500 uppercase tracking-wider">Proof of Reserve</p>
-              <div class="flex items-center gap-3 mt-1">
-                <span class="text-sm text-gray-600">Off-Chain: <span id="porOffchain" class="text-gray-800 font-semibold">$0</span></span>
-                <span class="text-gray-600">|</span>
-                <span class="text-sm text-gray-600">On-Chain: <span id="porOnchain" class="text-gray-800 font-semibold">$0</span></span>
-                <span class="text-gray-600">|</span>
-                <span class="text-sm text-gray-600">Ratio: <span id="porRatio" class="font-semibold">-</span></span>
-              </div>
-            </div>
-          </div>
-          <div id="porBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400">
-            <i class="fas fa-check-circle mr-1"></i>1:1 Backed
-          </div>
-        </div>
-      </div>
-
       <!-- Sub-Accounts Switcher (client/operator only) -->
       <div id="subAccountsSection" class="glass rounded-xl p-4 mb-6">
         <div class="flex items-center justify-between mb-3">
@@ -1396,6 +1372,33 @@ tailwind.config = {
           <p class="text-sm text-gray-500">Regulatory reporting, screening, risk management &amp; due diligence</p>
         </div>
         <button onclick="loadSanctions();loadNostro();loadComplianceFeatures();" class="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition"><i class="fas fa-rotate-right mr-1.5"></i>Refresh All</button>
+      </div>
+
+      <!-- Proof of Reserve -->
+      <div id="proofOfReserve" class="glass rounded-xl p-4 mb-6">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+              <i class="fas fa-shield-alt text-green-400"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500 uppercase tracking-wider">Proof of Reserve</p>
+              <div class="flex items-center gap-3 mt-1">
+                <span class="text-sm text-gray-600">Off-Chain: <span id="porOffchain" class="text-gray-800 font-semibold">$0</span></span>
+                <span class="text-gray-600">|</span>
+                <span class="text-sm text-gray-600">On-Chain: <span id="porOnchain" class="text-gray-800 font-semibold">$0</span></span>
+                <span class="text-gray-600">|</span>
+                <span class="text-sm text-gray-600">Ratio: <span id="porRatio" class="font-semibold">-</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div id="porBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400">
+              <i class="fas fa-check-circle mr-1"></i>1:1 Backed
+            </div>
+            <button onclick="loadProofOfReserve()" class="text-xs text-accent hover:text-accent/80"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+          </div>
+        </div>
       </div>
 
       <!-- ── Row 1: Risk Appetite + Regulatory Calendar ── -->
@@ -4501,7 +4504,7 @@ async function renderCorridorMap_legacy() {
 </div>
 
 <!-- Core shared utilities (auth, SSE, FX, notifications, etc.) -->
-<script src="/static/js/tabs/core.js?v=6"></script>
+<script src="/static/js/tabs/core.js?v=7"></script>
 <script src="/static/js/tabs/tab-network.js?v=5"></script>
 <script src="/static/js/tabs/tab-corridors.js?v=5"></script>
 

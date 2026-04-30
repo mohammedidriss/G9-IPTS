@@ -301,7 +301,7 @@ function switchTab(tab) {
       }
     }
   }
-  if (tab === 'compliance') { loadSanctions(); loadNostro(); loadComplianceFeatures(); }
+  if (tab === 'compliance') { loadSanctions(); loadNostro(); loadComplianceFeatures(); loadProofOfReserve(); }
   if (tab === 'cases') { loadCases(); }
   if (tab === 'aml')    { loadAmlMonitor(); loadTransactions(); }
   if (tab === 'ledger') { loadLedgerTab(); if (typeof loadRiskTrend === 'function') loadRiskTrend(); }

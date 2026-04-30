@@ -72,16 +72,13 @@ async function loadDashboard() {
     const acc = document.getElementById('adminCommandCenter');
     const clientWelcome = document.getElementById('clientDashWelcome');
     const clientTx = document.getElementById('dashClientTransactions');
-    const proofOfReserve = document.getElementById('proofOfReserve');
     if (['admin', 'compliance', 'operator', 'auditor', 'datascientist'].includes(ROLE)) {
       if (acc) acc.classList.remove('hidden');
-      if (proofOfReserve) proofOfReserve.classList.remove('hidden');
       if (clientTx) clientTx.classList.add('hidden');
       if (clientWelcome) clientWelcome.classList.add('hidden');
       loadAdminCommandCenter();
     } else {
       if (acc) acc.classList.add('hidden');
-      if (proofOfReserve) proofOfReserve.classList.add('hidden');
       if (clientTx) clientTx.classList.remove('hidden');
       if (clientWelcome) {
         clientWelcome.classList.remove('hidden');
