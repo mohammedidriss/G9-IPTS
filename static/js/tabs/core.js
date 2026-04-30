@@ -677,7 +677,7 @@ function showAMLWarning(usdAmount) {
     amlText.textContent = `Amount exceeds $500K — transaction will be AUTO-BLOCKED for enhanced due diligence and compliance review.`;
     amlWarning.classList.remove('hidden');
   } else if (usdAmount >= 100000) {
-    amlText.textContent = `Amount exceeds $100K — transaction will be flagged for AML review and routed to Human-in-the-Loop queue.`;
+    amlText.textContent = `High Volume Transaction Alert — transaction will be flagged for AML review and routed to Human-in-the-Loop queue.`;
     amlWarning.classList.remove('hidden');
   } else {
     amlWarning.classList.add('hidden');
