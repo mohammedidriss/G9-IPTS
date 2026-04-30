@@ -2583,6 +2583,14 @@ def hitl_queue():
                 item["first_approver"] = fe[0]
                 item["second_approver"] = fe[1]
                 item["four_eyes_status"] = fe[2]
+        # Attach linked compliance case info (approval is blocked unless case is resolved/closed)
+        c.execute("""SELECT case_number, status FROM compliance_cases
+                     WHERE settlement_id = ? ORDER BY created_at DESC LIMIT 1""",
+                  (item["settlement_id"],))
+        cc = c.fetchone()
+        if cc:
+            item["case_number"] = cc[0]
+            item["case_status"] = cc[1]
         items.append(item)
     conn.close()
     return jsonify({"queue": items, "pending": sum(1 for i in items if i["status"] in ("pending", "awaiting_second_approval"))})
@@ -2612,8 +2620,23 @@ def hitl_approve(hitl_id):
             conn.close()
             return jsonify({"error": f"HITL item already {item[8]}"}), 400
 
-        # Get settlement details for balance transfer
+        # Block approval if a linked compliance case is still open
         settlement_id = item[1]
+        c.execute("""SELECT case_number, status FROM compliance_cases
+                     WHERE settlement_id = ? ORDER BY created_at DESC LIMIT 1""",
+                  (settlement_id,))
+        linked_case = c.fetchone()
+        if linked_case and linked_case[1] not in ('resolved', 'closed'):
+            conn.rollback()
+            conn.close()
+            return jsonify({
+                "error": f"Approval blocked — compliance case {linked_case[0]} must be resolved before this transaction can be approved.",
+                "blocked_by": "compliance_case",
+                "case_number": linked_case[0],
+                "case_status": linked_case[1],
+            }), 409
+
+        # Get settlement details for balance transfer
         amount = item[4]  # amount from hitl_queue
         c.execute("SELECT sender_username, receiver_username, receiver, amount FROM settlements WHERE id = ?",
                   (settlement_id,))
