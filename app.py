@@ -2269,6 +2269,90 @@ def dashboard():
         "ganache_connected": blockchain.w3.is_connected() if blockchain.w3 else False,
     })
 
+@app.route("/api/dashboard/admin-summary", methods=["GET"])
+@zero_trust_required
+def dashboard_admin_summary():
+    caller_role = request.user.get("role", "")
+    if caller_role not in ("admin", "compliance", "operator", "auditor", "datascientist"):
+        return jsonify({"error": "Forbidden"}), 403
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # HITL queue
+    c.execute("SELECT COUNT(*) FROM hitl_queue WHERE status='pending'")
+    hitl_pending = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM hitl_queue WHERE status='awaiting_second_approval'")
+    hitl_awaiting = c.fetchone()[0]
+    c.execute("SELECT MIN(created_at) FROM hitl_queue WHERE status IN ('pending','awaiting_second_approval')")
+    oldest_row = c.fetchone()[0]
+    if oldest_row:
+        from datetime import timezone
+        oldest_dt = datetime.strptime(oldest_row[:19], "%Y-%m-%d %H:%M:%S")
+        oldest_age_h = round((datetime.utcnow() - oldest_dt).total_seconds() / 3600, 1)
+    else:
+        oldest_age_h = None
+
+    # Open compliance cases by severity
+    c.execute("""SELECT severity, COUNT(*) FROM compliance_cases WHERE status='open'
+                 GROUP BY severity""")
+    cases_by_sev = {r[0]: r[1] for r in c.fetchall()}
+    total_open_cases = sum(cases_by_sev.values())
+
+    # AML alert counts
+    c.execute("SELECT COUNT(*) FROM settlements WHERE risk_score >= 85 AND status NOT IN ('settled')")
+    aml_high = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM settlements WHERE risk_score >= 60 AND risk_score < 85 AND status NOT IN ('settled')")
+    aml_elevated = c.fetchone()[0]
+    c.execute("""SELECT COUNT(*) FROM settlements
+                 WHERE risk_score >= 60
+                 AND created_at >= datetime('now','-24 hours')""")
+    aml_new_24h = c.fetchone()[0]
+
+    # Last settlement
+    c.execute("SELECT created_at FROM settlements ORDER BY created_at DESC LIMIT 1")
+    last_tx_row = c.fetchone()
+    last_tx = last_tx_row[0] if last_tx_row else None
+
+    # Recent audit events
+    c.execute("""SELECT event_type, actor, details, created_at
+                 FROM audit_log ORDER BY created_at DESC LIMIT 6""")
+    audit_rows = c.fetchall()
+    recent_activity = [{"event": r[0], "actor": r[1], "details": r[2], "time": r[3]} for r in audit_rows]
+
+    conn.close()
+
+    # Model accuracy
+    try:
+        with open(os.path.join(MODELS_DIR, "metrics.json")) as f:
+            model_metrics = json.load(f)
+        avg_accuracy = round(np.mean([m.get("accuracy", 0) for m in model_metrics.values()]) * 100, 1)
+    except Exception:
+        avg_accuracy = None
+
+    return jsonify({
+        "hitl": {
+            "pending": hitl_pending,
+            "awaiting_second": hitl_awaiting,
+            "total_active": hitl_pending + hitl_awaiting,
+            "oldest_age_h": oldest_age_h,
+        },
+        "cases": {
+            "total_open": total_open_cases,
+            "by_severity": cases_by_sev,
+        },
+        "aml": {
+            "high_risk": aml_high,
+            "elevated_risk": aml_elevated,
+            "new_24h": aml_new_24h,
+        },
+        "system": {
+            "last_tx": last_tx,
+            "model_accuracy": avg_accuracy,
+            "blockchain_connected": blockchain.w3.is_connected() if blockchain.w3 else False,
+        },
+        "recent_activity": recent_activity,
+    })
+
 # --- Settlement ---
 @app.route("/api/settlement", methods=["POST"])
 @zero_trust_required

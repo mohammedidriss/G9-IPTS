@@ -68,8 +68,119 @@ async function loadDashboard() {
     if (['client', 'operator'].includes(ROLE)) loadSubAccounts();
     loadLedger();
     loadVolumeChart();
+
+    const acc = document.getElementById('adminCommandCenter');
+    const clientWelcome = document.getElementById('clientDashWelcome');
+    const clientTx = document.getElementById('dashClientTransactions');
+    const proofOfReserve = document.getElementById('proofOfReserve');
+    if (['admin', 'compliance', 'operator', 'auditor', 'datascientist'].includes(ROLE)) {
+      if (acc) acc.classList.remove('hidden');
+      if (proofOfReserve) proofOfReserve.classList.remove('hidden');
+      if (clientTx) clientTx.classList.add('hidden');
+      if (clientWelcome) clientWelcome.classList.add('hidden');
+      loadAdminCommandCenter();
+    } else {
+      if (acc) acc.classList.add('hidden');
+      if (proofOfReserve) proofOfReserve.classList.add('hidden');
+      if (clientTx) clientTx.classList.remove('hidden');
+      if (clientWelcome) {
+        clientWelcome.classList.remove('hidden');
+        const span = clientWelcome.querySelector('span');
+        if (span) span.textContent = FULL_NAME || USER;
+      }
+      loadClientTransactions();
+    }
   } catch (e) {
     console.error('Dashboard error:', e);
+  }
+}
+
+async function loadAdminCommandCenter() {
+  try {
+    const d = await apiFetch('/api/dashboard/admin-summary');
+
+    // HITL card
+    const hitlCount = document.getElementById('accHitlCount');
+    const hitlAwaiting = document.getElementById('accHitlAwaiting');
+    const hitlAge = document.getElementById('accHitlAge');
+    if (hitlCount) hitlCount.textContent = d.hitl.total_active;
+    if (hitlAwaiting) hitlAwaiting.textContent = d.hitl.awaiting_second;
+    if (hitlAge) {
+      if (d.hitl.oldest_age_h !== null) {
+        hitlAge.classList.remove('hidden');
+        hitlAge.querySelector('span').textContent = d.hitl.oldest_age_h;
+      } else {
+        hitlAge.classList.add('hidden');
+      }
+    }
+    // colour code — red if anything pending
+    if (hitlCount) hitlCount.className = 'text-3xl font-bold mt-1 ' + (d.hitl.total_active > 0 ? 'text-orange-400' : 'text-green-400');
+
+    // Cases card
+    const casesCount = document.getElementById('accCasesCount');
+    if (casesCount) casesCount.textContent = d.cases.total_open;
+    const sevMap = { critical: ['accCasesCritical', 'Critical'], high: ['accCasesHigh', 'High'], medium: ['accCasesMedium', 'Medium'], low: ['accCasesLow', 'Low'] };
+    Object.entries(sevMap).forEach(([key, [elId, label]]) => {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      const n = d.cases.by_severity[key] || 0;
+      if (n > 0) { el.textContent = n + ' ' + label; el.classList.remove('hidden'); }
+      else el.classList.add('hidden');
+    });
+
+    // AML card
+    const amlCount = document.getElementById('accAmlCount');
+    const amlHigh  = document.getElementById('accAmlHigh');
+    const amlNew   = document.getElementById('accAmlNew');
+    const total = d.aml.high_risk + d.aml.elevated_risk;
+    if (amlCount) amlCount.textContent = total;
+    if (amlHigh)  amlHigh.textContent  = d.aml.high_risk;
+    if (amlNew)   amlNew.textContent   = d.aml.new_24h;
+
+    // System health strip
+    const bcDot   = document.getElementById('sysBlockchainDot');
+    const bcLabel = document.getElementById('sysBlockchainLabel');
+    const modelAcc = document.getElementById('sysModelAcc');
+    const lastTx   = document.getElementById('sysLastTx');
+    if (bcDot && bcLabel) {
+      if (d.system.blockchain_connected) {
+        bcDot.className = 'w-2 h-2 rounded-full bg-green-400';
+        bcLabel.textContent = 'Blockchain connected';
+        bcLabel.className = 'text-green-400';
+      } else {
+        bcDot.className = 'w-2 h-2 rounded-full bg-red-400';
+        bcLabel.textContent = 'Blockchain offline';
+        bcLabel.className = 'text-red-400';
+      }
+    }
+    if (modelAcc) modelAcc.textContent = d.system.model_accuracy !== null ? d.system.model_accuracy + '%' : '—';
+    if (lastTx)   lastTx.textContent   = d.system.last_tx ? d.system.last_tx.slice(0, 16).replace('T', ' ') : '—';
+
+    // Activity feed
+    const feed = document.getElementById('accActivityFeed');
+    if (feed) {
+      if (!d.recent_activity.length) {
+        feed.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">No recent activity.</p>';
+      } else {
+        const icons = { SETTLEMENT: 'fa-receipt text-accent', LOGIN: 'fa-sign-in-alt text-green-400', BLOCK: 'fa-ban text-red-400', APPROVAL: 'fa-check-circle text-blue-400', FLAG: 'fa-flag text-yellow-400' };
+        feed.innerHTML = d.recent_activity.map(a => {
+          const iconKey = Object.keys(icons).find(k => (a.event || '').toUpperCase().includes(k)) || 'SETTLEMENT';
+          const icon = icons[iconKey] || 'fa-bolt text-gray-400';
+          const time = a.time ? a.time.slice(0, 16).replace('T', ' ') : '';
+          return `<div class="flex items-start gap-3 py-1.5 border-b border-gray-100 last:border-0">
+            <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <i class="fas ${icon} text-[10px]"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-medium text-gray-700 truncate">${a.event || '—'}</p>
+              <p class="text-[10px] text-gray-400">${a.actor || ''} · ${time}</p>
+            </div>
+          </div>`;
+        }).join('');
+      }
+    }
+  } catch (e) {
+    console.error('Admin command center error:', e);
   }
 }
 
