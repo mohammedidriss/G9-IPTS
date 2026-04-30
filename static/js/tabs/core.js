@@ -118,7 +118,7 @@ function updateHeaderInfo() {
 
 function configureUIForRole() {
   const tabAccess = {
-    admin:         ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'security', 'cards', 'admin', 'ledger', 'aml', 'corridors', 'dsworkbench', 'graph', 'mlops', 'defi', 'spending360', 'documents'],
+    admin:         ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'security', 'cards', 'admin', 'ledger', 'aml', 'corridors', 'dsworkbench', 'graph', 'mlops', 'defi'],
     compliance:    ['dashboard', 'approvals', 'aiml', 'compliance', 'cases', 'security', 'ledger', 'aml', 'graph'],
     operator:      ['dashboard', 'approvals', 'security', 'cards', 'ledger', 'corridors'],
     auditor:       ['dashboard', 'aiml', 'compliance', 'cases', 'ledger', 'aml', 'graph'],
@@ -304,7 +304,7 @@ function switchTab(tab) {
   if (tab === 'compliance') { loadSanctions(); loadNostro(); loadComplianceFeatures(); }
   if (tab === 'cases') { loadCases(); }
   if (tab === 'aml')    { loadAmlMonitor(); }
-  if (tab === 'ledger') { loadLedgerTab(); }
+  if (tab === 'ledger') { loadLedgerTab(); if (typeof loadRiskTrend === 'function') loadRiskTrend(); }
   if (tab === 'beneficiaries') loadBeneficiaries();
   if (tab === 'spending360') loadSpending360();
   if (tab === 'approvals') loadApprovals();
