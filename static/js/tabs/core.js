@@ -303,7 +303,7 @@ function switchTab(tab) {
   }
   if (tab === 'compliance') { loadSanctions(); loadNostro(); loadComplianceFeatures(); }
   if (tab === 'cases') { loadCases(); }
-  if (tab === 'aml')    { loadAmlMonitor(); }
+  if (tab === 'aml')    { loadAmlMonitor(); loadTransactions(); }
   if (tab === 'ledger') { loadLedgerTab(); if (typeof loadRiskTrend === 'function') loadRiskTrend(); }
   if (tab === 'beneficiaries') loadBeneficiaries();
   if (tab === 'spending360') loadSpending360();
@@ -538,6 +538,7 @@ function renderTelemetry() {
     const rowBg    = tx.status === 'blocked' ? 'bg-red-500/5' : tx.status === 'flagged' ? 'bg-yellow-500/5' : '';
     const shortId  = tx.id ? tx.id.substring(0, 8) + '…' : '—';
     const shortHash= tx.tx_hash ? tx.tx_hash.substring(0, 14) + '…' : '—';
+    const safeId   = (tx.id || '').replace(/'/g, "\\'");
     const statusBadge = {
       settled:  'bg-green-100 text-green-700',
       approved: 'bg-blue-100 text-blue-700',
@@ -546,11 +547,11 @@ function renderTelemetry() {
       flagged:  'bg-orange-100 text-orange-700',
     }[tx.status] || 'bg-gray-100 text-gray-600';
 
-    return `<tr class="${rowBg} border-b border-gray-100 hover:bg-gray-50 transition cursor-default">
+    return `<tr onclick="showAmlTxDetail('${safeId}')" class="${rowBg} border-b border-gray-100 hover:bg-blue-50 transition cursor-pointer group">
       <td class="py-2 px-3 whitespace-nowrap text-gray-400">${(tx.created_at||'—').replace('T',' ').substring(0,16)}</td>
       <td class="py-2 px-3 font-mono text-gray-500" title="${tx.id||''}">${shortId}</td>
-      <td class="py-2 px-3">${tx.sender||'—'}</td>
-      <td class="py-2 px-3">${tx.beneficiary_name||'—'}</td>
+      <td class="py-2 px-3 group-hover:text-blue-700 font-medium">${tx.sender||'—'}</td>
+      <td class="py-2 px-3 group-hover:text-blue-700">${tx.beneficiary_name||'—'}</td>
       <td class="py-2 px-3 text-right font-semibold">$${Number(tx.amount||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
       <td class="py-2 px-3 text-center">
         <span class="inline-flex items-center gap-1.5">

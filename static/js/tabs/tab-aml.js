@@ -255,7 +255,7 @@ async function showAmlTxDetail(txId) {
   body.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm"><i class="fas fa-circle-notch fa-spin mr-2"></i>Loading…</div>';
   modal.classList.remove('hidden');
   try {
-    const data = await apiFetch(`/api/settlements/${txId}`);
+    const data = await apiFetch(`/api/settlements/${txId}/detail`);
     const t = data.settlement || data;
     const rs = t.risk_score || 0;
     const riskColor = rs >= 85 ? 'text-red-500' : rs >= 70 ? 'text-orange-500' : rs >= 40 ? 'text-yellow-500' : 'text-green-500';
