@@ -6290,6 +6290,90 @@ def set_announcement():
     log_audit("announcement_set", request.user.get("sub"), {"active": _announcement["active"]}, request.remote_addr)
     return jsonify(_announcement)
 
+# ============================================================
+# Operations Control Center — Operator endpoints
+# ============================================================
+@app.route("/api/operator/kpis", methods=["GET"])
+@zero_trust_required
+def operator_kpis():
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM settlements WHERE date(created_at)=?", (today,))
+    processed_today = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM settlements WHERE status='pending'")
+    pending_queue = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM settlements WHERE settlement_time_ms IS NOT NULL AND settlement_time_ms > 0")
+    total_with_sla = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM settlements WHERE settlement_time_ms IS NOT NULL AND settlement_time_ms <= 30000")
+    on_time = cur.fetchone()[0]
+    sla_pct = round(on_time / total_with_sla * 100, 1) if total_with_sla > 0 else 100.0
+    cur.execute("SELECT AVG(settlement_time_ms) FROM settlements WHERE settlement_time_ms IS NOT NULL AND settlement_time_ms > 0")
+    avg_ms = cur.fetchone()[0] or 0
+    avg_sec = round(avg_ms / 1000, 2)
+    cur.execute("SELECT COUNT(*) FROM four_eyes_approvals WHERE status='pending'")
+    pending_approvals = cur.fetchone()[0]
+    return jsonify({
+        "processed_today": processed_today,
+        "pending_queue": pending_queue,
+        "sla_compliance_pct": sla_pct,
+        "avg_processing_sec": avg_sec,
+        "pending_approvals": pending_approvals
+    })
+
+@app.route("/api/operator/queue", methods=["GET"])
+@zero_trust_required
+def operator_queue():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT id, sender, receiver, amount, currency, risk_score, status, created_at, settlement_time_ms
+        FROM settlements
+        ORDER BY created_at DESC LIMIT 20
+    """)
+    rows = cur.fetchall()
+    cols = ["id","sender","receiver","amount","currency","risk_score","status","created_at","settlement_time_ms"]
+    return jsonify({"queue": [dict(zip(cols,r)) for r in rows]})
+
+@app.route("/api/operator/sla-stats", methods=["GET"])
+@zero_trust_required
+def operator_sla_stats():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT status, COUNT(*) as cnt,
+               AVG(settlement_time_ms) as avg_ms,
+               SUM(CASE WHEN settlement_time_ms <= 30000 THEN 1 ELSE 0 END) as on_time
+        FROM settlements
+        WHERE settlement_time_ms IS NOT NULL
+        GROUP BY status
+    """)
+    rows = cur.fetchall()
+    result = []
+    for r in rows:
+        result.append({
+            "status": r[0], "count": r[1],
+            "avg_ms": round(r[2] or 0, 0),
+            "on_time": r[3],
+            "breach": r[1] - r[3]
+        })
+    return jsonify({"stats": result})
+
+@app.route("/api/operator/nostro-status", methods=["GET"])
+@zero_trust_required
+def operator_nostro_status():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT currency, COUNT(*) as tx_count, SUM(amount) as total_flow,
+               SUM(CASE WHEN status='settled' THEN amount ELSE 0 END) as settled_amount,
+               SUM(CASE WHEN status='blocked' THEN amount ELSE 0 END) as blocked_amount
+        FROM settlements GROUP BY currency ORDER BY total_flow DESC
+    """)
+    rows = cur.fetchall()
+    cols = ["currency","tx_count","total_flow","settled_amount","blocked_amount"]
+    return jsonify({"nostro": [dict(zip(cols,r)) for r in rows]})
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()

@@ -226,6 +226,7 @@ tailwind.config = {
     <button onclick="switchTab('defi')" data-tab="defi" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-coins mr-1"></i>DeFi
     </button>
+    <button onclick="switchTab('operations')" data-tab="operations" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap"><i class="fas fa-tower-control mr-1"></i>Operations</button>
   </nav>
 
   <!-- Tab Content -->
@@ -3334,6 +3335,105 @@ tailwind.config = {
     </div>
   </div>
 
+<!-- ============================================================ -->
+<!-- TAB: Operations Control Center (operator only)              -->
+<!-- ============================================================ -->
+<div id="tab-operations" class="tab-content hidden fade-in">
+  <div class="p-6 max-w-7xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-tower-control mr-2 text-accent"></i>Operations Control Center</h2>
+        <p class="text-xs text-gray-400 mt-0.5">Real-time payment operations dashboard — Operator view</p>
+      </div>
+      <button onclick="loadOperatorCenter()" class="px-4 py-2 text-xs font-semibold bg-accent text-white rounded-lg hover:bg-blue-800 transition"><i class="fas fa-rotate mr-1"></i>Refresh</button>
+    </div>
+
+    <!-- KPI Strip -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div class="glass rounded-xl p-4 text-center">
+        <div class="text-2xl font-bold text-accent" id="opsProcessedToday">—</div>
+        <div class="text-xs text-gray-400 mt-1">Processed Today</div>
+      </div>
+      <div class="glass rounded-xl p-4 text-center">
+        <div class="text-2xl font-bold text-orange-400" id="opsPendingQueue">—</div>
+        <div class="text-xs text-gray-400 mt-1">Pending Queue</div>
+      </div>
+      <div class="glass rounded-xl p-4 text-center">
+        <div class="text-2xl font-bold text-green-500" id="opsSLAPct">—</div>
+        <div class="text-xs text-gray-400 mt-1">SLA Compliance</div>
+      </div>
+      <div class="glass rounded-xl p-4 text-center">
+        <div class="text-2xl font-bold text-purple-400" id="opsAvgSec">—</div>
+        <div class="text-xs text-gray-400 mt-1">Avg Processing Time</div>
+      </div>
+      <div class="glass rounded-xl p-4 text-center">
+        <div class="text-2xl font-bold text-yellow-400" id="opsPendingApprovals">—</div>
+        <div class="text-xs text-gray-400 mt-1">Pending Approvals</div>
+      </div>
+    </div>
+
+    <!-- Queue + SLA Chart -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Live Payment Queue -->
+      <div class="lg:col-span-2 glass rounded-xl p-5">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3"><i class="fas fa-list-check mr-1 text-accent"></i>Recent Transaction Queue</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="border-b border-gray-200 text-gray-500 text-left">
+                <th class="pb-2 pr-2">TX ID</th>
+                <th class="pb-2 pr-2">Sender</th>
+                <th class="pb-2 pr-2">Receiver</th>
+                <th class="pb-2 pr-2 text-right">Amount</th>
+                <th class="pb-2 pr-2">CCY</th>
+                <th class="pb-2 pr-2 text-right">Risk</th>
+                <th class="pb-2 pr-2">Status</th>
+                <th class="pb-2">SLA</th>
+              </tr>
+            </thead>
+            <tbody id="opsQueueBody">
+              <tr><td colspan="8" class="text-center py-6 text-gray-400">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SLA Chart -->
+      <div class="glass rounded-xl p-5">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3"><i class="fas fa-gauge-high mr-1 text-accent"></i>SLA Performance by Status</h3>
+        <div style="height:220px">
+          <canvas id="opsSLAChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nostro Liquidity Table -->
+    <div class="glass rounded-xl p-5">
+      <h3 class="text-sm font-semibold text-gray-700 mb-3"><i class="fas fa-building-columns mr-1 text-accent"></i>Nostro Account Flow by Currency</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="border-b border-gray-200 text-gray-500 text-left">
+              <th class="pb-2 pr-3">Currency</th>
+              <th class="pb-2 pr-3 text-right">Transactions</th>
+              <th class="pb-2 pr-3 text-right">Total Flow</th>
+              <th class="pb-2 pr-3 text-right">Settled</th>
+              <th class="pb-2 text-center">Settlement Rate</th>
+            </tr>
+          </thead>
+          <tbody id="opsNostroBody">
+            <tr><td colspan="5" class="text-center py-6 text-gray-400">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
   </main>
 </div>
 
@@ -3564,7 +3664,7 @@ function configureUIForRole() {
   const tabAccess = {
     admin:         ['dashboard','approvals','aiml','compliance','cases','security','cards','admin','ledger','aml','corridors','dsworkbench','graph','mlops'],
     compliance:    ['dashboard','approvals','aiml','compliance','cases','security','ledger','aml','graph'],
-    operator:      ['dashboard','approvals','security','cards','ledger','corridors','aml'],
+    operator:      ['dashboard','approvals','security','cards','ledger','corridors','aml','operations'],
     auditor:       ['dashboard','aiml','compliance','cases','ledger','aml','graph'],
     datascientist: ['dashboard','aiml','ledger','aml','dsworkbench','graph','mlops'],
     client:        ['dashboard','beneficiaries','payments','security','cards','documents','spending360'],
@@ -3732,6 +3832,7 @@ function switchTab(tab) {
   if (tab === 'ledger') { if (typeof loadLedgerTab === 'function') loadLedgerTab(); }
   if (tab === 'dsworkbench') { if (typeof loadDSWorkbench === 'function') loadDSWorkbench(); }
   if (tab === 'defi') { if (typeof loadDefi === 'function') loadDefi(); }
+  if (tab === 'operations') { if (typeof loadOperatorCenter === 'function') loadOperatorCenter(); }
 }
 
 // ============================================================
@@ -4573,7 +4674,7 @@ async function renderCorridorMap_legacy() {
   <script src="/static/js/tabs/tab-cases.js?v=5"></script>
   <script src="/static/js/tabs/tab-admin.js?v=5"></script>
   <script src="/static/js/tabs/tab-beneficiaries.js?v=4"></script>
-  <script src="/static/js/tabs/tab-spending360.js?v=4"></script>
+  <script src="/static/js/tabs/tab-spending360.js?v=5"></script>
   <script src="/static/js/tabs/tab-cards.js?v=5"></script>
   <script src="/static/js/tabs/tab-security.js?v=5"></script>
   <script src="/static/js/tabs/tab-documents.js?v=4"></script>
@@ -4581,6 +4682,7 @@ async function renderCorridorMap_legacy() {
   <script src="/static/js/tabs/tab-ledger.js?v=5"></script>
   <script src="/static/js/tabs/tab-dsworkbench.js?v=5"></script>
   <script src="/static/js/tabs/tab-defi.js?v=5"></script>
+  <script src="/static/js/tabs/tab-operator.js?v=1"></script>
 
   <!-- ============================================================ -->
   <!-- GLOBAL Payment Journey Modal Overlay                         -->

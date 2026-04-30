@@ -1,11 +1,11 @@
 // tab-spending360.js — Spending 360 module for IPTS
 
 let spt360MonthlyChart = null;
-let rptStatusChart = null;
-let rptRiskChart = null;
-let rptCurrencyChart = null;
-let rptHourlyChart = null;
-let rptDowChart = null;
+let spt360StatusChart = null;
+let spt360RiskChart = null;
+let spt360CurrencyChart = null;
+let spt360HourlyChart = null;
+let spt360DowChart = null;
 
 async function loadSpending360() {
   try {
@@ -80,9 +80,9 @@ function renderMonthlyTrend(data) {
 }
 
 function renderStatusChart(data) {
-  if (rptStatusChart) rptStatusChart.destroy();
+  if (spt360StatusChart) spt360StatusChart.destroy();
   const colors = { settled: '#0D47A1', blocked: '#ef4444', flagged: '#f59e0b', pending: '#8b5cf6' };
-  rptStatusChart = makeChart('rptStatusChart', {
+  spt360StatusChart = makeChart('spt360StatusChart', {
     type: 'doughnut',
     data: {
       labels: data.map(d => (d.status || 'unknown').toUpperCase()),
@@ -104,8 +104,8 @@ function renderStatusChart(data) {
 }
 
 function renderRiskChart(data) {
-  if (rptRiskChart) rptRiskChart.destroy();
-  rptRiskChart = makeChart('rptRiskChart', {
+  if (spt360RiskChart) spt360RiskChart.destroy();
+  spt360RiskChart = makeChart('spt360RiskChart', {
     type: 'bar',
     data: {
       labels: ['Low (<30)', 'Medium (30-60)', 'High (60-80)', 'Critical (80+)'],
@@ -128,9 +128,9 @@ function renderRiskChart(data) {
 }
 
 function renderCurrencyChart(data) {
-  if (rptCurrencyChart) rptCurrencyChart.destroy();
+  if (spt360CurrencyChart) spt360CurrencyChart.destroy();
   const currColors = ['#0D47A1','#3b82f6','#8b5cf6','#f59e0b','#ef4444','#ec4899','#06b6d4','#f97316','#84cc16','#6366f1','#14b8a6','#e11d48','#a855f7'];
-  rptCurrencyChart = makeChart('rptCurrencyChart', {
+  spt360CurrencyChart = makeChart('spt360CurrencyChart', {
     type: 'doughnut',
     data: {
       labels: data.map(d => d.currency),
@@ -152,11 +152,11 @@ function renderCurrencyChart(data) {
 }
 
 function renderHourlyChart(data) {
-  if (rptHourlyChart) rptHourlyChart.destroy();
+  if (spt360HourlyChart) spt360HourlyChart.destroy();
   const hours = Array.from({length: 24}, (_, i) => i);
   const hourMap = {};
   data.forEach(d => { hourMap[d.hour] = d; });
-  rptHourlyChart = makeChart('rptHourlyChart', {
+  spt360HourlyChart = makeChart('spt360HourlyChart', {
     type: 'bar',
     data: {
       labels: hours.map(h => `${h}:00`),
@@ -179,11 +179,11 @@ function renderHourlyChart(data) {
 }
 
 function renderDowChart(data) {
-  if (rptDowChart) rptDowChart.destroy();
+  if (spt360DowChart) spt360DowChart.destroy();
   const allDays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const dayMap = {};
   data.forEach(d => { dayMap[d.day] = d; });
-  rptDowChart = makeChart('rptDowChart', {
+  spt360DowChart = makeChart('spt360DowChart', {
     type: 'bar',
     data: {
       labels: allDays,
