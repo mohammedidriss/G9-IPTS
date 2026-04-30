@@ -6290,4 +6290,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(f"\n  IPTS Flask API starting on port {args.port}...")
     app.run(host="0.0.0.0", port=args.port, debug=False, threaded=True)
-# sync test
