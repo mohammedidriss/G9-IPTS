@@ -62,10 +62,10 @@ async function loadDashboard() {
     ACCOUNTS = data.accounts || [];
     const subAccSection = document.getElementById('subAccountsSection');
     if (subAccSection) {
-      subAccSection.style.display = ['client', 'operator'].includes(ROLE) ? '' : 'none';
+      subAccSection.style.display = ROLE === 'client' ? '' : 'none';
     }
     loadTransactions();
-    if (['client', 'operator'].includes(ROLE)) loadSubAccounts();
+    if (ROLE === 'client') loadSubAccounts();
     loadLedger();
     loadVolumeChart();
 

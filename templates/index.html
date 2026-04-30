@@ -2459,7 +2459,7 @@ tailwind.config = {
         <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-route mr-2 text-accent"></i>Payment Corridors</h2>
         <p class="text-sm text-gray-500">Manage and monitor global payment corridors</p>
       </div>
-      <button onclick="showAddCorridorModal()" class="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition"><i class="fas fa-plus mr-1.5"></i>Add Corridor</button>
+      <button onclick="showAddCorridorModal()" id="btnAddCorridor" class="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition"><i class="fas fa-plus mr-1.5"></i>Add Corridor</button>
     </div>
 
 <!-- View toggle -->
@@ -3550,8 +3550,7 @@ function updateHeaderInfo() {
   badge.textContent = ROLE.toUpperCase();
   badge.className = `badge role-badge-${ROLE}`;
   const balEl = document.getElementById('headerBalance');
-  const rolesWithBalance = ['client', 'operator'];
-  if (rolesWithBalance.includes(ROLE)) {
+  if (ROLE === 'client') {
     balEl.textContent = `$${Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
     balEl.parentElement.style.display = '';
   } else {
@@ -3565,7 +3564,7 @@ function configureUIForRole() {
   const tabAccess = {
     admin:         ['dashboard','approvals','aiml','compliance','cases','security','cards','admin','ledger','aml','corridors','dsworkbench','graph','mlops'],
     compliance:    ['dashboard','approvals','aiml','compliance','cases','security','ledger','aml','graph'],
-    operator:      ['dashboard','approvals','security','cards','ledger','corridors'],
+    operator:      ['dashboard','approvals','security','cards','ledger','corridors','aml'],
     auditor:       ['dashboard','aiml','compliance','cases','ledger','aml','graph'],
     datascientist: ['dashboard','aiml','ledger','aml','dsworkbench','graph','mlops'],
     client:        ['dashboard','beneficiaries','payments','security','cards','documents','spending360'],
@@ -3582,6 +3581,10 @@ function configureUIForRole() {
       btn.style.display = 'none';
     }
   });
+
+  // Add Corridor button: admin only
+  const addCorridorBtn = document.getElementById('btnAddCorridor');
+  if (addCorridorBtn) addCorridorBtn.style.display = ROLE === 'admin' ? '' : 'none';
 
   // For client: show AI Insights, hide full AI Engine sections
   const clientInsights = document.getElementById('clientAIInsights');
