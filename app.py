@@ -39,8 +39,10 @@ APP_SECRET = os.environ.get("IPTS_SECRET_KEY", "ipts_enterprise_secret_2026_xK9m
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 1
 
-# All paths are absolute relative to this file so the app works from any cwd
-_BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
+# All paths resolve to the project root regardless of whether app.py is run
+# from the root directly or from the .runtime/ subdirectory
+_THIS_DIR     = os.path.dirname(os.path.abspath(__file__))
+_BASE_DIR     = os.path.dirname(_THIS_DIR) if os.path.basename(_THIS_DIR) == '.runtime' else _THIS_DIR
 DB_PATH       = os.path.join(_BASE_DIR, "ipts_vault.db")
 MODELS_DIR    = os.path.join(_BASE_DIR, "models")
 CONTRACTS_DIR = os.path.join(_BASE_DIR, "contracts")
