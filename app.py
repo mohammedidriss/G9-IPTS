@@ -4576,6 +4576,36 @@ def refund_escrow(escrow_id):
     conn.close()
     return jsonify({"status": "refunded", "amount": escrow["amount"], "new_balance": round(get_user_balance(username), 2)})
 
+@app.route("/api/defi/portfolio", methods=["GET"])
+@zero_trust_required
+def defi_portfolio():
+    username = request.user.get("sub")
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    balance = get_user_balance(username)
+    c.execute("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM staking_positions WHERE username=? AND status='active'", (username,))
+    row = c.fetchone()
+    total_staked, stake_count = row[0], row[1]
+    c.execute("SELECT amount, apy, staked_at FROM staking_positions WHERE username=? AND status='active'", (username,))
+    total_yield = 0.0
+    for r in c.fetchall():
+        staked_at = datetime.fromisoformat(r["staked_at"])
+        days = (datetime.utcnow() - staked_at).total_seconds() / 86400
+        total_yield += r["amount"] * (r["apy"] / 365 / 100) * days
+    c.execute("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM escrow_contracts WHERE sender=? AND status='locked'", (username,))
+    row = c.fetchone()
+    locked_escrow, escrow_count = row[0], row[1]
+    conn.close()
+    return jsonify({
+        "balance": round(balance, 2),
+        "total_staked": round(total_staked, 2),
+        "stake_count": int(stake_count),
+        "accrued_yield": round(total_yield, 4),
+        "locked_escrow": round(locked_escrow, 2),
+        "escrow_count": int(escrow_count),
+    })
+
 # --- Support Chat (Ollama LLM) ---
 import threading
 _chat_sessions = {}

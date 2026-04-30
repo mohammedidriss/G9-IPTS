@@ -22,6 +22,7 @@ function loadDefiTab() {
   if (isClient) {
     showDefiClientSection('swap');
     loadPools();
+    loadDefiPortfolio();
   } else {
     loadDefiAdmin();
   }
@@ -375,6 +376,20 @@ function showDefiSub(sub) {
 }
 
 // ============================================================
+// DeFi — Portfolio Summary
+// ============================================================
+async function loadDefiPortfolio() {
+  try {
+    const d = await apiFetch('/api/defi/portfolio');
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('pfBalance', '$' + Number(d.balance).toLocaleString('en-US', {minimumFractionDigits:2}));
+    set('pfStaked',  '$' + Number(d.total_staked).toLocaleString('en-US', {minimumFractionDigits:2}));
+    set('pfEscrow',  '$' + Number(d.locked_escrow).toLocaleString('en-US', {minimumFractionDigits:2}));
+    set('pfYield',   '$' + Number(d.accrued_yield).toLocaleString('en-US', {minimumFractionDigits:4}));
+  } catch(e) { console.error('Portfolio error', e); }
+}
+
+// ============================================================
 // DeFi — AMM Swap
 // ============================================================
 async function loadPools() {
@@ -388,61 +403,129 @@ async function loadPools() {
           <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-400">${p.quote}</div>
           <div>
             <div class="text-sm font-semibold text-gray-800">${p.pair}</div>
-            <div class="text-xs text-gray-400">Swaps: ${p.swap_count}</div>
+            <div class="text-xs text-gray-400">Swaps: ${p.swap_count} · TVL: $${Number(p.tvl).toLocaleString()}</div>
           </div>
         </div>
         <div class="text-right">
           <div class="text-sm font-semibold text-accent">${p.price.toFixed(p.price > 100 ? 2 : 6)}</div>
-          <div class="text-xs text-gray-400">TVL: $${Number(p.tvl).toLocaleString()}</div>
+          <div class="text-xs text-gray-400">${p.base}/${p.quote}</div>
         </div>
       </div>`).join('');
   } catch(e) { console.error('Pools error', e); }
 }
 
-function previewSwap() {
-  const amount = parseFloat(document.getElementById('swapAmountIn').value) || 0;
-  const pair = document.getElementById('swapPair').value;
-  const preview = document.getElementById('swapPreview');
-  if (amount <= 0) { preview.classList.add('hidden'); return; }
-  preview.classList.remove('hidden');
-  apiFetch('/api/defi/pools').then(pools => {
-    const pool = pools.find(p => p.pair === pair);
-    if (!pool) return;
-    const rb = pool.reserve_base, rq = pool.reserve_quote;
-    const newRb = rb + amount;
-    const newRq = (rb * rq) / newRb;
-    const out = rq - newRq;
-    const fee = out * 0.003;
-    const outAfterFee = out - fee;
-    const spotPrice = rq / rb;
-    const execPrice = amount / out;
-    const impact = Math.abs(execPrice - spotPrice) / spotPrice * 100;
-    document.getElementById('swapRate').textContent = (amount / outAfterFee).toFixed(6);
-    document.getElementById('swapOut').textContent = outAfterFee.toFixed(outAfterFee > 100 ? 2 : 6);
-    document.getElementById('swapImpact').textContent = impact.toFixed(4) + '%';
-    document.getElementById('swapImpact').className = impact > 1 ? 'text-red-400' : 'text-green-400';
-    document.getElementById('swapFee').textContent = fee.toFixed(6);
-  });
+// Derive { pair, direction } from the FROM/TO token selectors
+function getSwapParams() {
+  const from = (document.getElementById('swapFromToken') || {}).value || 'USD';
+  const to   = (document.getElementById('swapToToken')   || {}).value || 'EUR';
+  if (from === 'USD') return { pair: `USD/${to}`,   direction: 'buy'  };
+  if (to   === 'USD') return { pair: `USD/${from}`,  direction: 'sell' };
+  return null; // cross-pair not directly supported
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const inp = document.getElementById('swapAmountIn');
-  if (inp) inp.addEventListener('input', previewSwap);
-});
+function onSwapTokenChange() {
+  const from = document.getElementById('swapFromToken').value;
+  const to   = document.getElementById('swapToToken').value;
+  // Prevent same token on both sides
+  if (from === to) {
+    const toEl = document.getElementById('swapToToken');
+    const opts = [...toEl.options].map(o => o.value).filter(v => v !== from);
+    toEl.value = opts[0] || (from === 'USD' ? 'EUR' : 'USD');
+  }
+  document.getElementById('swapOut').textContent = '0';
+  document.getElementById('swapPreview').classList.add('hidden');
+  document.getElementById('swapImpactBadge').classList.add('hidden');
+  previewSwap();
+}
+
+function flipSwap() {
+  const fromEl = document.getElementById('swapFromToken');
+  const toEl   = document.getElementById('swapToToken');
+  const tmp = fromEl.value;
+  fromEl.value = toEl.value;
+  toEl.value   = tmp;
+  document.getElementById('swapAmountIn').value = '';
+  document.getElementById('swapOut').textContent = '0';
+  document.getElementById('swapPreview').classList.add('hidden');
+  document.getElementById('swapImpactBadge').classList.add('hidden');
+}
+
+function previewSwap() {
+  const amount = parseFloat(document.getElementById('swapAmountIn').value) || 0;
+  const preview = document.getElementById('swapPreview');
+  const outEl   = document.getElementById('swapOut');
+  if (amount <= 0) {
+    preview.classList.add('hidden');
+    outEl.textContent = '0';
+    return;
+  }
+  const params = getSwapParams();
+  if (!params) {
+    outEl.textContent = '—';
+    preview.classList.add('hidden');
+    return;
+  }
+  apiFetch('/api/defi/pools').then(pools => {
+    const pool = pools.find(p => p.pair === params.pair);
+    if (!pool) return;
+    const rb = pool.reserve_base, rq = pool.reserve_quote, k = pool.k_constant || rb * rq;
+    let out, spotPrice, execPrice;
+    if (params.direction === 'buy') {
+      const newRb = rb + amount;
+      const newRq = k / newRb;
+      out = rq - newRq;
+      spotPrice = rq / rb;
+      execPrice = amount / out;
+    } else {
+      const newRq = rq + amount;
+      const newRb = k / newRq;
+      out = rb - newRb;
+      spotPrice = rb / rq;
+      execPrice = amount / out;
+    }
+    const fee = out * 0.003;
+    const outAfterFee = out - fee;
+    const impact = Math.abs(execPrice - spotPrice) / spotPrice * 100;
+    const decimals = outAfterFee > 100 ? 2 : 6;
+    outEl.textContent = outAfterFee.toFixed(decimals);
+    document.getElementById('swapRate').textContent = (amount / outAfterFee).toFixed(6);
+    document.getElementById('swapImpact').textContent = impact.toFixed(4) + '%';
+    document.getElementById('swapImpact').className = 'font-mono ' + (impact > 1 ? 'text-red-400' : 'text-green-400');
+    document.getElementById('swapFee').textContent = fee.toFixed(6);
+    preview.classList.remove('hidden');
+    const badge = document.getElementById('swapImpactBadge');
+    if (impact > 0.5) {
+      badge.textContent = impact.toFixed(2) + '% impact';
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  }).catch(e => console.error('Preview error', e));
+}
 
 async function executeSwap() {
-  const pair = document.getElementById('swapPair').value;
   const amount = parseFloat(document.getElementById('swapAmountIn').value) || 0;
   if (amount <= 0) return;
+  const params = getSwapParams();
   const res = document.getElementById('swapResult');
+  if (!params) {
+    res.className = 'text-xs mt-2 p-3 rounded-lg bg-red-500/10 text-red-400';
+    res.innerHTML = '<i class="fas fa-times-circle mr-1"></i>Direct cross-pair swaps not supported. Use USD as one side.';
+    res.classList.remove('hidden');
+    return;
+  }
   try {
-    const result = await apiFetch('/api/defi/swap', { method: 'POST', body: JSON.stringify({ pair, amount, direction: 'buy' }) });
+    const result = await apiFetch('/api/defi/swap', { method: 'POST', body: JSON.stringify({ pair: params.pair, amount, direction: params.direction }) });
+    const from = document.getElementById('swapFromToken').value;
+    const to   = document.getElementById('swapToToken').value;
     res.className = 'text-xs mt-2 p-3 rounded-lg bg-green-500/10 text-green-400';
-    res.innerHTML = `<i class="fas fa-check-circle mr-1"></i>Swapped $${result.amount_in.toLocaleString()} → ${result.amount_out.toFixed(result.amount_out > 100 ? 2 : 6)} (Impact: ${result.price_impact}%) | New Balance: $${result.new_balance.toLocaleString()}`;
+    res.innerHTML = `<i class="fas fa-check-circle mr-1"></i>${result.amount_in.toLocaleString()} ${from} → ${result.amount_out.toFixed(result.amount_out > 100 ? 2 : 6)} ${to} (Impact: ${result.price_impact}%) | Balance: $${result.new_balance.toLocaleString()}`;
     res.classList.remove('hidden');
     document.getElementById('swapAmountIn').value = '';
+    document.getElementById('swapOut').textContent = '0';
     document.getElementById('swapPreview').classList.add('hidden');
     loadPools();
+    loadDefiPortfolio();
     updateHeaderInfo();
   } catch(e) {
     res.className = 'text-xs mt-2 p-3 rounded-lg bg-red-500/10 text-red-400';
@@ -458,19 +541,44 @@ async function loadStaking() {
   try {
     const data = await apiFetch('/api/defi/staking');
     const div = document.getElementById('stakingPositions');
-    if (!data.positions.length) { div.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No staking positions yet. Stake funds to earn yield!</p>'; }
-    else {
+    const lockDays = { flexible: 0, '30day': 30, '90day': 90 };
+    if (!data.positions.length) {
+      div.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No staking positions yet. Stake funds to earn yield!</p>';
+    } else {
       div.innerHTML = data.positions.map(p => {
         const statusColor = p.status === 'active' ? 'text-green-400 bg-green-500/10' : 'text-gray-400 bg-gray-500/10';
-        return `<div class="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-          <div>
-            <div class="text-sm font-semibold text-gray-800">$${Number(p.amount).toLocaleString()} <span class="text-xs text-gray-400">in ${p.pool}</span></div>
-            <div class="text-xs text-gray-400">${p.apy}% APY · ${p.days_elapsed} days · Earned: <span class="text-accent font-semibold">$${p.accrued_yield.toFixed(2)}</span></div>
+        const ld = lockDays[p.pool] || 0;
+        let progressHtml = '';
+        if (ld > 0 && p.status === 'active') {
+          const pct = Math.min(100, (p.days_elapsed / ld) * 100);
+          const daysLeft = Math.max(0, ld - p.days_elapsed);
+          const barColor = daysLeft < 1 ? 'bg-red-400' : daysLeft < 7 ? 'bg-yellow-400' : 'bg-green-400';
+          const textColor = daysLeft < 1 ? 'text-red-400' : daysLeft < 7 ? 'text-yellow-500' : 'text-green-500';
+          progressHtml = `
+            <div class="mt-2">
+              <div class="flex justify-between text-[10px] mb-1">
+                <span class="text-gray-400">Lock progress (${p.days_elapsed.toFixed(1)}/${ld}d)</span>
+                <span class="${textColor} font-semibold">${daysLeft.toFixed(1)}d remaining</span>
+              </div>
+              <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full ${barColor} rounded-full" style="width:${pct.toFixed(1)}%"></div>
+              </div>
+            </div>`;
+        } else if (ld === 0 && p.status === 'active') {
+          progressHtml = `<div class="mt-1 text-[10px] text-green-400"><i class="fas fa-unlock mr-1"></i>Flexible — unstake anytime</div>`;
+        }
+        return `<div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-semibold text-gray-800">$${Number(p.amount).toLocaleString()} <span class="text-xs text-gray-400">· ${p.pool} · ${p.apy}% APY</span></div>
+              <div class="text-xs text-gray-400 mt-0.5">Earned: <span class="text-accent font-semibold">$${p.accrued_yield.toFixed(4)}</span></div>
+            </div>
+            <div class="flex items-center gap-2 ml-3">
+              <span class="px-2 py-0.5 rounded-full text-xs font-bold ${statusColor} shrink-0">${p.status}</span>
+              ${p.status === 'active' ? `<button onclick="unstake('${p.id}')" class="px-3 py-1 rounded-lg bg-red-500/20 text-red-400 text-xs font-semibold hover:bg-red-500/30 shrink-0">Unstake</button>` : ''}
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded-full text-xs font-bold ${statusColor}">${p.status}</span>
-            ${p.status === 'active' ? `<button onclick="unstake('${p.id}')" class="px-3 py-1 rounded-lg bg-red-500/20 text-red-400 text-xs font-semibold hover:bg-red-500/30">Unstake</button>` : ''}
-          </div>
+          ${progressHtml}
         </div>`;
       }).join('');
     }
@@ -529,13 +637,38 @@ async function unstake(id) {
 // ============================================================
 // DeFi — HTLC Escrow
 // ============================================================
+let _escrowTimerInterval = null;
+
+function updateEscrowCountdowns() {
+  document.querySelectorAll('.escrow-countdown').forEach(el => {
+    const expiry = new Date(el.dataset.expiry);
+    const diff = expiry - Date.now();
+    if (diff <= 0) {
+      el.textContent = 'Expired';
+      el.className = 'escrow-countdown text-xs font-semibold text-red-400';
+    } else {
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const txt = h >= 48 ? `${Math.floor(h/24)}d ${h%24}h left` : h > 0 ? `${h}h ${m}m left` : `${m}m left`;
+      el.textContent = txt;
+      el.className = 'escrow-countdown text-xs font-semibold ' + (h < 1 ? 'text-red-400' : h < 6 ? 'text-yellow-500' : 'text-green-500');
+    }
+  });
+}
+
+function startEscrowCountdowns() {
+  if (_escrowTimerInterval) clearInterval(_escrowTimerInterval);
+  updateEscrowCountdowns();
+  _escrowTimerInterval = setInterval(updateEscrowCountdowns, 30000);
+}
+
 async function loadEscrows() {
   try {
     const escrows = await apiFetch('/api/defi/escrow');
     const div = document.getElementById('escrowList');
     if (!escrows.length) { div.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No escrow contracts. Create one to get started!</p>'; return; }
+    const colors = { locked: 'text-yellow-400 bg-yellow-500/10', claimed: 'text-green-400 bg-green-500/10', refunded: 'text-blue-400 bg-blue-500/10', expired: 'text-red-400 bg-red-500/10' };
     div.innerHTML = escrows.map(e => {
-      const colors = { locked: 'text-yellow-400 bg-yellow-500/10', claimed: 'text-green-400 bg-green-500/10', refunded: 'text-blue-400 bg-blue-500/10', expired: 'text-red-400 bg-red-500/10' };
       const sc = colors[e.status] || 'text-gray-400 bg-gray-500/10';
       const role = e.is_sender ? 'Sender' : 'Receiver';
       const other = e.is_sender ? e.receiver : e.sender;
@@ -546,18 +679,27 @@ async function loadEscrows() {
       if ((e.status === 'locked' || e.status === 'expired') && e.is_sender) {
         actions = `<button onclick="refundEscrow('${e.id}')" class="px-2 py-1 rounded bg-blue-500/20 text-blue-400 text-xs font-semibold">Refund</button>`;
       }
-      return `<div class="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-        <div>
-          <div class="text-sm font-semibold text-gray-800">$${Number(e.amount).toLocaleString()} <span class="text-xs text-gray-400">→ ${other} (${role})</span></div>
-          <div class="text-xs text-gray-400 mt-1">Hashlock: ${e.hashlock.substring(0,16)}... · Expires: ${new Date(e.timelock).toLocaleString()}</div>
-          ${e.is_sender && e.status === 'locked' ? `<div class="text-xs text-yellow-400 mt-1">Secret: <code class="bg-gray-100 px-1 rounded">${e.secret}</code></div>` : ''}
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="px-2 py-0.5 rounded-full text-xs font-bold ${sc}">${e.status}</span>
-          ${actions}
+      const timerHtml = e.status === 'locked'
+        ? `<span class="escrow-countdown text-xs font-semibold text-green-500 ml-2" data-expiry="${e.timelock}">…</span>`
+        : '';
+      return `<div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold text-gray-800">$${Number(e.amount).toLocaleString()} <span class="text-xs text-gray-400">→ ${other} (${role})</span></div>
+            <div class="text-xs text-gray-400 mt-0.5 flex flex-wrap items-center gap-x-2">
+              <span>Hashlock: ${e.hashlock.substring(0,12)}…</span>
+              ${timerHtml}
+            </div>
+            ${e.is_sender && e.status === 'locked' ? `<div class="text-xs text-yellow-500 mt-1 flex items-center gap-1"><i class="fas fa-key text-[10px]"></i>Secret: <code class="bg-white px-1 rounded border border-gray-200 break-all">${e.secret}</code></div>` : ''}
+          </div>
+          <div class="flex flex-col items-end gap-1.5 shrink-0">
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold ${sc}">${e.status}</span>
+            ${actions}
+          </div>
         </div>
       </div>`;
     }).join('');
+    startEscrowCountdowns();
   } catch(e) { console.error('Escrow error', e); }
 }
 
@@ -576,6 +718,7 @@ async function createEscrow() {
     document.getElementById('escrowAmount').value = '';
     loadEscrows();
     updateHeaderInfo();
+    loadDefiPortfolio();
   } catch(e) {
     res.className = 'text-xs mt-2 p-3 rounded-lg bg-red-500/10 text-red-400';
     res.innerHTML = '<i class="fas fa-times-circle mr-1"></i>' + (e.message || 'Failed');
@@ -591,6 +734,7 @@ async function claimEscrow(id) {
     alert(`Claimed $${result.amount.toLocaleString()}! New balance: $${result.new_balance.toLocaleString()}`);
     loadEscrows();
     updateHeaderInfo();
+    loadDefiPortfolio();
   } catch(e) { alert('Claim failed: ' + (e.message || 'Invalid secret')); }
 }
 
@@ -601,5 +745,6 @@ async function refundEscrow(id) {
     alert(`Refunded $${result.amount.toLocaleString()}! New balance: $${result.new_balance.toLocaleString()}`);
     loadEscrows();
     updateHeaderInfo();
+    loadDefiPortfolio();
   } catch(e) { alert('Refund failed: ' + (e.message || 'Timelock not expired')); }
 }

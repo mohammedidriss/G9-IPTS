@@ -3018,6 +3018,25 @@ tailwind.config = {
 
     <!-- ── Client Panel ── -->
     <div id="defiClientTabs">
+      <!-- Portfolio Summary Strip -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <div class="glass rounded-xl p-3 border-l-4 border-accent">
+          <p class="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Available</p>
+          <p id="pfBalance" class="text-base font-bold text-gray-800">—</p>
+        </div>
+        <div class="glass rounded-xl p-3 border-l-4 border-green-400">
+          <p class="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Staked</p>
+          <p id="pfStaked" class="text-base font-bold text-green-500">—</p>
+        </div>
+        <div class="glass rounded-xl p-3 border-l-4 border-yellow-400">
+          <p class="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">In Escrow</p>
+          <p id="pfEscrow" class="text-base font-bold text-yellow-500">—</p>
+        </div>
+        <div class="glass rounded-xl p-3 border-l-4 border-purple-400">
+          <p class="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Yield Earned</p>
+          <p id="pfYield" class="text-base font-bold text-purple-500">—</p>
+        </div>
+      </div>
       <!-- Sub-tab buttons -->
       <div class="flex gap-2 mb-5">
         <button data-client-section="swap"   onclick="showDefiClientSection('swap')"   class="defi-client-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white transition"><i class="fas fa-arrow-right-arrow-left mr-1"></i>Swap</button>
@@ -3038,23 +3057,53 @@ tailwind.config = {
           <!-- Swap Form -->
           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-arrow-right-arrow-left mr-1.5 text-accent"></i>Swap</h3>
-            <div class="space-y-3">
-              <div>
-                <label class="text-xs font-medium text-gray-600 block mb-1">Currency Pair</label>
-                <select id="swapPair" onchange="previewSwap()" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-accent">
-                  <option value="USD/EUR">USD → EUR</option>
-                  <option value="USD/GBP">USD → GBP</option>
-                  <option value="USD/JPY">USD → JPY</option>
-                </select>
+            <div class="space-y-2">
+              <!-- FROM -->
+              <div class="bg-gray-50 rounded-xl p-3 border border-gray-200">
+                <div class="flex justify-between items-center mb-1.5">
+                  <span class="text-xs font-medium text-gray-500">From</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <select id="swapFromToken" onchange="onSwapTokenChange()" class="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-semibold focus:outline-none focus:border-accent w-24">
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="JPY">JPY</option>
+                    <option value="CHF">CHF</option>
+                    <option value="AED">AED</option>
+                    <option value="ETH">ETH</option>
+                  </select>
+                  <input id="swapAmountIn" type="number" min="0.01" step="any" placeholder="0.00" oninput="previewSwap()" class="flex-1 bg-transparent text-right text-xl font-semibold text-gray-800 focus:outline-none placeholder-gray-300 w-0">
+                </div>
               </div>
-              <div>
-                <label class="text-xs font-medium text-gray-600 block mb-1">Amount (USD)</label>
-                <input id="swapAmountIn" type="number" min="1" placeholder="0.00" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-accent">
+              <!-- Flip button -->
+              <div class="flex justify-center">
+                <button onclick="flipSwap()" title="Flip tokens" class="w-8 h-8 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center hover:bg-accent hover:text-white hover:border-accent transition shadow-sm">
+                  <i class="fas fa-arrow-up-arrow-down text-xs"></i>
+                </button>
               </div>
-              <!-- Preview -->
-              <div id="swapPreview" class="hidden bg-gray-50 rounded-xl p-3 text-xs space-y-1.5">
+              <!-- TO -->
+              <div class="bg-gray-50 rounded-xl p-3 border border-gray-200">
+                <div class="flex justify-between items-center mb-1.5">
+                  <span class="text-xs font-medium text-gray-500">To (estimated)</span>
+                  <span id="swapImpactBadge" class="hidden text-[10px] px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-600 font-semibold"></span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <select id="swapToToken" onchange="onSwapTokenChange()" class="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-semibold focus:outline-none focus:border-accent w-24">
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="JPY">JPY</option>
+                    <option value="CHF">CHF</option>
+                    <option value="AED">AED</option>
+                    <option value="ETH">ETH</option>
+                    <option value="USD">USD</option>
+                  </select>
+                  <span id="swapOut" class="flex-1 text-right text-xl font-semibold text-accent">0</span>
+                </div>
+              </div>
+              <!-- Rate strip -->
+              <div id="swapPreview" class="hidden bg-white rounded-xl px-3 py-2 text-xs border border-gray-100 space-y-1">
                 <div class="flex justify-between"><span class="text-gray-400">Rate</span><span id="swapRate" class="font-mono text-gray-700">—</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">You receive</span><span id="swapOut" class="font-mono font-semibold text-accent">—</span></div>
                 <div class="flex justify-between"><span class="text-gray-400">Price impact</span><span id="swapImpact" class="font-mono text-green-400">—</span></div>
                 <div class="flex justify-between"><span class="text-gray-400">Fee (0.3%)</span><span id="swapFee" class="font-mono text-gray-500">—</span></div>
               </div>
