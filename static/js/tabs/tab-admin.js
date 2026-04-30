@@ -185,16 +185,15 @@ async function hitlAction(action, id) {
       if (balEl) balEl.textContent = '$' + Number(BALANCE).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     }
     if (action === 'approve' && result.status === 'approved') {
-      if (window._pendingFlowHitlId && window._pendingFlowHitlId === id) {
-        window._pendingFlowHitlId = null;
-        showPaymentFlow('hitl_approved', { tx_hash: result.tx_hash });
-      } else {
-        showPaymentFlow('hitl_approved', { tx_hash: result.tx_hash });
-      }
+      // Clear any pending flow tracker so SSE doesn't double-trigger
+      window._pendingFlowHitlId = null;
+      showPaymentFlow('hitl_approved', { tx_hash: result.tx_hash });
     }
-    await fetchAccountInfo();
+    // Auto-refresh both the Approvals tab cards AND the Admin tab HITL table
+    await loadApprovals();
     loadHITL();
     loadDashboard();
+    await fetchAccountInfo();
   } catch (e) {
     if (e.data && e.data.blocked_by === 'compliance_case') {
       const notice = document.getElementById('approvalNotice');

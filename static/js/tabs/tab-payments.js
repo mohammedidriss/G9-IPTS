@@ -105,6 +105,11 @@
   }
   window.closePaymentFlowModal = function() {
     pfCloseOverlay();
+    // Cancel any pending flow tracking so SSE doesn't re-open the modal
+    window._pendingFlowHitlId = null;
+    // Clear running timers so no stale animations fire after close
+    _pfTimers.forEach(clearTimeout);
+    _pfTimers.length = 0;
   };
 
   window.showPaymentFlow = function(phase, data) {
@@ -142,7 +147,8 @@
     if (phase === 'hitl_pending') {
       pfReset();
       pfOpenOverlay();
-      if (closeBtn) closeBtn.classList.add('hidden');
+      // Close button visible immediately — user can dismiss while waiting for approval
+      if (closeBtn) closeBtn.classList.remove('hidden');
       const riskScore = data && data.risk_score !== undefined ? data.risk_score.toFixed(1) : '—';
       pfActivateNode(1, 'Transfer initiated ✓', 'green');
       pfActivateNode(2, '⏳ Pending HITL  score: ' + riskScore, 'yellow');
@@ -151,16 +157,15 @@
       const msg   = document.getElementById('flowProgressMsg');
       if (badge) { badge.textContent='AWAITING APPROVAL'; badge.className='text-xs px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/40'; }
       if (icon)  icon.textContent = '⏳';
-      if (msg)   { msg.textContent='Payment held for compliance review — journey will resume once approved.'; msg.style.color='#fde68a'; }
+      if (msg)   { msg.textContent='Payment held for compliance review — click × to dismiss. You will be notified when approved.'; msg.style.color='#fde68a'; }
       [3, 4, 5, 6].forEach(pfDimNode);
-      // Show close button after a short delay so user can dismiss if needed
-      pfTimeout(() => { if (closeBtn) closeBtn.classList.remove('hidden'); }, 3000);
       return;
     }
 
     if (phase === 'hitl_approved') {
       const txHash = data && data.tx_hash ? data.tx_hash.slice(0,14) + '...' : 'confirmed';
       const uetr   = data && data.uetr    ? data.uetr.slice(0,13) + '...' : 'routed';
+      pfReset();          // clear any stale state / timers before re-animating
       pfOpenOverlay();
       if (closeBtn) closeBtn.classList.add('hidden');
 
