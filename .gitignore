@@ -16,14 +16,14 @@ env/
 .env
 .venv/
 
-# ── Database (live data — never commit) ───────────────────────
-*.db
+# ── Database — include the seeded vault for deployment ─────────
+# (ipts_vault.db is committed so a fresh clone is immediately runnable)
 *.sqlite3
 
-# ── ML Models (large binaries — regenerate with train_on_real_data.py) ──
-models/*.pkl
-models/*.joblib
-models/*.h5
+# ── ML Models — include pre-trained models for deployment ──────
+# (pkl/joblib/json files are committed so no retraining is needed on first run)
+# models/*.pkl   ← intentionally NOT ignored
+# models/*.joblib ← intentionally NOT ignored
 
 # ── Dataset (144MB — downloaded on first run) ─────────────────
 datasets/

@@ -80,7 +80,7 @@ USER_ACCOUNTS = {
     "sriram":       {"full_name": "Sriram Acharya Mudumbai",   "balance": 500000.00,  "currency": "USD", "wallet_idx": 2},
     "ali":          {"full_name": "Ali Hassan",                "balance": 350000.00,  "currency": "USD", "wallet_idx": 3},
     "vibin":        {"full_name": "Vibin Chandrabose",         "balance": 150000.00,  "currency": "USD", "wallet_idx": 4},
-    "walid":        {"full_name": "Walid ElMahdy",             "balance": 850000.00,  "currency": "USD", "wallet_idx": 5},
+    "walid":        {"full_name": "Walid ElMahdy",             "balance": 2850000.00, "currency": "USD", "wallet_idx": 5},
     "lena":         {"full_name": "Lena Novak",                "balance": 125000.00,  "currency": "USD", "wallet_idx": 6},
     "james":        {"full_name": "James Okafor",              "balance": 87500.00,   "currency": "USD", "wallet_idx": 7},
     "mei":          {"full_name": "Mei Lin",                   "balance": 310000.00,  "currency": "USD", "wallet_idx": 8},
