@@ -859,17 +859,17 @@ async function loadNotifications() {
     list.innerHTML = d.notifications.map(n => {
       const ic = NOTIF_ICONS[n.type] || NOTIF_ICONS.info;
       const time = n.created_at ? new Date(n.created_at).toLocaleString() : '';
-      const unreadClass = n.is_read ? '' : 'bg-blue-50';
+      const unreadClass = n.read ? '' : 'bg-blue-50';
       return `<div class="px-4 py-3 hover:bg-gray-50 cursor-pointer ${unreadClass} transition"
                    onclick="notifClick('${n.id}', '${n.link_tab || ''}')">
         <div class="flex gap-3 items-start">
           <i class="fas ${ic.icon} ${ic.color} mt-0.5 flex-shrink-0"></i>
           <div class="flex-1 min-w-0">
-            <p class="text-xs ${n.is_read ? 'font-semibold' : 'font-bold'} text-gray-800">${n.title}</p>
+            <p class="text-xs ${n.read ? 'font-normal' : 'font-bold'} text-gray-800">${n.title}</p>
             <p class="text-xs text-gray-500 mt-0.5 leading-snug">${n.message}</p>
             <p class="text-[10px] text-gray-300 mt-1">${time}</p>
           </div>
-          ${!n.is_read ? '<span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-1"></span>' : ''}
+          ${!n.read ? '<span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-1"></span>' : ''}
         </div>
       </div>`;
     }).join('');

@@ -293,12 +293,12 @@ for _h in [_file_handler, _stream_handler]:
 logging.basicConfig(level=logging.INFO, handlers=[_file_handler, _stream_handler])
 logger = logging.getLogger("IPTS")
 
-def add_notification(username, title, message, ntype="info"):
+def add_notification(username, title, message, ntype="info", link_tab=None):
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.execute(
-            "INSERT INTO notifications (username, title, message, type) VALUES (?,?,?,?)",
-            (username, title, message, ntype)
+            "INSERT INTO notifications (username, title, message, type, link_tab) VALUES (?,?,?,?,?)",
+            (username, title, message, ntype, link_tab)
         )
         conn.commit()
         conn.close()
@@ -307,11 +307,11 @@ def add_notification(username, title, message, ntype="info"):
 
 APPROVER_ROLES = {"admin", "compliance", "operator"}
 
-def notify_approvers(title, message, ntype="warning", exclude_username=None):
+def notify_approvers(title, message, ntype="warning", exclude_username=None, link_tab="approvals"):
     """Send a notification to all users with an approver role."""
     for uname, udata in USERS.items():
         if udata.get("role") in APPROVER_ROLES and uname != exclude_username:
-            add_notification(uname, title, message, ntype)
+            add_notification(uname, title, message, ntype, link_tab=link_tab)
 
 # ============================================================
 # Database Setup
@@ -514,8 +514,13 @@ def init_db():
         message TEXT NOT NULL,
         type TEXT DEFAULT 'info',
         read INTEGER DEFAULT 0,
+        link_tab TEXT DEFAULT NULL,
         created_at TEXT DEFAULT (datetime('now'))
     )""")
+    try:
+        c.execute("ALTER TABLE notifications ADD COLUMN link_tab TEXT DEFAULT NULL")
+    except Exception:
+        pass  # column already exists
     conn.commit()
     conn.close()
     logger.info("Database initialized")
@@ -4915,11 +4920,11 @@ def get_notifications():
     username = request.user.get("sub", "")
     conn = sqlite3.connect(DB_PATH)
     rows = conn.execute(
-        "SELECT id, title, message, type, read, created_at FROM notifications WHERE username=? ORDER BY created_at DESC LIMIT 50",
+        "SELECT id, title, message, type, read, created_at, link_tab FROM notifications WHERE username=? ORDER BY created_at DESC LIMIT 50",
         (username,)
     ).fetchall()
     conn.close()
-    notifications = [{"id": r[0], "title": r[1], "message": r[2], "type": r[3], "read": bool(r[4]), "created_at": r[5]} for r in rows]
+    notifications = [{"id": r[0], "title": r[1], "message": r[2], "type": r[3], "read": bool(r[4]), "created_at": r[5], "link_tab": r[6]} for r in rows]
     unread = sum(1 for n in notifications if not n["read"])
     return jsonify({"notifications": notifications, "unread_count": unread})
 
