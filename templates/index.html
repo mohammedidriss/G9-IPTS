@@ -223,6 +223,9 @@ tailwind.config = {
     <button onclick="switchTab('dsworkbench')" data-tab="dsworkbench" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
       <i class="fas fa-flask mr-1"></i>DS Workbench
     </button>
+    <button onclick="switchTab('defi')" data-tab="defi" class="tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-accent transition whitespace-nowrap">
+      <i class="fas fa-coins mr-1"></i>DeFi
+    </button>
   </nav>
 
   <!-- Tab Content -->
@@ -2920,6 +2923,263 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- DeFi Tab -->
+  <div id="tab-defi" class="tab-content hidden fade-in">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h2 id="defiTabTitle" class="text-xl font-bold text-gray-800"><i class="fas fa-coins mr-2 text-accent"></i>DeFi</h2>
+        <p id="defiTabSubtitle" class="text-sm text-gray-500">Swap currencies, stake funds for yield, and create escrow contracts.</p>
+      </div>
+    </div>
+
+    <!-- ── Client Panel ── -->
+    <div id="defiClientTabs">
+      <!-- Sub-tab buttons -->
+      <div class="flex gap-2 mb-5">
+        <button data-client-section="swap"   onclick="showDefiClientSection('swap')"   class="defi-client-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white transition"><i class="fas fa-arrow-right-arrow-left mr-1"></i>Swap</button>
+        <button data-client-section="stake"  onclick="showDefiClientSection('stake')"  class="defi-client-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition"><i class="fas fa-seedling mr-1"></i>Stake</button>
+        <button data-client-section="escrow" onclick="showDefiClientSection('escrow')" class="defi-client-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition"><i class="fas fa-lock mr-1"></i>Escrow</button>
+      </div>
+
+      <!-- ── Swap Sub-section ── -->
+      <div id="defiSwap" class="defi-sub">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Liquidity Pools -->
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-water mr-1.5 text-blue-400"></i>Liquidity Pools</h3>
+            <div id="poolsList" class="space-y-2">
+              <p class="text-sm text-gray-400 text-center py-4"><i class="fas fa-circle-notch fa-spin mr-1"></i>Loading pools…</p>
+            </div>
+          </div>
+          <!-- Swap Form -->
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-arrow-right-arrow-left mr-1.5 text-accent"></i>Swap</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Currency Pair</label>
+                <select id="swapPair" onchange="previewSwap()" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-accent">
+                  <option value="USD/EUR">USD → EUR</option>
+                  <option value="USD/GBP">USD → GBP</option>
+                  <option value="USD/JPY">USD → JPY</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Amount (USD)</label>
+                <input id="swapAmountIn" type="number" min="1" placeholder="0.00" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-accent">
+              </div>
+              <!-- Preview -->
+              <div id="swapPreview" class="hidden bg-gray-50 rounded-xl p-3 text-xs space-y-1.5">
+                <div class="flex justify-between"><span class="text-gray-400">Rate</span><span id="swapRate" class="font-mono text-gray-700">—</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">You receive</span><span id="swapOut" class="font-mono font-semibold text-accent">—</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">Price impact</span><span id="swapImpact" class="font-mono text-green-400">—</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">Fee (0.3%)</span><span id="swapFee" class="font-mono text-gray-500">—</span></div>
+              </div>
+              <button onclick="executeSwap()" class="w-full py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition"><i class="fas fa-bolt mr-1.5"></i>Execute Swap</button>
+              <div id="swapResult" class="hidden text-xs mt-1"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Stake Sub-section ── -->
+      <div id="defiStake" class="defi-sub hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Active Positions -->
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-layer-group mr-1.5 text-green-400"></i>Active Positions</h3>
+            <!-- Summary bar -->
+            <div id="stakingSummary" class="hidden mb-3 flex items-center gap-2 bg-green-50 rounded-xl px-3 py-2 text-xs text-green-700">
+              <i class="fas fa-leaf text-green-400"></i>
+              Total staked: <span id="totalStaked" class="font-bold">$0</span>
+            </div>
+            <div id="stakingPositions" class="space-y-2">
+              <p class="text-sm text-gray-400 text-center py-4">No staking positions yet. Stake funds to earn yield!</p>
+            </div>
+          </div>
+          <!-- Stake Form -->
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-seedling mr-1.5 text-accent"></i>Stake Funds</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Pool Tier</label>
+                <select id="stakePool" onchange="updateStakePreview()" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-accent">
+                  <option value="flexible">Flexible — 3.5% APY</option>
+                  <option value="30day">30-Day Lock — 5.2% APY</option>
+                  <option value="90day">90-Day Lock — 8.1% APY</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Amount (USD)</label>
+                <input id="stakeAmount" type="number" min="10" placeholder="0.00" oninput="updateStakePreview()" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-accent">
+              </div>
+              <!-- Preview -->
+              <div id="stakePreview" class="hidden bg-gray-50 rounded-xl p-3 text-xs space-y-1.5">
+                <div class="flex justify-between"><span class="text-gray-400">APY</span><span id="stakeAPY" class="font-bold text-green-500">—</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">Yield (30d)</span><span id="stakeYield30" class="font-mono text-gray-700">—</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">Yield (annual)</span><span id="stakeYieldAnnual" class="font-mono text-gray-700">—</span></div>
+              </div>
+              <button onclick="executeSstake()" class="w-full py-2.5 rounded-xl bg-green-500 text-white text-sm font-semibold hover:bg-green-600 transition"><i class="fas fa-lock mr-1.5"></i>Stake Now</button>
+              <div id="stakeResult" class="hidden text-xs mt-1"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Escrow Sub-section ── -->
+      <div id="defiEscrow" class="defi-sub hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Active Escrows -->
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-shield-halved mr-1.5 text-yellow-400"></i>Active Escrows</h3>
+            <div id="escrowList" class="space-y-2">
+              <p class="text-sm text-gray-400 text-center py-4">No escrow contracts. Create one to get started!</p>
+            </div>
+          </div>
+          <!-- Create Escrow Form -->
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-4"><i class="fas fa-plus-circle mr-1.5 text-accent"></i>Create HTLC Escrow</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Recipient Username</label>
+                <input id="escrowReceiver" type="text" placeholder="username" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-accent">
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Amount (USD)</label>
+                <input id="escrowAmount" type="number" min="1" placeholder="0.00" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-accent">
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Timelock (hours)</label>
+                <select id="escrowTimelock" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-accent">
+                  <option value="1">1 hour</option>
+                  <option value="6">6 hours</option>
+                  <option value="24" selected>24 hours</option>
+                  <option value="72">3 days</option>
+                  <option value="168">7 days</option>
+                </select>
+              </div>
+              <div class="bg-yellow-50 rounded-xl p-3 text-xs text-yellow-700 border border-yellow-100">
+                <i class="fas fa-info-circle mr-1"></i>A secret key is generated. Share it with the recipient to claim. You can refund after timelock expires.
+              </div>
+              <button onclick="createEscrow()" class="w-full py-2.5 rounded-xl bg-yellow-500 text-white text-sm font-semibold hover:bg-yellow-600 transition"><i class="fas fa-lock mr-1.5"></i>Create Escrow</button>
+              <div id="escrowResult" class="hidden text-xs mt-1"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Admin Panel (non-client roles) ── -->
+    <div id="defiAdminPanel" class="hidden">
+      <!-- KPIs -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+          <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Total TVL</p>
+          <p id="defiAdminTVL" class="text-2xl font-bold text-gray-800">—</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+          <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">24h Volume</p>
+          <p id="defiAdminVol" class="text-2xl font-bold text-accent">—</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+          <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Accrued Fees</p>
+          <p id="defiAdminFees" class="text-2xl font-bold text-green-500">—</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+          <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Staking</p>
+          <p id="defiAdminStakes" class="text-xl font-bold text-purple-500">—</p>
+        </div>
+      </div>
+      <!-- Admin sub-tabs -->
+      <div class="flex flex-wrap gap-2 mb-5">
+        <button data-section="pools"      onclick="showDefiAdminSection('pools')"      class="defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white transition">Pools</button>
+        <button data-section="params"     onclick="showDefiAdminSection('params')"     class="defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Parameters</button>
+        <button data-section="fees"       onclick="showDefiAdminSection('fees')"       class="defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Fee Config</button>
+        <button data-section="emergency"  onclick="showDefiAdminSection('emergency')"  class="defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Emergency</button>
+        <button data-section="governance" onclick="showDefiAdminSection('governance')" class="defi-admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Governance</button>
+      </div>
+      <!-- Pools section -->
+      <div id="defiAdminPools" class="defi-admin-section bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-4">
+        <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-water mr-1.5 text-blue-400"></i>Pool Management</h3>
+        <div id="defiAdminPoolTable"></div>
+      </div>
+      <!-- Parameters section -->
+      <div id="defiAdminParams" class="defi-admin-section hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-4">
+        <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-sliders mr-1.5 text-purple-400"></i>Protocol Parameters</h3>
+        <div id="defiParamForm" class="space-y-3"></div>
+        <button onclick="saveDefiParams()" class="mt-4 px-5 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition">Save Parameters</button>
+        <div id="defiParamMsg" class="text-xs mt-2"></div>
+      </div>
+      <!-- Fee config section -->
+      <div id="defiAdminFeesMgmt" class="defi-admin-section hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-4">
+        <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-percent mr-1.5 text-yellow-400"></i>Fee Configuration</h3>
+        <div class="flex items-center gap-3 mb-4">
+          <span id="feeSwitchStatus" class="text-xs font-semibold text-green-500">Fees: ON</span>
+          <button id="feeSwitchBtn" onclick="toggleFeeSwitch()" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Toggle</button>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-gray-600 block mb-1">Protocol Fee (%)</label>
+            <input id="feeProtocolPct" type="number" step="0.01" placeholder="0.1" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm">
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-600 block mb-1">Flash Loan Fee (bps)</label>
+            <input id="feeFlashLoanBps" type="number" placeholder="9" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm">
+          </div>
+        </div>
+        <div class="mt-3">
+          <label class="text-xs font-medium text-gray-600 block mb-1">Override Pool Fee — Pair</label>
+          <div class="flex gap-2">
+            <select id="poolFeeSelect" class="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm">
+              <option value="USD/EUR">USD/EUR</option>
+              <option value="USD/GBP">USD/GBP</option>
+              <option value="USD/JPY">USD/JPY</option>
+            </select>
+            <input id="poolFeeBps" type="number" placeholder="30 bps" class="w-28 px-3 py-2 rounded-lg border border-gray-200 text-sm">
+          </div>
+        </div>
+        <button onclick="savePoolFee()" class="mt-3 px-5 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition">Apply</button>
+        <button onclick="saveFeeConfig()" class="mt-3 ml-2 px-5 py-2 rounded-xl bg-gray-700 text-white text-sm font-semibold hover:bg-gray-800 transition">Save Global Fees</button>
+        <div id="feeConfigMsg" class="text-xs mt-2"></div>
+        <div id="poolFeeMsg" class="text-xs mt-1"></div>
+      </div>
+      <!-- Emergency section -->
+      <div id="defiAdminEmergency" class="defi-admin-section hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-4">
+        <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-triangle-exclamation mr-1.5 text-red-400"></i>Emergency Controls</h3>
+        <div id="emergencyControlGrid" class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4"></div>
+        <div>
+          <label class="text-xs font-medium text-gray-600 block mb-1">Reason / Note</label>
+          <input id="emergencyReason" type="text" placeholder="Reason for action…" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm">
+        </div>
+        <div class="flex gap-3 mt-3">
+          <button onclick="globalCircuitBreaker(true)"  class="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition"><i class="fas fa-power-off mr-1.5"></i>Pause All</button>
+          <button onclick="globalCircuitBreaker(false)" class="flex-1 py-2 rounded-xl bg-green-500 text-white text-sm font-semibold hover:bg-green-600 transition"><i class="fas fa-play mr-1.5"></i>Resume All</button>
+        </div>
+      </div>
+      <!-- Governance section -->
+      <div id="defiAdminGovernance" class="defi-admin-section hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-landmark mr-1.5 text-indigo-400"></i>Governance Proposals</h3>
+        <div id="proposalsList" class="space-y-2 mb-5"></div>
+        <h4 class="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-3">Submit Proposal</h4>
+        <div class="space-y-2">
+          <input id="propTitle" type="text" placeholder="Proposal title" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm">
+          <textarea id="propDesc" rows="2" placeholder="Description…" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm resize-none"></textarea>
+          <div class="flex gap-2">
+            <select id="propCategory" class="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm">
+              <option value="fee_change">Fee Change</option>
+              <option value="pool_add">Add Pool</option>
+              <option value="param_update">Param Update</option>
+              <option value="emergency">Emergency</option>
+            </select>
+            <input id="propQuorum" type="number" min="1" max="10" value="3" placeholder="Quorum" class="w-24 px-3 py-2 rounded-lg border border-gray-200 text-sm">
+          </div>
+          <input id="propParams" type="text" placeholder='{"param":"value"} (optional JSON)' class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-mono text-xs">
+          <button onclick="submitProposal()" class="w-full py-2.5 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-600 transition">Submit Proposal</button>
+          <div id="propResult" class="text-xs mt-1"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   </main>
 </div>
 
@@ -4145,7 +4405,7 @@ async function renderCorridorMap_legacy() {
 </div>
 
 <!-- Core shared utilities (auth, SSE, FX, notifications, etc.) -->
-<script src="/static/js/tabs/core.js?v=5"></script>
+<script src="/static/js/tabs/core.js?v=6"></script>
 <script src="/static/js/tabs/tab-network.js?v=5"></script>
 <script src="/static/js/tabs/tab-corridors.js?v=5"></script>
 

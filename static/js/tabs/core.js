@@ -123,7 +123,7 @@ function configureUIForRole() {
     operator:      ['dashboard', 'approvals', 'security', 'cards', 'ledger', 'corridors'],
     auditor:       ['dashboard', 'aiml', 'compliance', 'cases', 'ledger', 'aml', 'graph'],
     datascientist: ['dashboard', 'aiml', 'ledger', 'aml', 'dsworkbench', 'graph', 'mlops'],
-    client:        ['dashboard', 'beneficiaries', 'payments', 'security', 'cards', 'documents', 'spending360'],
+    client:        ['dashboard', 'beneficiaries', 'payments', 'security', 'cards', 'documents', 'spending360', 'defi'],
   };
 
   const allowed = tabAccess[ROLE] || null;
