@@ -1596,11 +1596,14 @@ def get_beneficiaries():
     
     bens = []
     for row in rows:
+        name_lower = (row[1] or "").lower()
+        is_suspicious = any(w in name_lower or name_lower in w for w in WATCHLIST_ENTITIES)
         bens.append({
             "id": row[0], "name": row[1], "nickname": row[2],
             "account_number": row[3], "bank_name": row[4], "swift_code": row[5],
             "country": row[6], "currency": row[7], "beneficiary_type": row[8],
-            "notes": row[9], "created_at": row[10]
+            "notes": row[9], "created_at": row[10],
+            "suspicious": is_suspicious
         })
     return jsonify({"beneficiaries": bens})
 

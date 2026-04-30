@@ -559,9 +559,17 @@ tailwind.config = {
 
             <div>
               <label class="block text-xs text-gray-500 mb-1">Beneficiary</label>
-              <select id="payBeneficiary" class="w-full px-3 py-2 rounded-lg text-sm">
+              <select id="payBeneficiary" class="w-full px-3 py-2 rounded-lg text-sm" onchange="onBeneficiarySelect(this)">
                 <option value="">Select beneficiary...</option>
               </select>
+              <!-- Suspicious beneficiary warning -->
+              <div id="suspiciousBeneficiaryWarning" class="hidden mt-2 flex items-start gap-2 bg-red-50 border border-red-300 rounded-lg px-3 py-2">
+                <i class="fas fa-exclamation-triangle text-red-500 mt-0.5 flex-shrink-0"></i>
+                <div>
+                  <p class="text-xs font-bold text-red-700">⚠ High-Risk Beneficiary Detected</p>
+                  <p class="text-xs text-red-600 mt-0.5">This beneficiary matches a watchlist / sanctions entity. If you proceed, the transaction will be <strong>automatically blocked</strong> and escalated to Compliance for investigation.</p>
+                </div>
+              </div>
             </div>
             <div class="grid grid-cols-3 gap-3">
               <div class="col-span-2">
